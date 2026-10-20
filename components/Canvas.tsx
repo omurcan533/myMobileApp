@@ -7,6 +7,8 @@ import { Hint } from './Hint';
 import { Muted, useToast } from './ui';
 import { supabase } from '../lib/supabase';
 import { colors, radius, teamColor } from '../lib/theme';
+import { soundFx } from '../lib/soundEffects';
+import { haptic } from '../lib/haptics';
 import type { CanvasItem, Ctx, Side, TeamPiece } from '../lib/types';
 
 /**
@@ -23,7 +25,22 @@ interface BoardItem { id: string; emoji: string; tf: TF }
 
 const tfOf = (i: CanvasItem): TF => ({ x: i.x, y: i.y, scale: i.scale, rotation: i.rotation, flip_x: i.flip_x, z_index: i.z_index });
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
-const REACTIONS = ['😂', '🤯', '👏', '🔥', '😱', '🤌'];
+
+const REACTIONS = [
+  { emoji: '😂', sound: 'laugh' },
+  { emoji: '🔥', sound: 'cheer' },
+  { emoji: '💀', sound: 'horn' },
+  { emoji: '😱', sound: 'whistle' },
+  { emoji: '👏', sound: 'cheer' },
+  { emoji: '🤌', sound: 'boing' },
+];
+
+const SOUNDBOARD_PHRASES = [
+  { text: 'Ters Çevir! 🔄', sound: 'whistle' },
+  { text: 'Daha Büyüt! 🔍', sound: 'boing' },
+  { text: 'Aşırı Çirkin! 💀', sound: 'horn' },
+  { text: 'Harika Oldu! 🔥', sound: 'cheer' },
+];
 
 // ---------------------------------------------------------------- Parça (sürüklenebilir)
 
@@ -128,22 +145,16 @@ function FloatingEmoji({ f, size, onDone }: { f: Floating; size: number; onDone:
 }
 
 function Board({
-  side, size, items, editable, selected, onSelect, onChange, onCommit, floating, onFloatDone,
+  side, size, items, editable, selected, onSelect, onChange, onCommit, floating, onFloatDone, speech,
 }: {
   side: Side; size: number; items: BoardItem[]; editable: boolean; selected?: string | null;
   onSelect?: (id: string | null) => void; onChange?: (id: string, p: Partial<TF>) => void; onCommit?: (id: string) => void;
   floating?: Floating[]; onFloatDone?: (id: number) => void;
+  speech?: { sender: string; text: string } | null;
 }) {
   const sorted = useMemo(() => [...items].sort((a, b) => a.tf.z_index - b.tf.z_index), [items]);
   return (
-    <View style={[s.board, { width: size, height: size, borderColor: teamColor(side), backgroundColor: teamColor(side) + '14' }]}>
-      {/* Hafif ızgara */}
-      {[1, 2, 3].map((i) => (
-        <View key={`v${i}`} style={[s.gridV, { left: (size / 4) * i }]} />
-      ))}
-      {[1, 2, 3].map((i) => (
-        <View key={`h${i}`} style={[s.gridH, { top: (size / 4) * i }]} />
-      ))}
+    <View style={[s.board, { width: size, height: size }]}>
       {editable && (
         <Pressable style={StyleSheet.flatten([s.fill])} onPress={() => onSelect?.(null)} />
       )}
@@ -160,6 +171,12 @@ function Board({
         />
       ))}
       {floating?.map((f) => <FloatingEmoji key={f.id} f={f} size={size} onDone={onFloatDone ?? (() => undefined)} />)}
+      {speech && (
+        <View style={s.speechBubble} pointerEvents="none">
+          <Text style={s.speechSender}>💬 {speech.sender}:</Text>
+          <Text style={s.speechText}>"{speech.text}"</Text>
+        </View>
+      )}
       {items.length === 0 && (
         <View style={s.empty} pointerEvents="none"><Text style={s.emptyText}>{editable ? 'Aşağıdan parça ekle ⬇️' : 'Mimar parça ekliyor…'}</Text></View>
       )}
@@ -300,11 +317,48 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
     persist(selected, tf);
   };
 
+  const [speech, setSpeech] = useState<{ sender: string; text: string } | null>(null);
+  const speechTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerSpeech = (sender: string, text: string) => {
+    setSpeech({ sender, text });
+    if (speechTimer.current) clearTimeout(speechTimer.current);
+    speechTimer.current = setTimeout(() => setSpeech(null), 2500);
+  };
+
   const zs = items.map((i) => i.tf.z_index);
   const placedIds = new Set(rows.map((r) => r.team_piece_id));
   const unplaced = data.teamPieces.filter((t: TeamPiece) => t.side === side && !placedIds.has(t.id));
 
+  // Takım kanalı: canlı hareket + emoji & sesli yönlendirme
+  useEffect(() => {
+    const ch = supabase.channel(`canvas-${data.room.id}-${side}`, { config: { broadcast: { self: false } } });
+    ch.on('broadcast', { event: 'move' }, ({ payload }) => {
+      if (payload.from !== architectRef.current) return;
+      setLive((prev) => ({ ...prev, [payload.id]: { ...payload.tf, ts: Date.now() } }));
+    });
+    ch.on('broadcast', { event: 'react' }, ({ payload }) => {
+      pushReaction(payload.emoji);
+      if (payload.sound) soundFx.playByName(payload.sound);
+      haptic.light();
+    });
+    ch.on('broadcast', { event: 'soundboard' }, ({ payload }) => {
+      if (payload.sound) soundFx.playByName(payload.sound);
+      haptic.medium();
+      triggerSpeech(payload.sender, payload.text);
+    });
+    ch.subscribe();
+    channel.current = ch;
+    return () => {
+      supabase.removeChannel(ch);
+      channel.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.room.id, side]);
+
   const add = async (tp: TeamPiece) => {
+    soundFx.pop();
+    haptic.medium();
     const z = Math.max(0, ...zs) + 1;
     const j = () => 0.5 + (Math.random() - 0.5) * 0.2;
     const { data: row, error } = await supabase
@@ -317,15 +371,30 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
   };
   const remove = async () => {
     if (!selected) return;
+    soundFx.wrong();
+    haptic.medium();
     const id = selected;
     setSelected(null);
     const { error } = await supabase.from('canvas_items').delete().eq('id', id);
     if (error) show(error.message);
   };
 
-  const react = (emoji: string) => {
-    pushReaction(emoji);
-    channel.current?.send({ type: 'broadcast', event: 'react', payload: { emoji } });
+  const sendReaction = (item: { emoji: string; sound: string }) => {
+    pushReaction(item.emoji);
+    soundFx.playByName(item.sound);
+    haptic.light();
+    channel.current?.send({ type: 'broadcast', event: 'react', payload: { emoji: item.emoji, sound: item.sound } });
+  };
+
+  const sendSoundboard = (item: { text: string; sound: string }) => {
+    soundFx.playByName(item.sound);
+    haptic.medium();
+    triggerSpeech(me.nickname, item.text);
+    channel.current?.send({
+      type: 'broadcast',
+      event: 'soundboard',
+      payload: { text: item.text, sound: item.sound, sender: me.nickname },
+    });
   };
 
   return (
@@ -334,6 +403,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
         side={side} size={size} items={items} editable={editable}
         selected={selected} onSelect={setSelected} onChange={onChange} onCommit={onCommit}
         floating={floating} onFloatDone={dropFloating}
+        speech={speech}
       />
 
       {editable ? (
@@ -365,14 +435,38 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
           </View>
         </>
       ) : (
-        <>
-          <Hint id="watcher" text="Mimarı sesli yönlendir ve emojilerle destekle!" />
-          <View style={[s.toolbar, { width: size, justifyContent: 'space-around' }]}>
-            {REACTIONS.map((e) => (
-              <Pressable key={e} onPress={() => react(e)} style={s.react}><Text style={{ fontSize: 28 }}>{e}</Text></Pressable>
+        <View style={{ gap: 12, width: size, alignItems: 'center' }}>
+          <Hint id="watcher" text="Mimarı yönlendirmek için sesli butonlara veya emojilere dokun!" />
+
+          {/* Sesli Yönlendirme Çipleri (Soundboard) */}
+          <View style={s.soundboardSection}>
+            <Text style={s.soundboardLabel}>📢 MİMARA SESLİ YÖNLENDİRME</Text>
+            <View style={s.phraseGrid}>
+              {SOUNDBOARD_PHRASES.map((item) => (
+                <Pressable
+                  key={item.text}
+                  onPress={() => sendSoundboard(item)}
+                  style={({ pressed }) => [s.phraseBtn, pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] }]}
+                >
+                  <Text style={s.phraseText}>{item.text}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Emoji Reaksiyonları */}
+          <View style={[s.toolbar, { width: size, justifyContent: 'space-between', paddingHorizontal: 4 }]}>
+            {REACTIONS.map((item) => (
+              <Pressable
+                key={item.emoji}
+                onPress={() => sendReaction(item)}
+                style={({ pressed }) => [s.react, pressed && { transform: [{ scale: 0.88 }] }]}
+              >
+                <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
+              </Pressable>
             ))}
           </View>
-        </>
+        </View>
       )}
       {toast}
     </View>
@@ -391,15 +485,42 @@ function Tool({ label, onPress, disabled, danger }: { label: string; onPress: ()
 }
 
 const s = StyleSheet.create({
-  board: { borderWidth: 3, borderRadius: radius.md, overflow: 'hidden' },
+  board: { backgroundColor: '#0E131F', borderWidth: 1, borderColor: '#1E2838', borderRadius: 20, overflow: 'hidden' },
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  gridV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: '#FFFFFF10' },
-  gridH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: '#FFFFFF10' },
   empty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.muted, fontWeight: '800', fontSize: 15 },
-  toolbar: { flexDirection: 'row', gap: 6, justifyContent: 'space-between' },
-  tool: { flex: 1, height: 44, borderRadius: radius.sm, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  tray: { width: 78, alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.sm, paddingVertical: 8, borderWidth: 1, borderColor: colors.surface2 },
-  trayName: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 2 },
-  react: { padding: 6, borderRadius: radius.sm, backgroundColor: colors.surface },
+  toolbar: { flexDirection: 'row', gap: 8, justifyContent: 'space-between', marginVertical: 6 },
+  tool: { flex: 1, height: 44, borderRadius: 12, backgroundColor: '#161D2B', borderWidth: 1, borderColor: '#222D3E', alignItems: 'center', justifyContent: 'center' },
+  tray: { width: 84, alignItems: 'center', backgroundColor: '#111622', borderRadius: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#1E283A' },
+  trayName: { color: '#8E9BAE', fontSize: 11, fontWeight: '700', marginTop: 4 },
+  react: { padding: 8, borderRadius: 14, backgroundColor: '#161D2B', borderWidth: 1, borderColor: '#222D3E' },
+  speechBubble: {
+    position: 'absolute',
+    top: 12,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(16, 21, 33, 0.94)',
+    borderWidth: 1,
+    borderColor: '#242F46',
+    borderRadius: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 9999,
+  },
+  speechSender: { color: '#38BDF8', fontSize: 12, fontWeight: '800' },
+  speechText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  soundboardSection: { width: '100%', gap: 6, alignItems: 'center', marginVertical: 4 },
+  soundboardLabel: { color: '#7E8B9E', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  phraseBtn: {
+    backgroundColor: '#161D2C',
+    borderWidth: 1,
+    borderColor: '#242F46',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  phraseText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });

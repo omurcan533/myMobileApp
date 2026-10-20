@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type {
-  Answer, CanvasItem, Minigame, MinigameEntry, Player, Room, RoomData, Round, TeamPiece, TeamState, Vote,
+  Answer, CanvasItem, Minigame, MinigameEntry, Player, Room, RoomData, Round, RoundReveal, TeamPiece, TeamState, Vote,
 } from '../lib/types';
 
 /**
@@ -21,7 +21,7 @@ export function useRoom(roomId: string) {
         data: T[] | null;
       }>;
     };
-    const [rooms, players, teams, rounds, answers, teamPieces, minigames, canvas, votes] = await Promise.all([
+    const [rooms, players, teams, rounds, answers, teamPieces, minigames, canvas, votes, reveals] = await Promise.all([
       q<Room>('rooms'),
       q<Player>('players', 'joined_at'),
       q<TeamState>('room_teams', 'side'),
@@ -31,6 +31,7 @@ export function useRoom(roomId: string) {
       q<Minigame>('room_minigames', 'created_at'),
       q<CanvasItem>('canvas_items', 'z_index'),
       q<Vote>('votes', 'created_at'),
+      q<RoundReveal>('round_reveals', 'created_at'),
     ]);
     if (!alive.current) return;
     const room = rooms.data?.[0];
@@ -56,6 +57,7 @@ export function useRoom(roomId: string) {
       entries,
       canvas: canvas.data ?? [],
       votes: votes.data ?? [],
+      reveals: reveals.data ?? [],
     });
   }, [roomId]);
 
@@ -69,7 +71,7 @@ export function useRoom(roomId: string) {
     load();
 
     const ch = supabase.channel(`room-${roomId}`);
-    for (const table of ['players', 'room_teams', 'room_rounds', 'round_answers', 'team_pieces', 'room_minigames', 'canvas_items', 'votes']) {
+    for (const table of ['players', 'room_teams', 'room_rounds', 'round_answers', 'team_pieces', 'room_minigames', 'canvas_items', 'votes', 'round_reveals']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `room_id=eq.${roomId}` }, schedule);
     }
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, schedule);

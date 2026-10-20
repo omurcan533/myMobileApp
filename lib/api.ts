@@ -21,6 +21,8 @@ const MESSAGES: Record<string, string> = {
   voting_closed: 'Oylama kapandı.',
   no_questions: 'Soru havuzu boş.',
   invalid_answer: 'Cevap 1-80 karakter olmalı.',
+  no_credits: 'Krediniz bitti.',
+  no_more_letters: 'Açılabilecek harf kalmadı.',
 };
 
 export class GameError extends Error {
@@ -50,6 +52,7 @@ export const api = {
   submitFinal: (round: string, body: string) =>
     rpc<{ correct: boolean }>('submit_final', { p_round: round, p_body: body }),
   playJoker: (room: string) => rpc<string>('use_joker', { p_room: room }),
+  buyLetter: (round: string) => rpc<{ pos: number; letter: string }>('buy_letter', { p_round: round }),
   togglePause: (room: string) => rpc<boolean>('toggle_pause', { p_room: room }),
   setCreatureName: (room: string, name: string) => rpc<void>('set_creature_name', { p_room: room, p_name: name }),
   minigameEntry: (mg: string, target?: string) =>

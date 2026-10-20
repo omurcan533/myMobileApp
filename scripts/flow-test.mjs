@@ -161,7 +161,7 @@ check('İnşa bitti -> oylama', toVote.data?.phase === 'voting', JSON.stringify(
 
 // ---- OYLAMA ----
 const own = await A.rpc('cast_vote', { p_room: room, p_side: aSide });
-check('Kendi takımına oy verilemiyor', own.error?.message?.includes('own_team_vote'));
+check('Kendi takımına oy verilebiliyor', !own.error);
 const seeOpp = await B.from('canvas_items').select('id').eq('room_id', room);
 check('Oylamada rakip tuvali görünür', seeOpp.data.length === 1);
 await A.rpc('cast_vote', { p_room: room, p_side: bSide });

@@ -34,6 +34,7 @@ export interface TeamState {
   side: Side;
   score: number;
   jokers_left: number;
+  credits: number;
   creature_name: string | null;
 }
 
@@ -52,6 +53,16 @@ export interface Round {
   winner_side: Side | null;
   revealed_answer: string | null;
   resolved_at: string | null;
+  answer_mask: string | null;
+}
+
+export interface RoundReveal {
+  id: string;
+  round_id: string;
+  room_id: string;
+  side: Side;
+  pos: number;
+  letter: string;
 }
 
 export interface Answer {
@@ -133,6 +144,7 @@ export interface RoomData {
   entries: MinigameEntry[];
   canvas: CanvasItem[];
   votes: Vote[];
+  reveals: RoundReveal[];
 }
 
 export interface Ctx {

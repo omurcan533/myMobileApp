@@ -4,12 +4,14 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius } from '../lib/theme';
+import { colors } from '../lib/theme';
+import { soundFx } from '../lib/soundEffects';
+import { haptic } from '../lib/haptics';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <LinearGradient colors={[colors.bg, colors.bg2]} style={{ flex: 1 }}>
-      <SafeAreaView style={[{ flex: 1, paddingHorizontal: 20, paddingVertical: 12 }, style]}>{children}</SafeAreaView>
+      <SafeAreaView style={[{ flex: 1, paddingHorizontal: 22, paddingVertical: 14 }, style]}>{children}</SafeAreaView>
     </LinearGradient>
   );
 }
@@ -28,23 +30,44 @@ export function Btn({
   style?: StyleProp<ViewStyle>;
 }) {
   const bg =
-    tone === 'primary' ? colors.purple
+    tone === 'primary' ? colors.accent
     : tone === 'danger' ? colors.red
     : tone === 'success' ? colors.green
     : tone === 'custom' ? color
     : 'transparent';
+
+  const isGhost = tone === 'ghost';
+
+  const handlePress = () => {
+    soundFx.click();
+    haptic.light();
+    onPress();
+  };
+
   return (
     <Pressable
       disabled={disabled || loading}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: bg, opacity: disabled ? 0.4 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
-        tone === 'ghost' && { borderWidth: 2, borderColor: colors.surface2 },
+        { backgroundColor: bg, opacity: disabled ? 0.4 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+        isGhost && s.btnGhost,
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color="#fff" /> : <Text style={[s.btnText, tone === 'success' && { color: '#07210F' }]}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <Text
+          style={[
+            s.btnText,
+            isGhost && s.btnGhostText,
+            tone === 'success' && { color: '#07210F' },
+          ]}
+        >
+          {title}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -54,14 +77,14 @@ export function Card({ children, style }: { children: React.ReactNode; style?: S
 }
 
 export function Title({ children, size = 28 }: { children: React.ReactNode; size?: number }) {
-  return <Text style={{ color: colors.text, fontSize: size, fontWeight: '900', letterSpacing: -0.5 }}>{children}</Text>;
+  return <Text style={[s.title, { fontSize: size }]}>{children}</Text>;
 }
 
 export function Muted({ children, style }: { children: React.ReactNode; style?: object }) {
-  return <Text style={[{ color: colors.muted, fontSize: 14, fontWeight: '600' }, style]}>{children}</Text>;
+  return <Text style={[s.muted, style]}>{children}</Text>;
 }
 
-/** Ekranın altında kısa süre görünen bildirim. */
+/** Ekranın altında kısa süre görünen bildirim (Midas Floating Pill). */
 export function useToast() {
   const [msg, setMsg] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -86,8 +109,8 @@ export function Pulse({ children, active = true }: { children: React.ReactNode; 
     if (!active) { v.setValue(1); return; }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.05, duration: 600, useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1.03, duration: 700, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }),
       ]),
     );
     loop.start();
@@ -112,13 +135,28 @@ export function TimerBar({
   const isUrgent = secs <= 5;
   const activeColor = isUrgent ? colors.red : color;
 
+  const prevSecs = useRef(secs);
+  useEffect(() => {
+    if (isUrgent && secs > 0 && prevSecs.current !== secs) {
+      soundFx.tick();
+      haptic.light();
+    }
+    prevSecs.current = secs;
+  }, [isUrgent, secs]);
+
   return (
-    <View style={{ gap: 6, marginVertical: 4 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: colors.muted, fontSize: 13, fontWeight: '700' }}>⏱️ {label}</Text>
-        <Text style={{ color: activeColor, fontSize: 16, fontWeight: '900', letterSpacing: 0.5 }}>
-          {secs} sn
-        </Text>
+    <View style={s.timerContainer}>
+      <View style={s.timerHead}>
+        <View style={s.timerLabelRow}>
+          <Text style={{ fontSize: 13 }}>⏱️</Text>
+          <Text style={s.timerLabel}>{label.toUpperCase()}</Text>
+        </View>
+        <View style={[s.timerBadge, isUrgent && s.timerBadgeUrgent]}>
+          <Text style={[s.timerValue, { color: activeColor }]}>
+            {secs}
+          </Text>
+          <Text style={s.timerUnit}>sn</Text>
+        </View>
       </View>
       <View style={s.barBg}>
         <View style={[s.barFill, { width: `${pct * 100}%`, backgroundColor: activeColor }]} />
@@ -128,11 +166,128 @@ export function TimerBar({
 }
 
 const s = StyleSheet.create({
-  btn: { paddingVertical: 16, paddingHorizontal: 22, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  btnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  card: { backgroundColor: colors.surface, borderRadius: radius.md, padding: 16, borderWidth: 1, borderColor: colors.surface2 },
-  toast: { position: 'absolute', bottom: 40, left: 24, right: 24, backgroundColor: '#000C', padding: 14, borderRadius: radius.sm, alignItems: 'center' },
-  toastText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  barBg: { height: 10, borderRadius: 5, backgroundColor: colors.surface2, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 5 },
+  btn: {
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 100, // Midas hap buton
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnGhost: {
+    backgroundColor: '#121724',
+    borderWidth: 1,
+    borderColor: '#242F46',
+  },
+  btnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  btnGhostText: {
+    color: '#8E9BAE',
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  title: {
+    color: colors.text,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
+  muted: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.1,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 36,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(13, 17, 26, 0.94)',
+    borderWidth: 1,
+    borderColor: '#242F46',
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  timerContainer: {
+    gap: 8,
+    marginVertical: 6,
+    backgroundColor: '#101521',
+    borderWidth: 1,
+    borderColor: '#1C2436',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  timerHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timerLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  timerLabel: {
+    color: '#8E9BAE',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
+  timerBadge: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 2,
+    backgroundColor: '#161D2C',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#242F46',
+  },
+  timerBadgeUrgent: {
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+  },
+  timerValue: {
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  timerUnit: {
+    color: '#8E9BAE',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  barBg: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#1A2336',
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
 });
