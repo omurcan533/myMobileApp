@@ -1,0 +1,149 @@
+export type Side = 'A' | 'B';
+export type Phase = 'lobby' | 'question' | 'minigame' | 'building' | 'voting' | 'results';
+export type Tier = 'base' | 'body' | 'roof';
+
+export interface Room {
+  id: string;
+  code: string;
+  host_user_id: string;
+  mode: 'quick' | 'long';
+  phase: Phase;
+  jokers_per_team: number;
+  paused: boolean;
+  paused_at: string | null;
+  phase_started_at: string | null;
+  phase_ends_at: string | null;
+  midpoint_done: boolean;
+}
+
+export interface Player {
+  id: string;
+  room_id: string;
+  user_id: string;
+  nickname: string;
+  team_side: Side | null;
+  is_host: boolean;
+  is_captain: boolean;
+  is_architect: boolean;
+  locked_until: string | null;
+  joined_at: string;
+}
+
+export interface TeamState {
+  room_id: string;
+  side: Side;
+  score: number;
+  jokers_left: number;
+  creature_name: string | null;
+}
+
+export interface Round {
+  id: string;
+  room_id: string;
+  idx: number;
+  tier: Tier;
+  kind: 'anagram' | 'riddle' | 'social';
+  prompt: string;
+  hints: string[];
+  piece_id: string;
+  status: 'pending' | 'open' | 'resolved';
+  opens_at: string | null;
+  closes_at: string | null;
+  winner_side: Side | null;
+  revealed_answer: string | null;
+  resolved_at: string | null;
+}
+
+export interface Answer {
+  id: string;
+  round_id: string;
+  player_id: string;
+  side: Side;
+  body: string;
+  is_final: boolean;
+  is_correct: boolean | null;
+  created_at: string;
+}
+
+export interface Piece {
+  id: string;
+  slug: string;
+  name_tr: string;
+  category: string;
+  tier: Tier;
+  emoji: string;
+}
+
+export interface TeamPiece {
+  id: string;
+  room_id: string;
+  side: Side;
+  piece_id: string;
+  round_id: string | null;
+  source: 'question' | 'steal' | 'joker' | 'minigame';
+}
+
+export interface Minigame {
+  id: string;
+  room_id: string;
+  kind: 'reflex' | 'social_guess';
+  prompt: string | null;
+  status: 'pending' | 'live' | 'done';
+  starts_at: string | null;
+  winner_side: Side | null;
+  resolved_at: string | null;
+}
+
+export interface MinigameEntry {
+  id: string;
+  minigame_id: string;
+  player_id: string;
+  target_player_id: string | null;
+  reaction_ms: number | null;
+}
+
+export interface CanvasItem {
+  id: string;
+  room_id: string;
+  side: Side;
+  team_piece_id: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  flip_x: boolean;
+  z_index: number;
+}
+
+export interface Vote {
+  id: string;
+  room_id: string;
+  voter_id: string;
+  voted_side: Side;
+}
+
+export interface RoomData {
+  room: Room;
+  players: Player[];
+  teams: TeamState[];
+  rounds: Round[];
+  answers: Answer[];
+  teamPieces: TeamPiece[];
+  minigames: Minigame[];
+  entries: MinigameEntry[];
+  canvas: CanvasItem[];
+  votes: Vote[];
+}
+
+export interface Ctx {
+  data: RoomData;
+  me: Player;
+  catalog: Record<string, Piece>;
+  onLeave: () => void;
+}
+
+export interface GameResults {
+  official_winner: Side | null;
+  funny_winner: Side | null;
+  teams: Record<Side, { score: number; pieces: number; funny_votes: number; creature_name: string | null }>;
+}

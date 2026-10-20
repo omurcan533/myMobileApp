@@ -1,0 +1,12 @@
+import { useEffect, useState } from 'react';
+import { serverNow } from '../lib/serverTime';
+
+/** Sunucu saatine göre akan "şimdi" (ms). */
+export function useNow(intervalMs = 250) {
+  const [now, setNow] = useState(serverNow());
+  useEffect(() => {
+    const id = setInterval(() => setNow(serverNow()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
