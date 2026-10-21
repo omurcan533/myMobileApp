@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { Btn, Card, Muted, Pulse, Screen, Title, useToast } from '../components/ui';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Text, Title, useToast,
+} from '../components/ui';
 import { api } from '../lib/api';
-import { colors } from '../lib/theme';
+import { avatarFor } from '../lib/art';
+import { alpha, colors, gradients } from '../lib/theme';
 import type { Ctx } from '../lib/types';
 import { GAME_TITLE } from './Home';
+
+const MAX_PLAYERS = 12;
+const MIN_SLOTS = 4;
 
 export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, onLeave } = ctx;
@@ -17,7 +25,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
     try {
       await api.startGame(room.id);
     } catch (e) {
-      show((e as Error).message);
+      show((e as Error).message, 'error');
     } finally {
       setBusy(false);
     }
@@ -26,86 +34,92 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const share = () =>
     Share.share({ message: `${GAME_TITLE}'ne gel! Oda kodu: ${room.code}` }).catch(() => undefined);
 
+  const empties = Math.max(0, Math.min(MAX_PLAYERS, Math.max(MIN_SLOTS, players.length + 1)) - players.length);
+  const canStart = players.length >= 2;
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* ================= ODA KODU KARTI ================= */}
-        <View style={s.codeCard}>
-          <View style={s.badge}>
-            <View style={s.badgeDot} />
-            <Text style={s.badgeText}>BEKLEME ODASI</Text>
-          </View>
-          <Text style={s.codeLabel}>KATILIM KODU</Text>
-          <Pulse>
-            <Text style={s.code}>{room.code}</Text>
-          </Pulse>
-          <Btn
-            title="📤 Arkadaşlarına Gönder"
-            tone="ghost"
-            onPress={share}
-            style={{ marginTop: 12, width: '100%' }}
-          />
-        </View>
-
-        {/* ================= OYUNCULAR LİSTESİ ================= */}
-        <Card style={{ gap: 14 }}>
-          <View style={s.playersHead}>
-            <Title size={20}>Oyuncular</Title>
-            <View style={s.countBadge}>
-              <Text style={s.countText}>{players.length} / 12</Text>
+        <Reveal>
+          <View style={s.codeCard}>
+            <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <Eyebrow live color={colors.mint} dot={colors.mint}>Bekleme odası</Eyebrow>
+            <Text style={s.codeLabel}>KATILIM KODU</Text>
+            <Pulse amount={1.025}>
+              <Text display style={s.code}>{room.code}</Text>
+            </Pulse>
+            <View style={s.chipsRow}>
+              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? 'Hızlı mod' : 'Uzun mod'} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
+              <Chip icon="people" label="2 Takım" color={colors.cyan} />
             </View>
+            <Btn title="Arkadaşlarına Gönder" tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
           </View>
+        </Reveal>
 
-          <View style={{ gap: 8 }}>
-            {players.map((p) => {
-              const isMe = p.id === me.id;
-              return (
-                <View key={p.id} style={[s.playerRow, isMe && s.playerRowMe]}>
-                  <View style={s.playerLeft}>
-                    <View style={[s.avatarCircle, isMe && s.avatarCircleMe]}>
-                      <Text style={s.avatarInitial}>
-                        {p.nickname.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={[s.pName, isMe && s.pNameMe]}>
-                      {p.nickname}
-                      {isMe ? ' (Sen)' : ''}
-                    </Text>
+        {/* ================= OYUNCULAR ================= */}
+        <Reveal delay={100}>
+          <Card style={{ gap: 14 }}>
+            <View style={s.playersHead}>
+              <View>
+                <Title size={20}>Oyuncular</Title>
+                <Muted>Takımlar oyun başlayınca belirlenir</Muted>
+              </View>
+              <View style={s.countBadge}>
+                <Text display style={s.countText}>{players.length}</Text>
+                <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
+              </View>
+            </View>
+            <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
+
+            <View style={s.grid}>
+              {players.map((p) => {
+                const isMe = p.id === me.id;
+                return (
+                  <View key={p.id} style={[s.player, isMe && s.playerMe]}>
+                    {p.is_host && (
+                      <View style={s.crown}>
+                        <Ionicons name="star" size={12} color="#3A2100" />
+                      </View>
+                    )}
+                    <Avatar source={avatarFor(p.nickname)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
+                    <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
+                    <Text style={s.pRole}>{p.is_host ? 'KURUCU' : isMe ? 'SEN' : 'OYUNCU'}</Text>
                   </View>
-                  {p.is_host && (
-                    <View style={s.hostBadge}>
-                      <Text style={s.hostText}>👑 Kurucu</Text>
-                    </View>
-                  )}
+                );
+              })}
+              {Array.from({ length: empties }).map((_, i) => (
+                <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
+                  <View style={s.emptyAvatar}>
+                    <Ionicons name="person-add" size={20} color={colors.subtle} />
+                  </View>
+                  <Text style={[s.pName, { color: colors.subtle }]}>Bekleniyor…</Text>
+                  <Text style={s.pRole}> </Text>
                 </View>
-              );
-            })}
-          </View>
-
-          <Muted style={{ marginTop: 4 }}>
-            Oyun başladığında oyuncular adil şekilde iki takıma ayrılır.
-          </Muted>
-        </Card>
+              ))}
+            </View>
+          </Card>
+        </Reveal>
 
         {/* ================= BAŞLAT / AYRIL ================= */}
-        <View style={{ gap: 12, marginTop: 4 }}>
+        <Reveal delay={180} style={{ gap: 12 }}>
           {me.is_host ? (
             <Btn
-              title={players.length < 2 ? 'En az 2 kişi gerekli' : '🚀 Oyunu Başlat'}
-              disabled={players.length < 2}
+              title={canStart ? 'Oyunu Başlat' : 'En az 2 kişi gerekli'}
+              icon={canStart ? 'rocket' : 'hourglass'}
+              disabled={!canStart}
               loading={busy}
               tone="success"
               onPress={start}
             />
           ) : (
-            <Card style={{ alignItems: 'center', paddingVertical: 16 }}>
-              <Muted style={{ textAlign: 'center' }}>
-                ⏳ Kurucunun oyunu başlatması bekleniyor…
-              </Muted>
+            <Card style={s.waiting}>
+              <Ionicons name="hourglass" size={22} color={colors.cyan} />
+              <Muted style={{ flex: 1 }}>Kurucunun oyunu başlatması bekleniyor…</Muted>
             </Card>
           )}
-          <Btn title="Odadan Ayrıl" tone="ghost" onPress={onLeave} />
-        </View>
+          <Btn title="Odadan Ayrıl" tone="ghost" icon="exit-outline" size="md" onPress={onLeave} />
+        </Reveal>
       </ScrollView>
       {toast}
     </Screen>
@@ -113,97 +127,87 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 }
 
 const s = StyleSheet.create({
-  scroll: { gap: 18, paddingBottom: 40 },
+  scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
   codeCard: {
-    backgroundColor: '#101521',
-    borderRadius: 22,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#1C2436',
+    borderColor: alpha(colors.cyan, 0.35),
     padding: 22,
     alignItems: 'center',
-    marginTop: 4,
+    gap: 4,
+    overflow: 'hidden',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.3,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
-    backgroundColor: '#161D2C',
-    borderWidth: 1,
-    borderColor: '#242F46',
-    marginBottom: 12,
-  },
-  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  badgeText: { color: '#8E9BAE', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-  codeLabel: {
-    color: '#8E9BAE',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
+  codeLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 2, marginTop: 10 },
   code: {
-    color: '#F59E0B',
-    fontSize: 58,
+    color: colors.yellow,
+    fontSize: 64,
     fontWeight: '900',
-    letterSpacing: 8,
-    marginVertical: 4,
+    letterSpacing: 10,
+    marginVertical: 2,
+    textShadowColor: alpha(colors.gold, 0.7),
+    textShadowRadius: 18,
+    paddingLeft: 10,
   },
-  playersHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+  chipsRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  playersHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   countBadge: {
-    backgroundColor: '#161D2C',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#242F46',
-  },
-  countText: { color: '#8E9BAE', fontSize: 12, fontWeight: '800' },
-  playerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#090C14',
+    alignItems: 'baseline',
+    backgroundColor: alpha(colors.cyan, 0.1),
     borderWidth: 1,
-    borderColor: '#18202E',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    borderColor: alpha(colors.cyan, 0.38),
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 14,
   },
-  playerRowMe: {
-    borderColor: '#242F46',
-    backgroundColor: '#0E131E',
-  },
-  playerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#161D2C',
+  countText: { color: colors.cyan, fontSize: 22, fontWeight: '900' },
+  countMax: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  player: {
+    width: '31.5%',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: 20,
+    backgroundColor: colors.inset,
     borderWidth: 1,
-    borderColor: '#242F46',
+    borderColor: colors.border,
+  },
+  playerMe: { borderColor: alpha(colors.cyan, 0.55), backgroundColor: alpha(colors.cyan, 0.08) },
+  playerEmpty: { borderStyle: 'dashed', borderColor: colors.borderLight, backgroundColor: 'transparent', opacity: 0.8 },
+  emptyAvatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.borderLight,
   },
-  avatarCircleMe: {
-    backgroundColor: 'rgba(43, 102, 255, 0.2)',
-    borderColor: '#2B66FF',
+  crown: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
   },
-  avatarInitial: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  pName: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  pNameMe: { color: '#60A5FA', fontWeight: '800' },
-  hostBadge: {
-    backgroundColor: '#22190E',
-    borderWidth: 1,
-    borderColor: '#3D2D14',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  hostText: { color: '#F59E0B', fontWeight: '800', fontSize: 12 },
+  pName: { color: colors.text, fontWeight: '700', fontSize: 12.5, maxWidth: '100%' },
+  pRole: { color: colors.subtle, fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
 });

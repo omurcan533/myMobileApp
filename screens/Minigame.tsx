@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { Scoreboard } from '../components/Scoreboard';
-import { Btn, Card, Muted, Pulse, Screen, TimerBar, Title, useToast } from '../components/ui';
+import {
+  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, TimerBar, Title, Text, useToast,
+} from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api, GameError } from '../lib/api';
+import { avatarFor } from '../lib/art';
 import { latestMinigame, secondsLeft } from '../lib/selectors';
-import { colors, teamColor, teamName } from '../lib/theme';
+import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { Ctx } from '../lib/types';
@@ -25,9 +30,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       <Screen>
         <Scoreboard ctx={ctx} />
         <View style={s.center}>
-          <Text style={{ fontSize: 40, marginBottom: 12 }}>🎪</Text>
-          <Title size={24}>Devre Arası!</Title>
-          <Muted style={{ marginTop: 6 }}>Mini oyun hazırlanıyor…</Muted>
+          <View style={s.bigIcon}><Ionicons name="happy" size={40} color={colors.magenta} /></View>
+          <Title size={26}>Devre Arası!</Title>
+          <Muted>Mini oyun hazırlanıyor…</Muted>
         </View>
       </Screen>
     );
@@ -42,20 +47,18 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const left = secondsLeft(data.room.phase_ends_at, now);
 
   // mg.id'ye göre her devre arasında senkronize ve adil mini-oyun varyantı:
-  const variant: 'reflex' | 'memory' | 'balance' = useMemo(() => {
-    if (mg.kind === 'social_guess') return 'reflex'; // fallback
-    const code = (mg.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const mod = code % 3;
-    return mod === 0 ? 'reflex' : mod === 1 ? 'memory' : 'balance';
-  }, [mg.id, mg.kind]);
+  const code = (mg.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const mod = code % 3;
+  const variant: 'reflex' | 'memory' | 'balance' =
+    mg.kind === 'social_guess' ? 'reflex' : mod === 0 ? 'reflex' : mod === 1 ? 'memory' : 'balance';
 
-  const tap = async (target?: string) => {
+  const tap = async (target?: string, guess?: number) => {
     if (mine || busy) return;
     setBusy(true);
     try {
       for (let i = 0; i < 8; i++) {
         try {
-          await api.minigameEntry(mg.id, target);
+          await api.minigameEntry(mg.id, target, guess);
           soundFx.correct();
           haptic.success();
           return;
@@ -65,7 +68,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         }
       }
     } catch (e) {
-      show((e as Error).message);
+      show((e as Error).message, 'error');
     } finally {
       setBusy(false);
     }
@@ -73,11 +76,12 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
   const reflexMs = mine?.reaction_ms;
 
-  const modeBadge =
-    mg.kind === 'social_guess' ? '👥 GRUP İÇİ İTİRAF'
-    : variant === 'memory' ? '🧠 HIZLI EŞLEŞTİRME (SIMON SAYS)'
-    : variant === 'balance' ? '⚖️ HASSAS DENGE / ÇEKMECE'
-    : '⚡ REFLEKS BASMA';
+  const mode: { icon: IconName; label: string; color: string } =
+    mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
+    : mg.kind === 'math_guess' ? { icon: 'calculator', label: 'Hızlı Matematik & Tahmin', color: colors.cyan }
+    : variant === 'memory' ? { icon: 'bulb', label: 'Hızlı eşleştirme', color: colors.cyan }
+    : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
+    : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
 
   return (
     <Screen>
@@ -85,11 +89,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         <Scoreboard ctx={ctx} />
 
         <View style={s.header}>
-          <View style={s.badge}>
-            <View style={s.badgeDot} />
-            <Text style={s.badgeText}>{modeBadge}</Text>
-          </View>
-          <Title size={28}>🎪 Devre Arası</Title>
+          <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
+          <Title size={30}>Devre Arası</Title>
         </View>
 
         <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />
@@ -99,11 +100,20 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             left={left}
             total={mg.kind === 'social_guess' ? 40 : variant === 'memory' ? 60 : 30}
             label="Kalan Süre"
-            color="#0EA5E9"
+            color={mode.color}
           />
         )}
 
-        {mg.kind === 'reflex' ? (
+        {mg.kind === 'math_guess' ? (
+          <MathGuessGame
+            prompt={mg.prompt ?? 'Sayıyı tahmin et'}
+            targetNum={mg.target_num ?? null}
+            live={live}
+            mineGuess={mine?.guess_num ?? null}
+            onSubmit={(guess) => tap(undefined, guess)}
+            busy={busy}
+          />
+        ) : mg.kind === 'reflex' ? (
           variant === 'memory' ? (
             <MemoryGame
               seed={mg.id || ''}
@@ -135,7 +145,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               onEarly={() => {
                 soundFx.wrong();
                 haptic.error();
-                show('Çok erken! Bekle… ✋');
+                show('Çok erken! Bekle…', 'error');
               }}
             />
           )
@@ -152,19 +162,25 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         )}
 
         {/* Katılım Durumu */}
-        <View style={s.centerPill}>
-          <Text style={s.statusText}>{entries.length} / {total} oyuncu tamamladı</Text>
+        <View style={s.progressWrap}>
+          <View style={s.progressHead}>
+            <Eyebrow icon="people" color={colors.muted}>Tamamlayan</Eyebrow>
+            <Text display style={s.statusText}>{entries.length} / {total}</Text>
+          </View>
+          <ProgressBar pct={total ? entries.length / total : 0} colors={gradients.success} height={8} />
         </View>
 
         {/* Sonuç Kartı */}
         {!live && (
-          <View style={s.winnerCard}>
-            <Text style={{ fontSize: 44 }}>{mg.winner_side ? '🏆' : '🤝'}</Text>
-            <Title size={22}>
+          <Card accent={mg.winner_side ? teamColor(mg.winner_side) : colors.muted} style={s.winnerCard}>
+            <View style={[s.bigIcon, { marginBottom: 0, backgroundColor: alpha(colors.gold, 0.14), borderColor: alpha(colors.gold, 0.5) }]}>
+              <Ionicons name={mg.winner_side ? 'trophy' : 'hand-left'} size={38} color={colors.gold} />
+            </View>
+            <Title size={24} color={mg.winner_side ? teamColor(mg.winner_side) : colors.text}>
               {mg.winner_side ? `${teamName(mg.winner_side)} Kazandı!` : 'Berabere!'}
             </Title>
             <Muted>{mg.winner_side ? 'Bonus parça + 2 puan' : 'Bu sefer bonus yok.'}</Muted>
-          </View>
+          </Card>
         )}
       </ScrollView>
       {toast}
@@ -181,27 +197,42 @@ function ReflexGame({
   live: boolean; go: boolean; mineDone: boolean; reactionMs: number | null;
   onTap: () => void; onEarly: () => void;
 }) {
+  const idle = !live || mineDone;
+  const tint = idle ? colors.cyan : go ? colors.mint : colors.red;
+  const grad: readonly [string, string] = idle ? ['#1A2D4E', '#0E1A30'] : go ? gradients.success : gradients.danger;
   return (
     <View style={s.reflexWrap}>
-      <Muted style={{ textAlign: 'center' }}>
-        {go ? '⚡ ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!'}
-      </Muted>
-      <Pulse active={live && go && !mineDone}>
-        <Pressable
-          onPress={() => (go ? onTap() : onEarly())}
-          disabled={!live || mineDone}
-          style={[
-            s.reflexBtn,
-            {
-              backgroundColor: !live || mineDone ? '#161D2B' : go ? '#10B981' : '#F43F5E',
-              borderColor: !live || mineDone ? '#242F46' : go ? '#34D399' : '#FB7185',
-            },
-          ]}
-        >
-          <Text style={s.reflexText}>
-            {!live ? '🏁' : mineDone ? `${reactionMs} ms` : go ? 'BAS!' : 'BEKLE'}
-          </Text>
-        </Pressable>
+      <Text style={[s.gameInstruction, { color: go && !idle ? colors.mint : colors.textSoft }]}>
+        {idle ? (mineDone ? 'Tepki süren kaydedildi' : 'Oyun bitti') : go ? 'ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!'}
+      </Text>
+      <Pulse active={live && go && !mineDone} amount={1.05}>
+        <View style={s.ringOuter}>
+          <View style={[s.ringMid, { borderColor: alpha(tint, 0.18), backgroundColor: alpha(tint, 0.05) }]}>
+            <Pressable
+              onPress={() => (go ? onTap() : onEarly())}
+              disabled={!live || mineDone}
+              style={({ pressed }) => [
+                s.reflexBtn,
+                { shadowColor: tint, transform: [{ scale: pressed ? 0.95 : 1 }] },
+              ]}
+            >
+              <LinearGradient colors={grad} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={s.reflexFill}>
+                <View style={s.reflexSheen} />
+                {idle ? (
+                  <>
+                    <Ionicons name={mineDone ? 'speedometer' : 'flag'} size={34} color={colors.textSoft} />
+                    <Text display style={s.reflexMs}>{mineDone ? `${reactionMs} ms` : 'Bitti'}</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name={go ? 'hand-left' : 'hourglass'} size={36} color={go ? '#05281A' : '#fff'} />
+                    <Text display style={[s.reflexText, go && { color: '#05281A' }]}>{go ? 'BAS!' : 'BEKLE'}</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
       </Pulse>
     </View>
   );
@@ -322,17 +353,20 @@ function MemoryGame({
     }
   };
 
+  const status: { icon: IconName; text: string; color: string } = showing
+    ? { icon: 'eye', text: `Sıralamayı aklında tut (${showingStep ?? 1}/${sequence.length})`, color: colors.cyan }
+    : mineDone
+    ? { icon: 'checkmark-circle', text: 'Harika! Başarıyla tamamlandı', color: colors.mint }
+    : errorFlash
+    ? { icon: 'close-circle', text: 'Hatalı! Baştan başla…', color: colors.red }
+    : { icon: 'finger-print', text: `Sıra sende! Dokun (${playerIdx}/${sequence.length})`, color: colors.yellow };
+
   return (
-    <View style={s.gameContainer}>
-      <Text style={[s.gameInstruction, errorFlash && { color: '#EF4444' }]}>
-        {showing
-          ? `👀 Sıralamayı Aklında Tut! (${showingStep ?? 1}/${sequence.length})`
-          : mineDone
-          ? '👏 Harika! Başarıyla Tamamlandı!'
-          : errorFlash
-          ? '❌ Hatalı! Baştan Başla...'
-          : `🎯 Sıra Sende! Dokun: (${playerIdx}/${sequence.length})`}
-      </Text>
+    <Card style={s.gameContainer}>
+      <View style={[s.statusBanner, { backgroundColor: alpha(status.color, 0.12), borderColor: alpha(status.color, 0.4) }]}>
+        <Ionicons name={status.icon} size={18} color={status.color} />
+        <Text style={[s.statusBannerText, { color: status.color }]}>{status.text}</Text>
+      </View>
 
       <View style={s.memoryGrid}>
         {MEMORY_PIECES.map((item) => {
@@ -345,23 +379,22 @@ function MemoryGame({
               style={({ pressed }) => [
                 s.memoryCard,
                 isHighlighted && s.memoryCardActive,
-                pressed && { transform: [{ scale: 0.95 }] },
+                pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >
               {isHighlighted && showingStep && (
                 <View style={s.stepBadge}>
-                  <Text style={s.stepBadgeText}>{showingStep}</Text>
+                  <Text display style={s.stepBadgeText}>{showingStep}</Text>
                 </View>
               )}
-              <Text style={{ fontSize: 42 }}>{item.emoji}</Text>
-              <Text style={[s.memoryName, isHighlighted && { color: '#10B981', fontWeight: '900' }]}>
-                {item.name}
-              </Text>
+              <Text style={{ fontSize: 40 }}>{item.emoji}</Text>
+              <Text style={[s.memoryName, isHighlighted && { color: colors.mint }]}>{item.name}</Text>
             </Pressable>
           );
         })}
       </View>
-    </View>
+      {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
+    </Card>
   );
 }
 
@@ -416,50 +449,41 @@ function BalanceGame({
   };
 
   const isBalanced = pos >= 35 && pos <= 65;
+  const pointerColor = isBalanced ? colors.mint : colors.red;
 
   return (
-    <View style={s.gameContainer}>
+    <Card style={s.gameContainer}>
       <Text style={s.gameInstruction}>
-        {mineDone ? '🎯 Denge Başarıyla Korundu!' : 'Göstergeyi yeşil bölgede tut!'}
+        {mineDone ? 'Denge başarıyla korundu!' : 'Göstergeyi yeşil bölgede tut!'}
       </Text>
 
       {/* Denge İlerleme Sayacı */}
-      <View style={s.balanceScoreTrack}>
-        <View style={[s.balanceScoreFill, { width: `${score}%` }]} />
+      <View style={{ width: '100%', gap: 6 }}>
+        <View style={s.progressHead}>
+          <Eyebrow color={colors.muted}>Denge ilerlemesi</Eyebrow>
+          <Text display style={s.statusText}>%{score}</Text>
+        </View>
+        <ProgressBar pct={score / 100} colors={gradients.success} height={10} duration={120} />
       </View>
 
       {/* Denge Tahtası */}
       <View style={s.balanceTrack}>
-        {/* Güvenli Yeşil Bölge (35% - 65%) */}
         <View style={s.safeZone} />
-        {/* Gösterge Noktası */}
         <View
           style={[
             s.balancePointer,
-            { left: `${pos}%` },
-            isBalanced ? s.pointerSafe : s.pointerDanger,
+            { left: `${pos}%`, backgroundColor: pointerColor, shadowColor: pointerColor },
           ]}
         />
       </View>
 
       {/* Dokunma Butonları */}
       <View style={s.nudgeRow}>
-        <Pressable
-          disabled={mineDone || !live}
-          onPress={() => nudge(-1)}
-          style={({ pressed }) => [s.nudgeBtn, pressed && { opacity: 0.7 }]}
-        >
-          <Text style={s.nudgeText}>◀ SOLA</Text>
-        </Pressable>
-        <Pressable
-          disabled={mineDone || !live}
-          onPress={() => nudge(1)}
-          style={({ pressed }) => [s.nudgeBtn, pressed && { opacity: 0.7 }]}
-        >
-          <Text style={s.nudgeText}>SAĞA ▶</Text>
-        </Pressable>
+        <Btn title="Sola" icon="chevron-back" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(-1)} style={{ flex: 1 }} />
+        <Btn title="Sağa" icon="chevron-forward" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(1)} style={{ flex: 1 }} />
       </View>
-    </View>
+      {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
+    </Card>
   );
 }
 
@@ -485,15 +509,13 @@ function SocialGuess({
 
   return (
     <View style={{ gap: 14 }}>
-      <View style={s.promptCard}>
-        <View style={s.socialBadge}>
-          <Text style={s.socialBadgeText}>🗳️ GRUP OYLAMASI</Text>
-        </View>
-        <Text style={s.prompt}>{prompt}</Text>
-        <Muted style={{ fontSize: 13, textAlign: 'center' }}>
-          Kendin dahil takımdaki herkese oy verebilirsin.
+      <Card accent={colors.violet} style={s.promptCard}>
+        <Chip icon="chatbubbles" label="Grup oylaması" color={colors.violet} />
+        <Text display style={s.prompt}>{prompt}</Text>
+        <Muted style={{ textAlign: 'center' }}>
+          Kendin dahil herkese oy verebilirsin.
         </Muted>
-      </View>
+      </Card>
 
       {live ? (
         <View style={{ gap: 10 }}>
@@ -512,41 +534,38 @@ function SocialGuess({
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
               >
-                <View style={[s.avatarCircle, { borderColor: tColor }]}>
-                  <Text style={[s.avatarText, { color: tColor }]}>
-                    {p.nickname.slice(0, 2).toLocaleUpperCase('tr-TR')}
-                  </Text>
-                </View>
+                <Avatar source={avatarFor(p.nickname)} size={46} ring={tColor} glow={isSelected} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={s.playerNickText}>
-                    {p.nickname} {isMe ? '(Sen)' : ''}
+                    {p.nickname}{isMe ? ' (Sen)' : ''}
                   </Text>
                   <Text style={[s.playerTeamText, { color: tColor }]}>
-                    {p.team_side === 'A' ? 'Takım A' : 'Takım B'}
+                    {teamName(p.team_side)}
                   </Text>
                 </View>
                 <View style={[s.voteRadio, isSelected && s.voteRadioSelected]}>
-                  {isSelected && <Text style={{ color: '#000000', fontSize: 12, fontWeight: '900' }}>✓</Text>}
+                  {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
                 </View>
               </Pressable>
             );
           })}
         </View>
       ) : (
-        <Card style={{ gap: 12 }}>
-          <Title size={18}>Oylama Sonuçları 💥</Title>
+        <Card style={{ gap: 14 }}>
+          <Title size={20}>Oylama Sonuçları</Title>
           {counts.sort((a, b) => b.n - a.n).map(({ p, n }) => {
             const pct = Math.round((n / totalVotes) * 100);
             const tColor = teamColor(p.team_side);
             return (
               <View key={p.id} style={{ gap: 6 }}>
                 <View style={s.rowBetween}>
-                  <Text style={s.resName}>{p.nickname} ({n} oy)</Text>
-                  <Text style={[s.resPct, { color: tColor }]}>{pct}%</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Avatar source={avatarFor(p.nickname)} size={30} ring={tColor} glow={false} />
+                    <Text style={s.resName}>{p.nickname} <Text style={{ color: colors.muted }}>({n} oy)</Text></Text>
+                  </View>
+                  <Text display style={[s.resPct, { color: tColor }]}>{pct}%</Text>
                 </View>
-                <View style={s.barBg}>
-                  <View style={[s.barFill, { width: `${pct}%`, backgroundColor: tColor }]} />
-                </View>
+                <ProgressBar pct={pct / 100} colors={[alpha(tColor, 0.85), tColor]} height={8} />
               </View>
             );
           })}
@@ -556,108 +575,220 @@ function SocialGuess({
   );
 }
 
-const s = StyleSheet.create({
-  scroll: { gap: 16, paddingBottom: 36 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { paddingTop: 4, marginBottom: 2 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
-    backgroundColor: '#161D2C',
-    borderWidth: 1,
-    borderColor: '#242F46',
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#0EA5E9' },
-  badgeText: { color: '#8E9BAE', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+// =================================================================
+// 5. HIZLI MATEMATİK & TAHMİN OYUNU
+// =================================================================
+function MathGuessGame({
+  prompt, targetNum, live, mineGuess, onSubmit, busy,
+}: {
+  prompt: string; targetNum: number | null; live: boolean;
+  mineGuess: number | null; onSubmit: (val: number) => void; busy: boolean;
+}) {
+  const [val, setVal] = useState('');
 
-  // Refleks
-  reflexWrap: { alignItems: 'center', gap: 18, paddingVertical: 18 },
-  reflexBtn: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    borderWidth: 2,
+  const pressDigit = (d: string) => {
+    if (val.length >= 6) return;
+    soundFx.click();
+    haptic.light();
+    setVal((prev) => (prev === '0' ? d : prev + d));
+  };
+  const backspace = () => {
+    soundFx.click();
+    haptic.light();
+    setVal((prev) => prev.slice(0, -1));
+  };
+  const clear = () => {
+    soundFx.click();
+    haptic.light();
+    setVal('');
+  };
+
+  const handleSend = () => {
+    const num = parseInt(val, 10);
+    if (isNaN(num)) return;
+    onSubmit(num);
+  };
+
+  const done = mineGuess !== null;
+
+  return (
+    <View style={{ gap: 16 }}>
+      {/* Soru Kartı */}
+      <Card accent={colors.cyan} style={s.promptCard}>
+        <View style={[s.bigIcon, { width: 56, height: 56, borderRadius: 28, marginBottom: 0, backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
+          <Ionicons name="calculator" size={28} color={colors.cyan} />
+        </View>
+        <Text display style={s.prompt}>{prompt}</Text>
+        <Muted>Doğru yanıta en yakın tahmini yapan takım bonus kazanır!</Muted>
+      </Card>
+
+      {/* Kullanıcı Durumu */}
+      {done ? (
+        <Card accent={colors.mint} style={{ alignItems: 'center', gap: 10, paddingVertical: 22 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(colors.mint, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="checkmark-circle" size={28} color={colors.mint} />
+          </View>
+          <Eyebrow color={colors.mint}>Tahminin Alındı</Eyebrow>
+          <Text display style={{ fontSize: 36, color: colors.text, fontWeight: '900' }}>
+            {mineGuess}
+          </Text>
+          <Muted>
+            {live ? 'Süre bitince en yakın cevaplar açıklanacak…' : (targetNum !== null ? `Gerçek Cevap: ${targetNum} (Fark: ${Math.abs(mineGuess - targetNum)})` : 'Tur tamamlandı')}
+          </Muted>
+        </Card>
+      ) : live ? (
+        <Card style={{ gap: 14 }}>
+          {/* Giriş Ekranı */}
+          <View style={s.mathDisplay}>
+            <Text display style={s.mathDisplayText}>
+              {val || <Text style={{ color: colors.muted }}>Tahminini gir…</Text>}
+            </Text>
+          </View>
+
+          {/* Sayısal Tuş Takımı */}
+          <View style={s.numPadGrid}>
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => (
+              <Pressable
+                key={k}
+                onPress={() => (k === 'C' ? clear() : k === '⌫' ? backspace() : pressDigit(k))}
+                style={({ pressed }) => [
+                  s.numPadKey,
+                  (k === 'C' || k === '⌫') && s.numPadActionKey,
+                  pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
+                ]}
+              >
+                <Text display style={[s.numPadKeyText, (k === 'C' || k === '⌫') && { color: colors.cyan }]}>
+                  {k}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Btn
+            title="Tahmini Gönder"
+            icon="send"
+            tone="success"
+            disabled={!val}
+            loading={busy}
+            onPress={handleSend}
+          />
+        </Card>
+      ) : (
+        <Card accent={colors.gold} style={{ alignItems: 'center', gap: 8 }}>
+          <Ionicons name="time" size={28} color={colors.gold} />
+          <Title size={20}>Süre Doldu</Title>
+          {targetNum !== null && (
+            <Text display style={{ fontSize: 28, color: colors.gold, fontWeight: '900' }}>
+              Doğru Cevap: {targetNum}
+            </Text>
+          )}
+        </Card>
+      )}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  scroll: { gap: 14, paddingBottom: 36, paddingTop: 6 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  header: { gap: 4, marginTop: 2 },
+  bigIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: alpha(colors.magenta, 0.12),
+    borderWidth: 1,
+    borderColor: alpha(colors.magenta, 0.4),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: 8,
   },
-  reflexText: { color: '#FFFFFF', fontSize: 36, fontWeight: '900', letterSpacing: 1 },
 
-  // Genel Oyun Konteyneri
-  gameContainer: {
-    backgroundColor: '#101521',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    padding: 22,
+  // Refleks
+  reflexWrap: { alignItems: 'center', gap: 20, paddingVertical: 10 },
+  ringOuter: { padding: 10 },
+  ringMid: { width: 270, height: 270, borderRadius: 135, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  reflexBtn: {
+    width: 218,
+    height: 218,
+    borderRadius: 109,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowOpacity: 0.7,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 14,
+  },
+  reflexFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  reflexSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.18)' },
+  reflexText: { color: '#FFFFFF', fontSize: 38, fontWeight: '900', letterSpacing: 1 },
+  reflexMs: { color: colors.text, fontSize: 32, fontWeight: '900' },
+
+  // Genel oyun konteyneri
+  gameContainer: { alignItems: 'center', gap: 16, padding: 20 },
+  gameInstruction: { color: colors.textSoft, fontSize: 15, fontWeight: '700', textAlign: 'center', paddingHorizontal: 12 },
+  statusBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 100,
+    borderWidth: 1,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
-  gameInstruction: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  statusBannerText: { fontSize: 13, fontWeight: '700' },
 
-  // Hafıza Grid
+  // Hafıza grid
   memoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', width: '100%' },
   memoryCard: {
     width: '30%',
-    backgroundColor: '#161D2B',
-    borderWidth: 1,
-    borderColor: '#242F46',
-    borderRadius: 18,
+    backgroundColor: colors.inset,
+    borderWidth: 1.5,
+    borderColor: colors.borderLight,
+    borderRadius: 20,
     paddingVertical: 16,
     alignItems: 'center',
     gap: 6,
   },
   memoryCardActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.28)',
-    borderColor: '#10B981',
-    borderWidth: 2,
-    transform: [{ scale: 1.05 }],
+    backgroundColor: alpha(colors.mint, 0.2),
+    borderColor: colors.mint,
+    shadowColor: colors.mint,
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 10,
+    transform: [{ scale: 1.06 }],
   },
-  memoryName: { color: '#8E9BAE', fontSize: 13, fontWeight: '700' },
+  memoryName: { color: colors.muted, fontSize: 12.5, fontWeight: '700' },
   stepBadge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#10B981',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.mint,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
-  stepBadgeText: { color: '#000000', fontSize: 12, fontWeight: '900' },
+  stepBadgeText: { color: '#05281A', fontSize: 13, fontWeight: '900' },
 
   // Denge
-  balanceScoreTrack: {
-    width: '100%',
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#161D2B',
-    overflow: 'hidden',
-  },
-  balanceScoreFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
   balanceTrack: {
     width: '100%',
-    height: 48,
-    backgroundColor: '#090C14',
+    height: 54,
+    backgroundColor: colors.inset,
     borderWidth: 1,
-    borderColor: '#1E283A',
-    borderRadius: 14,
+    borderColor: colors.borderLight,
+    borderRadius: 27,
     position: 'relative',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   safeZone: {
     position: 'absolute',
@@ -665,118 +796,92 @@ const s = StyleSheet.create({
     width: '30%',
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(16, 185, 129, 0.18)',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    backgroundColor: alpha(colors.mint, 0.16),
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    borderColor: alpha(colors.mint, 0.5),
   },
   balancePointer: {
     position: 'absolute',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    marginLeft: -11,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    marginLeft: -13,
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
   },
-  pointerSafe: { backgroundColor: '#10B981' },
-  pointerDanger: { backgroundColor: '#F43F5E' },
-  nudgeRow: { flexDirection: 'row', gap: 14, width: '100%', marginTop: 8 },
-  nudgeBtn: {
-    flex: 1,
-    backgroundColor: '#161D2C',
-    borderWidth: 1,
-    borderColor: '#242F46',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  nudgeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  nudgeRow: { flexDirection: 'row', gap: 12, width: '100%' },
 
-  // Ortak Elemanlar
-  centerPill: {
-    backgroundColor: '#101521',
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 100,
-    alignSelf: 'center',
-    marginTop: 4,
-  },
-  statusText: { color: '#8E9BAE', fontSize: 12, fontWeight: '700' },
-  winnerCard: {
-    backgroundColor: '#101521',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    padding: 24,
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  socialBadge: {
-    backgroundColor: '#1E1B4B',
-    borderColor: '#4338CA',
-    borderWidth: 1,
-    borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  socialBadgeText: { color: '#A5B4FC', fontSize: 11, fontWeight: '800' },
+  // Ortak elemanlar
+  progressWrap: { gap: 8, marginTop: 2 },
+  progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statusText: { color: colors.textSoft, fontSize: 16, fontWeight: '800' },
+  winnerCard: { alignItems: 'center', gap: 10, paddingVertical: 24, marginTop: 4 },
   playerVoteCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#101521',
+    backgroundColor: colors.glass,
     borderWidth: 1,
-    borderColor: '#1C2436',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
+    borderColor: colors.border,
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 14,
   },
   playerVoteCardSelected: {
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: alpha(colors.mint, 0.7),
+    backgroundColor: alpha(colors.mint, 0.1),
   },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    backgroundColor: '#090C14',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontSize: 13, fontWeight: '900' },
-  playerNickText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  playerNickText: { color: colors.text, fontSize: 15, fontWeight: '700' },
   playerTeamText: { fontSize: 11, fontWeight: '700' },
   voteRadio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#242F46',
-    backgroundColor: '#090C14',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.inset,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  voteRadioSelected: {
-    borderColor: '#10B981',
-    backgroundColor: '#10B981',
-  },
-  promptCard: {
-    backgroundColor: '#101521',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  promptLabel: { color: '#8E9BAE', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  prompt: { color: '#FFFFFF', fontSize: 20, fontWeight: '800', textAlign: 'center', lineHeight: 28 },
+  voteRadioSelected: { borderColor: colors.mint, backgroundColor: colors.mint },
+  promptCard: { alignItems: 'center', gap: 12 },
+  prompt: { color: colors.text, fontSize: 22, fontWeight: '800', textAlign: 'center', lineHeight: 30 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  resName: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  resPct: { fontWeight: '900', fontSize: 14 },
-  barBg: { height: 6, borderRadius: 3, backgroundColor: '#161D2B', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 3 },
+  resName: { color: colors.text, fontWeight: '700', fontSize: 14 },
+  resPct: { fontWeight: '900', fontSize: 16 },
+
+  // Matematik ve sayı tahmini
+  mathDisplay: {
+    backgroundColor: colors.inset,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  mathDisplayText: { fontSize: 28, fontWeight: '900', color: colors.cyan },
+  numPadGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  numPadKey: {
+    width: '30%',
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: colors.inset,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  numPadActionKey: {
+    backgroundColor: alpha(colors.cyan, 0.12),
+    borderColor: alpha(colors.cyan, 0.35),
+  },
+  numPadKeyText: { fontSize: 22, fontWeight: '800', color: colors.text },
 });

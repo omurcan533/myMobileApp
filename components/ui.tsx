@@ -1,25 +1,155 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle,
+  ActivityIndicator, Animated, Easing, Image, ImageBackground, ImageSourcePropType, Modal, Platform, Pressable,
+  StyleProp, StyleSheet, Text as RNText, TextInput, TextInputProps, TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../lib/theme';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { alpha, colors, gradients, radius } from '../lib/theme';
+import { art } from '../lib/art';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 
+export type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type Grad = readonly [string, string];
+
+// ============================================================================
+// Metin: fontWeight -> özel font ailesi eşlemesi (Android'de sahte kalın yok)
+// ============================================================================
+const BODY: Record<string, string> = {
+  '300': 'Sora_400Regular', '400': 'Sora_400Regular', '500': 'Sora_500Medium', '600': 'Sora_600SemiBold',
+  '700': 'Sora_700Bold', '800': 'Sora_700Bold', '900': 'Sora_700Bold', bold: 'Sora_700Bold', normal: 'Sora_400Regular',
+};
+const DISPLAY: Record<string, string> = {
+  '300': 'Outfit_600SemiBold', '400': 'Outfit_600SemiBold', '500': 'Outfit_600SemiBold', '600': 'Outfit_600SemiBold',
+  '700': 'Outfit_700Bold', '800': 'Outfit_800ExtraBold', '900': 'Outfit_900Black', bold: 'Outfit_700Bold', normal: 'Outfit_600SemiBold',
+};
+
+/** Uygulama geneli Text. `display` → Outfit (başlık/sayı), aksi halde Sora. */
+export function Text({ display, style, ...rest }: TextProps & { display?: boolean }) {
+  const flat = StyleSheet.flatten(style) ?? {};
+  const w = String(flat.fontWeight ?? '500');
+  const family = flat.fontFamily ?? (display ? DISPLAY[w] ?? DISPLAY['700'] : BODY[w] ?? BODY['500']);
+  return <RNText {...rest} style={[style, { fontFamily: family, fontWeight: undefined }]} />;
+}
+
+// ============================================================================
+// Ekran iskeleti
+// ============================================================================
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
-    <LinearGradient colors={[colors.bg, colors.bg2]} style={{ flex: 1 }}>
-      <SafeAreaView style={[{ flex: 1, paddingHorizontal: 22, paddingVertical: 14 }, style]}>{children}</SafeAreaView>
-    </LinearGradient>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ImageBackground source={art.bg} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={{ opacity: 0.6 }} />
+      <LinearGradient
+        colors={['rgba(5,10,20,0.5)', 'rgba(5,10,20,0.8)', 'rgba(5,10,20,0.95)']}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <SafeAreaView style={[{ flex: 1, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 }, style]}>{children}</SafeAreaView>
+    </View>
   );
 }
 
-type Tone = 'primary' | 'ghost' | 'danger' | 'success' | 'custom';
+// ============================================================================
+// Animasyonlar
+// ============================================================================
+/** Yumuşak "nabız" animasyonu: öne çıkan öğeler için. */
+export function Pulse({ children, active = true, amount = 1.03 }: { children: React.ReactNode; active?: boolean; amount?: number }) {
+  const [v] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (!active) { v.setValue(1); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: amount, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [active, amount, v]);
+  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
+}
+
+/** Açılışta aşağıdan yukarı süzülerek belirir. */
+export function Reveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(v, { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [delay, v]);
+  return (
+    <Animated.View
+      style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Havada asılı gibi yavaşça süzülen içerik (maskotlar için). */
+export function Float({ children, amount = 7, duration = 2200, style }: { children: React.ReactNode; amount?: number; duration?: number; style?: StyleProp<ViewStyle> }) {
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [duration, v]);
+  return (
+    <Animated.View style={[style, { transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, -amount] }) }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Canlı durum noktası (nabız atar). */
+export function LiveDot({ color = colors.mint, size = 8 }: { color?: string; size?: number }) {
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  return (
+    <View style={{ width: size * 2.2, height: size * 2.2, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          position: 'absolute', width: size, height: size, borderRadius: size, backgroundColor: color,
+          opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+          transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) }],
+        }}
+      />
+      <View style={{ width: size, height: size, borderRadius: size, backgroundColor: color }} />
+    </View>
+  );
+}
+
+// ============================================================================
+// Butonlar
+// ============================================================================
+type Tone = 'primary' | 'success' | 'danger' | 'gold' | 'violet' | 'ghost' | 'custom';
+type BtnSize = 'lg' | 'md' | 'sm';
+
+const TONES: Record<Exclude<Tone, 'ghost' | 'custom'>, { g: Grad; fg: string; glow: string }> = {
+  primary: { g: gradients.primary, fg: '#04122A', glow: colors.cyan },
+  success: { g: gradients.success, fg: '#05281A', glow: colors.mint },
+  danger: { g: gradients.danger, fg: '#FFFFFF', glow: colors.red },
+  gold: { g: gradients.gold, fg: '#3A2100', glow: colors.gold },
+  violet: { g: gradients.violet, fg: '#FFFFFF', glow: colors.violet },
+};
+const SIZES = {
+  lg: { h: 58, font: 16, icon: 20, px: 24 },
+  md: { h: 48, font: 14, icon: 18, px: 18 },
+  sm: { h: 38, font: 12.5, icon: 16, px: 14 },
+};
 
 export function Btn({
-  title, onPress, tone = 'primary', color, disabled, loading, style,
+  title, onPress, tone = 'primary', color, disabled, loading, style, icon, size = 'lg',
 }: {
   title: string;
   onPress: () => void;
@@ -28,15 +158,18 @@ export function Btn({
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  icon?: IconName;
+  size?: BtnSize;
 }) {
-  const bg =
-    tone === 'primary' ? colors.accent
-    : tone === 'danger' ? colors.red
-    : tone === 'success' ? colors.green
-    : tone === 'custom' ? color
-    : 'transparent';
-
+  const [scale] = useState(() => new Animated.Value(1));
+  const sz = SIZES[size];
   const isGhost = tone === 'ghost';
+  const cfg = tone === 'custom'
+    ? { g: [color ?? colors.accent, color ?? colors.accent] as Grad, fg: '#FFFFFF', glow: color ?? colors.accent }
+    : isGhost ? null : TONES[tone];
+
+  const press = (to: number) =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
 
   const handlePress = () => {
     soundFx.click();
@@ -44,96 +177,268 @@ export function Btn({
     onPress();
   };
 
+  const fg = cfg ? cfg.fg : colors.textSoft;
+
   return (
-    <Pressable
-      disabled={disabled || loading}
-      onPress={handlePress}
-      style={({ pressed }) => [
-        s.btn,
-        { backgroundColor: bg, opacity: disabled ? 0.4 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-        isGhost && s.btnGhost,
+    <Animated.View
+      style={[
+        { transform: [{ scale }], opacity: disabled ? 0.45 : 1, borderRadius: radius.full },
+        cfg && {
+          shadowColor: cfg.glow,
+          shadowOpacity: 0.55,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: disabled ? 0 : 8,
+        },
         style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <Text
-          style={[
-            s.btnText,
-            isGhost && s.btnGhostText,
-            tone === 'success' && { color: '#07210F' },
-          ]}
-        >
-          {title}
-        </Text>
+      <Pressable
+        disabled={disabled || loading}
+        onPress={handlePress}
+        onPressIn={() => press(0.96)}
+        onPressOut={() => press(1)}
+        style={{ borderRadius: radius.full, overflow: 'hidden', backgroundColor: 'transparent' }}
+      >
+        {cfg ? (
+          <LinearGradient colors={cfg.g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.btn, { height: sz.h, paddingHorizontal: sz.px }]}>
+            <View style={s.btnInner}>
+              {loading ? <ActivityIndicator color={fg} /> : (
+                <>
+                  {icon && <Ionicons name={icon} size={sz.icon} color={fg} />}
+                  <Text display style={{ color: fg, fontSize: sz.font + 1, fontWeight: '800', letterSpacing: 0.3 }}>{title}</Text>
+                </>
+              )}
+            </View>
+          </LinearGradient>
+        ) : (
+          <View style={[s.btn, s.btnGhost, { height: sz.h, paddingHorizontal: sz.px }]}>
+            <View style={s.btnInner}>
+              {loading ? <ActivityIndicator color={fg} /> : (
+                <>
+                  {icon && <Ionicons name={icon} size={sz.icon} color={fg} />}
+                  <Text display style={{ color: fg, fontSize: sz.font + 1, fontWeight: '700', letterSpacing: 0.2 }}>{title}</Text>
+                </>
+              )}
+            </View>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** Yuvarlak cam ikon butonu. */
+export function IconBtn({
+  icon, onPress, size = 44, color = colors.textSoft, disabled, active, badge, style,
+}: {
+  icon: IconName; onPress: () => void; size?: number; color?: string; disabled?: boolean; active?: boolean; badge?: number | string; style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={() => { soundFx.click(); haptic.light(); onPress(); }}
+      style={({ pressed }) => [
+        s.iconBtn,
+        { width: size, height: size, borderRadius: size / 2, opacity: disabled ? 0.35 : 1, transform: [{ scale: pressed ? 0.92 : 1 }] },
+        active && { backgroundColor: alpha(colors.cyan, 0.18), borderColor: alpha(colors.cyan, 0.55) },
+        style,
+      ]}
+    >
+      <Ionicons name={icon} size={size * 0.46} color={active ? colors.cyan : color} />
+      {badge !== undefined && (
+        <View style={s.iconBadge}><Text style={s.iconBadgeText}>{badge}</Text></View>
       )}
     </Pressable>
   );
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[s.card, style]}>{children}</View>;
-}
-
-export function Title({ children, size = 28 }: { children: React.ReactNode; size?: number }) {
-  return <Text style={[s.title, { fontSize: size }]}>{children}</Text>;
-}
-
-export function Muted({ children, style }: { children: React.ReactNode; style?: object }) {
-  return <Text style={[s.muted, style]}>{children}</Text>;
-}
-
-/** Ekranın altında kısa süre görünen bildirim (Midas Floating Pill). */
-export function useToast() {
-  const [msg, setMsg] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = (m: string) => {
-    setMsg(m);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setMsg(null), 2200);
-  };
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const node = msg ? (
-    <View style={s.toast} pointerEvents="none">
-      <Text style={s.toastText}>{msg}</Text>
+// ============================================================================
+// Kartlar & düzen
+// ============================================================================
+/** Cam panel kart. `accent` verilirse kenarlık ve üst parıltı o renkte olur. */
+export function Card({
+  children, style, accent, gradient,
+}: { children: React.ReactNode; style?: StyleProp<ViewStyle>; accent?: string; gradient?: Grad }) {
+  const border = accent ? alpha(accent, 0.4) : colors.border;
+  return (
+    <View style={[s.card, { borderColor: border, shadowColor: accent ?? '#000' }, accent && s.cardGlow, style]}>
+      <LinearGradient
+        colors={gradient ?? [accent ? alpha(accent, 0.16) : 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 0.7 }}
+        style={s.cardSheen}
+        pointerEvents="none"
+      />
+      {children}
     </View>
-  ) : null;
-  return { toast: node, show };
+  );
 }
 
-/** Yumuşak "nabız" animasyonu: öne çıkan öğeler için. */
-export function Pulse({ children, active = true }: { children: React.ReactNode; active?: boolean }) {
-  const v = useRef(new Animated.Value(1)).current;
+export function Title({ children, size = 28, color, style }: { children: React.ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle> }) {
+  return (
+    <Text display style={[{ color: color ?? colors.text, fontWeight: '800', letterSpacing: -0.4, fontSize: size, lineHeight: size * 1.15 }, style]}>
+      {children}
+    </Text>
+  );
+}
+
+export function Muted({ children, style, numberOfLines }: { children: React.ReactNode; style?: StyleProp<TextStyle>; numberOfLines?: number }) {
+  return (
+    <Text numberOfLines={numberOfLines} style={[{ color: colors.muted, fontSize: 13, fontWeight: '500', lineHeight: 19 }, style]}>
+      {children}
+    </Text>
+  );
+}
+
+/** Küçük, harf aralıklı üst başlık (opsiyonel canlı nokta ile). */
+export function Eyebrow({ children, color = colors.muted, dot, live, icon, style }: {
+  children: React.ReactNode; color?: string; dot?: string; live?: boolean; icon?: IconName; style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 6 }, style]}>
+      {live && <LiveDot color={dot ?? colors.mint} size={6} />}
+      {!live && dot && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: dot }} />}
+      {icon && <Ionicons name={icon} size={13} color={color} />}
+      <Text style={{ color, fontSize: 10.5, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' }}>{children}</Text>
+    </View>
+  );
+}
+
+export function SectionLabel({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+      <Eyebrow color={colors.subtle}>{children}</Eyebrow>
+      {right}
+    </View>
+  );
+}
+
+/** Tint'li hap rozet. */
+export function Chip({ label, icon, color = colors.muted, solid, style, size = 'md' }: {
+  label?: string; icon?: IconName; color?: string; solid?: boolean; style?: StyleProp<ViewStyle>; size?: 'sm' | 'md';
+}) {
+  const pad = size === 'sm' ? { paddingHorizontal: 8, paddingVertical: 3 } : { paddingHorizontal: 11, paddingVertical: 5 };
+  return (
+    <View
+      style={[
+        s.chip, pad,
+        { backgroundColor: solid ? color : alpha(color, 0.14), borderColor: solid ? color : alpha(color, 0.38) },
+        style,
+      ]}
+    >
+      {icon && <Ionicons name={icon} size={size === 'sm' ? 11 : 13} color={solid ? '#0A1020' : color} />}
+      {label !== undefined && (
+        <Text style={{ color: solid ? '#0A1020' : color, fontSize: size === 'sm' ? 10.5 : 12, fontWeight: '700', letterSpacing: 0.2 }}>{label}</Text>
+      )}
+    </View>
+  );
+}
+
+// ============================================================================
+// Para birimleri & avatar
+// ============================================================================
+export function CoinIcon({ size = 22 }: { size?: number }) {
+  return (
+    <LinearGradient
+      colors={gradients.gold}
+      start={{ x: 0.1, y: 0 }}
+      end={{ x: 0.9, y: 1 }}
+      style={{
+        width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center',
+        borderWidth: Math.max(1.5, size * 0.08), borderColor: '#FFE9A0',
+        shadowColor: colors.gold, shadowOpacity: 0.7, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+      }}
+    >
+      <View style={{ width: size * 0.66, height: size * 0.66, borderRadius: size, borderWidth: 1.2, borderColor: 'rgba(120,64,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="star" size={size * 0.42} color="#8A4B00" />
+      </View>
+    </LinearGradient>
+  );
+}
+
+export function GemIcon({ size = 18, color = colors.cyan }: { size?: number; color?: string }) {
+  return (
+    <View style={{ shadowColor: color, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } }}>
+      <Ionicons name="diamond" size={size} color={color} />
+    </View>
+  );
+}
+
+/** Altın kredi rozeti. */
+export function CoinPill({ value, label, size = 'md' }: { value: number | string; label?: string; size?: 'sm' | 'md' }) {
+  const small = size === 'sm';
+  return (
+    <View style={[s.pill, { backgroundColor: alpha(colors.gold, 0.12), borderColor: alpha(colors.gold, 0.4), paddingVertical: small ? 3 : 5, paddingRight: small ? 9 : 12 }]}>
+      <CoinIcon size={small ? 17 : 22} />
+      <Text display style={{ color: colors.yellow, fontSize: small ? 13 : 15, fontWeight: '800' }}>{value}</Text>
+      {label && <Text style={{ color: alpha(colors.yellow, 0.7), fontSize: 11, fontWeight: '600' }}>{label}</Text>}
+    </View>
+  );
+}
+
+export function GemPill({ value, label }: { value: number | string; label?: string }) {
+  return (
+    <View style={[s.pill, { backgroundColor: alpha(colors.cyan, 0.1), borderColor: alpha(colors.cyan, 0.38), paddingVertical: 5, paddingRight: 12 }]}>
+      <GemIcon size={18} />
+      <Text display style={{ color: colors.cyan, fontSize: 15, fontWeight: '800' }}>{value}</Text>
+      {label && <Text style={{ color: alpha(colors.cyan, 0.7), fontSize: 11, fontWeight: '600' }}>{label}</Text>}
+    </View>
+  );
+}
+
+/** Yuvarlak maskot avatarı (renkli halka + parıltı). */
+export function Avatar({ source, size = 44, ring = colors.cyan, glow = true, style }: {
+  source: ImageSourcePropType; size?: number; ring?: string; glow?: boolean; style?: StyleProp<ViewStyle>;
+}) {
+  const w = Math.max(2, size * 0.055);
+  return (
+    <View
+      style={[
+        {
+          width: size, height: size, borderRadius: size / 2, borderWidth: w, borderColor: ring, overflow: 'hidden', backgroundColor: colors.surface2,
+        },
+        glow && { shadowColor: ring, shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+        style,
+      ]}
+    >
+      <Image source={source} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+    </View>
+  );
+}
+
+// ============================================================================
+// İlerleme & zaman
+// ============================================================================
+export function ProgressBar({ pct, colors: g = gradients.primary, height = 10, duration = 600, style }: {
+  pct: number; colors?: Grad; height?: number; duration?: number; style?: StyleProp<ViewStyle>;
+}) {
+  const [v] = useState(() => new Animated.Value(pct));
   useEffect(() => {
-    if (!active) { v.setValue(1); return; }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(v, { toValue: 1.03, duration: 700, useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [active, v]);
-  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
+    Animated.timing(v, { toValue: Math.max(0, Math.min(1, pct)), duration, easing: Easing.linear, useNativeDriver: false }).start();
+  }, [pct, duration, v]);
+  return (
+    <View style={[{ height, borderRadius: height, backgroundColor: colors.inset, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }, style]}>
+      <Animated.View style={{ height: '100%', width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }}>
+        <LinearGradient colors={g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1, borderRadius: height }}>
+          <View style={{ position: 'absolute', top: 1, left: 4, right: 4, height: height * 0.32, borderRadius: height, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+        </LinearGradient>
+      </Animated.View>
+    </View>
+  );
 }
 
 export function TimerBar({
-  left,
-  total,
-  color = colors.yellow,
-  label = 'Kalan Süre',
+  left, total, color, label = 'Kalan Süre',
 }: {
-  left: number;
-  total: number;
-  color?: string;
-  label?: string;
+  left: number; total: number; color?: string; label?: string;
 }) {
   const pct = total > 0 ? Math.max(0, Math.min(1, left / total)) : 0;
   const secs = Math.ceil(Math.max(0, left));
   const isUrgent = secs <= 5;
-  const activeColor = isUrgent ? colors.red : color;
+  const base = color ?? colors.cyan;
+  const activeColor = isUrgent ? colors.red : base;
+  const grad: Grad = isUrgent ? gradients.danger : [alpha(base, 0.9), base];
 
   const prevSecs = useRef(secs);
   useEffect(() => {
@@ -145,149 +450,223 @@ export function TimerBar({
   }, [isUrgent, secs]);
 
   return (
-    <View style={s.timerContainer}>
+    <Card accent={isUrgent ? colors.red : undefined} style={s.timer}>
       <View style={s.timerHead}>
         <View style={s.timerLabelRow}>
-          <Text style={{ fontSize: 13 }}>⏱️</Text>
+          <View style={[s.timerIcon, { backgroundColor: alpha(activeColor, 0.16), borderColor: alpha(activeColor, 0.4) }]}>
+            <Ionicons name={isUrgent ? 'alarm' : 'timer-outline'} size={16} color={activeColor} />
+          </View>
           <Text style={s.timerLabel}>{label.toUpperCase()}</Text>
         </View>
-        <View style={[s.timerBadge, isUrgent && s.timerBadgeUrgent]}>
-          <Text style={[s.timerValue, { color: activeColor }]}>
-            {secs}
-          </Text>
-          <Text style={s.timerUnit}>sn</Text>
-        </View>
+        <Pulse active={isUrgent} amount={1.12}>
+          <View style={s.timerBadge}>
+            <Text display style={{ color: activeColor, fontSize: 26, fontWeight: '900', lineHeight: 28, textShadowColor: alpha(activeColor, 0.6), textShadowRadius: 10 }}>{secs}</Text>
+            <Text style={s.timerUnit}>sn</Text>
+          </View>
+        </Pulse>
       </View>
-      <View style={s.barBg}>
-        <View style={[s.barFill, { width: `${pct * 100}%`, backgroundColor: activeColor }]} />
+      <ProgressBar pct={pct} colors={grad} height={9} duration={1000} />
+    </Card>
+  );
+}
+
+// ============================================================================
+// Giriş alanı
+// ============================================================================
+export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ...rest }: TextInputProps & {
+  icon?: IconName; containerStyle?: StyleProp<ViewStyle>; center?: boolean;
+}) {
+  const [focus, setFocus] = useState(false);
+  return (
+    <View
+      style={[
+        s.input,
+        focus && { borderColor: alpha(colors.cyan, 0.7), shadowColor: colors.cyan, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 0 } },
+        containerStyle,
+      ]}
+    >
+      {icon && <Ionicons name={icon} size={19} color={focus ? colors.cyan : colors.subtle} />}
+      <TextInput
+        placeholderTextColor={colors.subtle}
+        selectionColor={colors.cyan}
+        {...rest}
+        onFocus={(e) => { setFocus(true); onFocus?.(e); }}
+        onBlur={(e) => { setFocus(false); onBlur?.(e); }}
+        style={[
+          { flex: 1, color: colors.text, fontSize: 16, fontFamily: 'Sora_600SemiBold', paddingVertical: Platform.OS === 'ios' ? 15 : 12 },
+          center && { textAlign: 'center' },
+          style,
+        ]}
+      />
+    </View>
+  );
+}
+
+// ============================================================================
+// Alt sekme çubuğu (Tap-2-Earn tarzı yüzen cam hap)
+// ============================================================================
+export interface TabItem<K extends string> { key: K; label: string; icon: IconName; iconActive?: IconName }
+
+export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[s.tabWrap, { bottom: Math.max(insets.bottom, 10) + 4 }]} pointerEvents="box-none">
+      <View style={s.tabBar}>
+        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,16,32,0.72)' }]} />
+        {items.map((it) => {
+          const on = it.key === active;
+          return (
+            <Pressable
+              key={it.key}
+              onPress={() => { if (!on) { soundFx.click(); haptic.light(); } onChange(it.key); }}
+              style={s.tabItem}
+            >
+              {on && (
+                <LinearGradient
+                  colors={[alpha(colors.cyan, 0.32), alpha(colors.violet, 0.2)]}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 22, borderWidth: 1, borderColor: alpha(colors.cyan, 0.5) }]}
+                />
+              )}
+              <Ionicons name={on ? it.iconActive ?? it.icon : it.icon} size={22} color={on ? colors.cyan : colors.muted} />
+              <Text style={{ color: on ? colors.text : colors.subtle, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 }}>{it.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
+// ============================================================================
+// Modal / alt sayfa
+// ============================================================================
+export function Sheet({ visible, onClose, children, centered }: {
+  visible: boolean; onClose: () => void; children: React.ReactNode; centered?: boolean;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType={centered ? 'fade' : 'slide'} onRequestClose={onClose}>
+      <View style={[s.backdrop, centered ? { justifyContent: 'center', padding: 24 } : { justifyContent: 'flex-end' }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={centered ? s.dialog : s.sheet}>
+          {!centered && <View style={s.handle} />}
+          {children}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ============================================================================
+// Toast
+// ============================================================================
+export type ToastKind = 'info' | 'success' | 'error';
+const TOAST_ICON: Record<ToastKind, { icon: IconName; color: string }> = {
+  info: { icon: 'information-circle', color: colors.cyan },
+  success: { icon: 'checkmark-circle', color: colors.mint },
+  error: { icon: 'alert-circle', color: colors.red },
+};
+
+function ToastView({ msg, kind }: { msg: string; kind: ToastKind }) {
+  const insets = useSafeAreaInsets();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(v, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 8 }).start();
+  }, [v]);
+  const t = TOAST_ICON[kind];
+  return (
+    <Animated.View
+      style={[
+        s.toast,
+        { top: insets.top + 10, borderColor: alpha(t.color, 0.45), shadowColor: t.color },
+        { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }] },
+      ]}
+      pointerEvents="none"
+    >
+      <Ionicons name={t.icon} size={20} color={t.color} />
+      <Text style={s.toastText}>{msg}</Text>
+    </Animated.View>
+  );
+}
+
+/** Ekranın üstünde kısa süre beliren bildirim. */
+export function useToast() {
+  const [t, setT] = useState<{ msg: string; kind: ToastKind; id: number } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const counter = useRef(0);
+  const show = (m: string, kind: ToastKind = 'info') => {
+    setT({ msg: m, kind, id: ++counter.current });
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setT(null), 2400);
+  };
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const node = t ? <ToastView key={t.id} msg={t.msg} kind={t.kind} /> : null;
+  return { toast: node, show };
+}
+
+// ============================================================================
+// Stiller
+// ============================================================================
 const s = StyleSheet.create({
   btn: {
-    paddingVertical: 15,
-    paddingHorizontal: 22,
-    borderRadius: 100, // Midas hap buton
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnGhost: {
-    backgroundColor: '#121724',
-    borderWidth: 1,
-    borderColor: '#242F46',
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  btnGhostText: {
-    color: '#8E9BAE',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  title: {
-    color: colors.text,
-    fontWeight: '900',
-    letterSpacing: -0.6,
-  },
-  muted: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.1,
-  },
-  toast: {
-    position: 'absolute',
-    bottom: 36,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(13, 17, 26, 0.94)',
-    borderWidth: 1,
-    borderColor: '#242F46',
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  toastText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  timerContainer: {
-    gap: 8,
-    marginVertical: 6,
-    backgroundColor: '#101521',
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  timerHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  timerLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  timerLabel: {
-    color: '#8E9BAE',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-  },
-  timerBadge: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 2,
-    backgroundColor: '#161D2C',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#242F46',
-  },
-  timerBadgeUrgent: {
-    backgroundColor: 'rgba(244, 63, 94, 0.12)',
-    borderColor: 'rgba(244, 63, 94, 0.4)',
-  },
-  timerValue: {
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  timerUnit: {
-    color: '#8E9BAE',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  barBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#1A2336',
     overflow: 'hidden',
-    marginTop: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderTopColor: 'rgba(255,255,255,0.65)',
   },
-  barFill: {
-    height: '100%',
-    borderRadius: 3,
+  btnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnGhost: { backgroundColor: colors.glass, borderColor: colors.borderLight },
+
+  iconBtn: { backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', justifyContent: 'center' },
+  iconBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  iconBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  card: { backgroundColor: colors.glass, borderRadius: radius.lg, padding: 18, borderWidth: 1, overflow: 'hidden' },
+  cardGlow: { shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cardSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: 120 },
+
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.full, borderWidth: 1, alignSelf: 'flex-start' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.full, borderWidth: 1, paddingLeft: 5, alignSelf: 'flex-start' },
+
+  timer: { gap: 12, paddingVertical: 12, paddingHorizontal: 16, marginVertical: 2 },
+  timerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  timerIcon: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  timerLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.3 },
+  timerBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  timerUnit: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+
+  input: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.inset, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16,
   },
+
+  tabWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  tabBar: {
+    flexDirection: 'row', gap: 6, padding: 6, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderLight,
+    shadowColor: colors.cyan, shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
+  },
+  tabItem: { minWidth: 92, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 22, alignItems: 'center', gap: 3 },
+
+  backdrop: { flex: 1, backgroundColor: 'rgba(2,6,14,0.78)' },
+  dialog: {
+    backgroundColor: colors.glassStrong, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderLight,
+    width: '100%', maxWidth: 420, alignSelf: 'center', padding: 24, gap: 12, alignItems: 'center',
+    shadowColor: colors.cyan, shadowOpacity: 0.25, shadowRadius: 30, elevation: 16,
+  },
+  sheet: {
+    backgroundColor: '#0A1428', borderTopLeftRadius: 34, borderTopRightRadius: 34, borderWidth: 1, borderBottomWidth: 0,
+    borderColor: colors.borderLight, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 38, gap: 14,
+  },
+  handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: 6 },
+
+  toast: {
+    position: 'absolute', left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(8,16,32,0.96)',
+    borderWidth: 1, paddingVertical: 13, paddingHorizontal: 18, borderRadius: radius.full,
+    shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12,
+  },
+  toastText: { color: colors.text, fontWeight: '600', fontSize: 14, flex: 1 },
 });

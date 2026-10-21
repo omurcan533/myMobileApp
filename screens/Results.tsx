@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { CanvasBoard } from '../components/Canvas';
-import { Btn, Muted, Pulse, Screen, Title } from '../components/ui';
+import {
+  Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, Muted, Pulse, Reveal, Screen, SectionLabel, Title, Text,
+} from '../components/ui';
 import { api } from '../lib/api';
-import { teamColor, teamName } from '../lib/theme';
+import { teamMascot } from '../lib/art';
+import { recordGame } from '../lib/profile';
+import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { Ctx, GameResults, Side } from '../lib/types';
@@ -11,7 +17,7 @@ import type { Ctx, GameResults, Side } from '../lib/types';
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, catalog, onLeave } = ctx;
   const { width } = useWindowDimensions();
-  const colW = (width - 44 - 14) / 2; // Ferah padding hesabıyla sütun genişliği
+  const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
 
   useEffect(() => {
@@ -19,16 +25,19 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
       setRes(r);
       soundFx.cheer();
       haptic.success();
+      recordGame(data.room.id, !!r.official_winner && r.official_winner === me.team_side);
     }).catch(() => undefined);
-  }, [data.room.id]);
+  }, [data.room.id, me.team_side]);
 
   if (!res) {
     return (
       <Screen>
         <View style={s.center}>
-          <Text style={{ fontSize: 36, marginBottom: 12 }}>🏁</Text>
-          <Title size={22}>Sonuçlar Hesaplanıyor…</Title>
-          <Muted style={{ marginTop: 6 }}>Puanlar toplanıyor, lütfen bekle.</Muted>
+          <Float amount={8}>
+            <View style={s.bigIcon}><Ionicons name="flag" size={42} color={colors.gold} /></View>
+          </Float>
+          <Title size={24}>Sonuçlar Hesaplanıyor…</Title>
+          <Muted>Puanlar toplanıyor, lütfen bekle.</Muted>
         </View>
       </Screen>
     );
@@ -36,205 +45,167 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
 
   const isOfficialMine = res.official_winner && me.team_side === res.official_winner;
   const isFunnyMine = res.funny_winner && me.team_side === res.funny_winner;
+  const champ = res.official_winner;
+  const champColor = champ ? teamColor(champ) : colors.gold;
+  const funny = res.funny_winner;
+  const funnyColor = funny ? teamColor(funny) : colors.violet;
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* ================= BAŞLIK ================= */}
         <View style={s.header}>
-          <View style={s.liveBadge}>
-            <View style={s.liveDot} />
-            <Text style={s.liveText}>OYUN TAMAMLANDI</Text>
-          </View>
-          <Title size={30}>Sonuçlar</Title>
+          <Eyebrow live color={colors.mint} dot={colors.mint}>Oyun tamamlandı</Eyebrow>
+          <Title size={32}>Sonuçlar</Title>
         </View>
 
-        {/* ================= ŞAMPİYONLUK KARTLARI (FERAH & AYRIŞMIŞ) ================= */}
-        <View style={s.awardsSection}>
-          {/* 1. Resmi Şampiyon Kartı */}
-          <Pulse>
-            <View style={[s.awardCard, s.officialCard]}>
-              <View style={s.awardTopRow}>
-                <View style={s.awardCategoryPill}>
-                  <Text style={s.awardCategoryText}>🏆 RESMİ ŞAMPİYON</Text>
-                </View>
-                {isOfficialMine && (
-                  <View style={s.minePill}>
-                    <Text style={s.minePillText}>🎉 Bu bizim!</Text>
+        {/* ================= RESMİ ŞAMPİYON ================= */}
+        <Reveal>
+          <View style={[s.champCard, { borderColor: alpha(colors.gold, 0.6) }]}>
+            <LinearGradient
+              colors={[alpha(champColor, 0.35), 'rgba(10,20,40,0.95)', alpha(colors.gold, 0.12)]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Chip icon="trophy" label="Resmi şampiyon" color={colors.gold} />
+            <Pulse amount={1.04}>
+              <View style={s.champAvatarWrap}>
+                {champ ? (
+                  <Avatar source={teamMascot(champ)} size={128} ring={colors.gold} />
+                ) : (
+                  <View style={[s.bigIcon, { width: 128, height: 128, borderRadius: 64 }]}>
+                    <Ionicons name="hand-left" size={56} color={colors.gold} />
                   </View>
                 )}
-              </View>
-
-              <View style={s.awardBody}>
-                <View style={s.trophyContainer}>
-                  <Text style={{ fontSize: 44 }}>🏆</Text>
+                <View style={s.trophyBadge}>
+                  <LinearGradient colors={gradients.gold} style={s.trophyBadgeFill}>
+                    <Ionicons name="trophy" size={22} color="#4A2A00" />
+                  </LinearGradient>
                 </View>
-                <Text style={s.winnerTitle}>
-                  {res.official_winner ? teamName(res.official_winner) : 'Berabere'}
-                </Text>
-                {res.official_winner && (
-                  <View
-                    style={[
-                      s.teamPill,
-                      {
-                        backgroundColor: `${teamColor(res.official_winner)}18`,
-                        borderColor: `${teamColor(res.official_winner)}40`,
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        s.teamDot,
-                        { backgroundColor: teamColor(res.official_winner) },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        s.teamPillText,
-                        { color: teamColor(res.official_winner) },
-                      ]}
-                    >
-                      {res.teams[res.official_winner].score} Puan ile Kazandı
-                    </Text>
-                  </View>
+              </View>
+            </Pulse>
+            <Title size={30} color={champ ? champColor : colors.text}>
+              {champ ? teamName(champ) : 'Berabere'}
+            </Title>
+            {champ && (
+              <View style={s.pointsPill}>
+                <GemIcon size={18} color={champColor} />
+                <Text display style={[s.pointsText, { color: champColor }]}>{res.teams[champ].score}</Text>
+                <Text style={s.pointsUnit}>puan ile kazandı</Text>
+              </View>
+            )}
+            {isOfficialMine && <Chip icon="happy" label="Bu bizim!" color={colors.mint} solid />}
+          </View>
+        </Reveal>
+
+        {/* ================= EN KOMİK TASARIM ================= */}
+        <Reveal delay={120}>
+          <Card accent={colors.violet} style={s.funnyCard}>
+            <View style={s.funnyRow}>
+              <View style={[s.funnyIcon, { backgroundColor: alpha(colors.violet, 0.16), borderColor: alpha(colors.violet, 0.5) }]}>
+                <Ionicons name={funny ? 'happy' : 'hand-left'} size={30} color={colors.violet} />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Eyebrow color={colors.violet}>En komik / çılgın tasarım</Eyebrow>
+                <Title size={22} color={funny ? funnyColor : colors.text}>
+                  {funny ? teamName(funny) : 'Berabere'}
+                </Title>
+                {funny ? (
+                  <Muted>
+                    {res.teams[funny].creature_name ?? 'İsimsiz Ucube'} · {res.teams[funny].funny_votes} oy
+                  </Muted>
+                ) : (
+                  <Muted>Takımlar eşit komiklik oyu aldı</Muted>
                 )}
               </View>
             </View>
-          </Pulse>
+            {isFunnyMine && <Chip icon="star" label="Bizim yaratık!" color={colors.mint} solid />}
+          </Card>
+        </Reveal>
 
-          {/* 2. En Komik / Çılgın Tasarım Kartı */}
-          <View style={[s.awardCard, s.funnyCard]}>
-            <View style={s.awardTopRow}>
-              <View style={[s.awardCategoryPill, { backgroundColor: '#1A1830', borderColor: '#322852' }]}>
-                <Text style={[s.awardCategoryText, { color: '#C084FC' }]}>
-                  🤪 EN KOMİK / ÇILGIN TASARIM
-                </Text>
-              </View>
-              {isFunnyMine && (
-                <View style={s.minePill}>
-                  <Text style={s.minePillText}>⭐ Bizim Yaratık!</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={s.awardBody}>
-              <View style={[s.trophyContainer, { backgroundColor: '#161328', borderColor: '#2E2248' }]}>
-                <Text style={{ fontSize: 38 }}>
-                  {res.funny_winner ? '👑' : '🤝'}
-                </Text>
-              </View>
-              <Text style={s.winnerTitle}>
-                {res.funny_winner ? teamName(res.funny_winner) : 'Berabere'}
-              </Text>
-              {res.funny_winner ? (
-                <Text style={s.funnySub}>
-                  {res.teams[res.funny_winner].creature_name ?? 'İsimsiz Ucube'} ·{' '}
-                  {res.teams[res.funny_winner].funny_votes} Oy
-                </Text>
-              ) : (
-                <Text style={s.funnySub}>Takımlar eşit komiklik oyu aldı</Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* ================= YARATIK SERGİSİ (ÇİZGİSİZ, FERAH DARK KARTLAR) ================= */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>YARATIK SERGİSİ</Text>
-        </View>
-
+        {/* ================= YARATIK SERGİSİ ================= */}
+        <SectionLabel>Yaratık sergisi</SectionLabel>
         <View style={s.creatureRow}>
           {(['A', 'B'] as Side[]).map((side) => {
             const tColor = teamColor(side);
             const teamData = res.teams[side];
             return (
-              <View key={side} style={[s.creatureShowcaseCard, { width: colW }]}>
-                {/* Takım Çipi */}
-                <View
-                  style={[
-                    s.teamChip,
-                    { backgroundColor: `${tColor}16`, borderColor: `${tColor}38` },
-                  ]}
-                >
-                  <View style={[s.chipDot, { backgroundColor: tColor }]} />
-                  <Text style={[s.teamChipText, { color: tColor }]}>
-                    {teamName(side)}
-                  </Text>
+              <View key={side} style={[s.creatureCard, { width: colW, borderColor: alpha(tColor, 0.4), shadowColor: tColor }]}>
+                <LinearGradient
+                  colors={[alpha(tColor, 0.26), 'rgba(8,16,32,0.94)']}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 0.7 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={s.teamHead}>
+                  <Avatar source={teamMascot(side)} size={32} ring={tColor} />
+                  <Text numberOfLines={1} style={[s.teamChipText, { color: tColor }]}>{teamName(side)}</Text>
                 </View>
-
-                {/* Çizgisiz, Modern Tuval Çerçevesi */}
                 <View style={s.canvasWrapper}>
                   <CanvasBoard ctx={ctx} side={side} size={colW - 24} />
                 </View>
-
-                {/* Yaratık Adı */}
-                <Text style={s.creatureName} numberOfLines={2}>
+                <Text display style={s.creatureName} numberOfLines={2}>
                   {teamData.creature_name ?? 'İsimsiz Ucube'}
                 </Text>
+                {teamData.creature_title && (
+                  <View style={{ backgroundColor: alpha(tColor, 0.15), borderWidth: 1, borderColor: alpha(tColor, 0.4), borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, marginTop: 4 }}>
+                    <Text numberOfLines={1} style={{ color: tColor, fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
+                      ⚡ {teamData.creature_title}
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })}
         </View>
 
-        {/* ================= TAKIM DETAY PUANLARI ================= */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>TAKIM İSTATİSTİKLERİ</Text>
-        </View>
-
+        {/* ================= TAKIM İSTATİSTİKLERİ ================= */}
+        <SectionLabel>Takım istatistikleri</SectionLabel>
         <View style={{ gap: 12 }}>
           {(['A', 'B'] as Side[]).map((side) => {
             const t = res.teams[side];
             const tColor = teamColor(side);
             const pieces = data.teamPieces.filter((p) => p.side === side);
             return (
-              <View key={side} style={s.scoreCard}>
+              <Card key={side} accent={tColor} style={{ gap: 14 }}>
                 <View style={s.scoreCardHead}>
-                  <View
-                    style={[
-                      s.teamChip,
-                      { backgroundColor: `${tColor}16`, borderColor: `${tColor}38` },
-                    ]}
-                  >
-                    <View style={[s.chipDot, { backgroundColor: tColor }]} />
-                    <Text style={[s.teamChipText, { color: tColor }]}>
-                      {teamName(side)}
-                    </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Avatar source={teamMascot(side)} size={40} ring={tColor} />
+                    <Title size={18} color={tColor}>{teamName(side)}</Title>
                   </View>
                   <View style={s.scorePill}>
-                    <Text style={s.scorePillValue}>{t.score}</Text>
-                    <Text style={s.scorePillUnit}>Puan</Text>
+                    <GemIcon size={18} color={tColor} />
+                    <Text display style={s.scorePillValue}>{t.score}</Text>
+                    <Text style={s.scorePillUnit}>puan</Text>
                   </View>
                 </View>
 
-                {/* Toplanan Parçalar Haznesi */}
                 <View style={s.piecesTray}>
                   <Text style={s.piecesList}>
-                    {pieces.length
-                      ? pieces.map((p) => catalog[p.piece_id]?.emoji ?? '❔').join('  ')
-                      : 'Henüz parça yok'}
+                    {pieces.length ? pieces.map((p) => catalog[p.piece_id]?.emoji ?? '❔').join('  ') : 'Henüz parça yok'}
                   </Text>
                 </View>
 
-                {/* İstatistik Çipleri */}
                 <View style={s.statsRow}>
                   <View style={s.statItem}>
+                    <Text display style={s.statValue}>{t.pieces}</Text>
                     <Text style={s.statLabel}>Parça</Text>
-                    <Text style={s.statValue}>{t.pieces}</Text>
                   </View>
                   <View style={s.statDivider} />
                   <View style={s.statItem}>
-                    <Text style={s.statLabel}>Komiklik Oyu</Text>
-                    <Text style={s.statValue}>{t.funny_votes}</Text>
+                    <Text display style={s.statValue}>{t.funny_votes}</Text>
+                    <Text style={s.statLabel}>Komiklik oyu</Text>
                   </View>
                 </View>
-              </View>
+              </Card>
             );
           })}
         </View>
 
-        {/* ================= ANA MENÜYE DÖN BUTONU ================= */}
-        <View style={{ marginTop: 12, marginBottom: 20 }}>
-          <Btn title="Ana Menüye Dön" tone="primary" onPress={onLeave} />
+        {/* ================= ANA MENÜ ================= */}
+        <View style={{ marginTop: 10, marginBottom: 16 }}>
+          <Btn title="Ana Menüye Dön" tone="gold" icon="home" onPress={onLeave} />
         </View>
       </ScrollView>
     </Screen>
@@ -242,205 +213,117 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
 }
 
 const s = StyleSheet.create({
-  scroll: { gap: 18, paddingBottom: 36 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scroll: { gap: 16, paddingBottom: 36, paddingTop: 6 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  bigIcon: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: alpha(colors.gold, 0.12),
+    borderWidth: 1.5,
+    borderColor: alpha(colors.gold, 0.5),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  header: { gap: 4, marginTop: 2 },
 
-  header: { paddingTop: 8, marginBottom: 4 },
-  liveBadge: {
+  champCard: {
+    borderRadius: 30,
+    borderWidth: 1.5,
+    padding: 22,
+    alignItems: 'center',
+    gap: 14,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.4,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  champAvatarWrap: { marginTop: 4 },
+  trophyBadge: {
+    position: 'absolute',
+    bottom: -6,
+    right: -8,
+    shadowColor: colors.gold,
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  trophyBadgeFill: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#FFF1B8',
+  },
+  pointsPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 6,
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
-  liveText: {
-    color: '#8E9BAE',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-
-  // Ödül Kartları
-  awardsSection: { gap: 14 },
-  awardCard: {
-    backgroundColor: '#101521',
-    borderRadius: 22,
+    backgroundColor: colors.inset,
     borderWidth: 1,
-    borderColor: '#1C2436',
-    padding: 20,
-  },
-  officialCard: {
-    borderColor: 'rgba(245, 158, 11, 0.25)',
-    backgroundColor: '#111520',
-  },
-  funnyCard: {
-    borderColor: 'rgba(139, 92, 246, 0.25)',
-    backgroundColor: '#101422',
-  },
-  awardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  awardCategoryPill: {
-    backgroundColor: '#1E1910',
-    borderWidth: 1,
-    borderColor: '#3D2F15',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: 100,
   },
-  awardCategoryText: {
-    color: '#F59E0B',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.1,
-  },
-  minePill: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
-  },
-  minePillText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  awardBody: { alignItems: 'center', gap: 8 },
-  trophyContainer: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#1C1A14',
-    borderWidth: 1,
-    borderColor: '#382D16',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  winnerTitle: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  teamPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
-  },
-  teamDot: { width: 6, height: 6, borderRadius: 3 },
-  teamPillText: { fontSize: 13, fontWeight: '800' },
-  funnySub: { color: '#8E9BAE', fontSize: 14, fontWeight: '600' },
+  pointsText: { fontSize: 22, fontWeight: '900' },
+  pointsUnit: { color: colors.muted, fontSize: 12.5, fontWeight: '600' },
 
-  // Bölüm Başlığı
-  sectionHeader: { marginTop: 8, marginBottom: -6 },
-  sectionTitle: {
-    color: '#7E8B9E',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
+  funnyCard: { gap: 12 },
+  funnyRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  funnyIcon: { width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 
-  // Yaratık Kartları
   creatureRow: { flexDirection: 'row', gap: 14 },
-  creatureShowcaseCard: {
-    backgroundColor: '#101521',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#1C2436',
+  creatureCard: {
+    borderRadius: 24,
+    borderWidth: 1.5,
     padding: 12,
     alignItems: 'center',
     gap: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
   },
-  teamChip: {
+  teamHead: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch' },
+  teamChipText: { fontSize: 13, fontWeight: '700', flex: 1 },
+  canvasWrapper: { borderRadius: 18, overflow: 'hidden' },
+  creatureName: { color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+
+  scoreCardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  scorePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: colors.inset,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 100,
     borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  chipDot: { width: 6, height: 6, borderRadius: 3 },
-  teamChipText: { fontSize: 12, fontWeight: '700' },
-  canvasWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#0E131F',
-  },
-  creatureName: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-
-  // Takım Puan Kartı
-  scoreCard: {
-    backgroundColor: '#101521',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#1C2436',
-    padding: 18,
-    gap: 12,
-  },
-  scoreCardHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  scorePill: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-    backgroundColor: '#161D2C',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#242F46',
-  },
-  scorePillValue: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  scorePillUnit: {
-    color: '#8E9BAE',
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  scorePillValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  scorePillUnit: { color: colors.muted, fontSize: 11, fontWeight: '600' },
   piecesTray: {
-    backgroundColor: '#0A0D15',
+    backgroundColor: colors.inset,
     borderWidth: 1,
-    borderColor: '#181F2E',
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: 18,
     padding: 14,
     alignItems: 'center',
   },
-  piecesList: { fontSize: 24, textAlign: 'center' },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 4,
-  },
+  piecesList: { fontSize: 24, textAlign: 'center', color: colors.muted },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   statItem: { alignItems: 'center', gap: 2 },
-  statLabel: { color: '#8E9BAE', fontSize: 11, fontWeight: '700' },
-  statValue: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  statDivider: { width: 1, height: 20, backgroundColor: '#1C2436' },
+  statLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  statValue: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  statDivider: { width: 1, height: 32, backgroundColor: colors.border },
 });

@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, GestureResponderEvent, PanResponder, PanResponderGestureState, Pressable, ScrollView, StyleSheet, Text, View,
+  Animated, GestureResponderEvent, PanResponder, PanResponderGestureState, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Hint } from './Hint';
-import { Muted, useToast } from './ui';
+import { IconName, Muted, Text, useToast } from './ui';
 import { supabase } from '../lib/supabase';
-import { colors, radius, teamColor } from '../lib/theme';
+import { alpha, colors, teamColor } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { CanvasItem, Ctx, Side, TeamPiece } from '../lib/types';
@@ -35,11 +37,11 @@ const REACTIONS = [
   { emoji: '🤌', sound: 'boing' },
 ];
 
-const SOUNDBOARD_PHRASES = [
-  { text: 'Ters Çevir! 🔄', sound: 'whistle' },
-  { text: 'Daha Büyüt! 🔍', sound: 'boing' },
-  { text: 'Aşırı Çirkin! 💀', sound: 'horn' },
-  { text: 'Harika Oldu! 🔥', sound: 'cheer' },
+const SOUNDBOARD_PHRASES: { text: string; sound: string; icon: IconName }[] = [
+  { text: 'Ters Çevir!', sound: 'whistle', icon: 'swap-horizontal' },
+  { text: 'Daha Büyüt!', sound: 'boing', icon: 'expand' },
+  { text: 'Aşırı Çirkin!', sound: 'horn', icon: 'skull' },
+  { text: 'Harika Oldu!', sound: 'cheer', icon: 'flame' },
 ];
 
 // ---------------------------------------------------------------- Parça (sürüklenebilir)
@@ -56,10 +58,13 @@ interface ItemProps {
 
 function ItemView(props: ItemProps) {
   const P = useRef(props);
-  P.current = props;
+  useEffect(() => {
+    P.current = props;
+  });
   const g = useRef({ base: props.item.tf, n: 1, dx0: 0, dy0: 0, pinch: null as null | { dist: number; ang: number } });
 
-  const pr = useRef(
+  // eslint-disable-next-line react-hooks/refs
+  const [pr] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => P.current.editable,
       onMoveShouldSetPanResponder: () => P.current.editable,
@@ -97,7 +102,7 @@ function ItemView(props: ItemProps) {
       onPanResponderRelease: () => P.current.onCommit(P.current.item.id),
       onPanResponderTerminate: () => P.current.onCommit(P.current.item.id),
     }),
-  ).current;
+  );
 
   const { item, size, selected } = props;
   const { tf } = item;
@@ -110,8 +115,9 @@ function ItemView(props: ItemProps) {
     >
       <View
         style={{
-          width: glyph, height: glyph, alignItems: 'center', justifyContent: 'center', borderRadius: 10,
-          borderWidth: selected ? 2 : 0, borderColor: colors.yellow, borderStyle: 'dashed',
+          width: glyph, height: glyph, alignItems: 'center', justifyContent: 'center', borderRadius: 12,
+          borderWidth: selected ? 2 : 0, borderColor: colors.cyan, borderStyle: 'dashed',
+          backgroundColor: selected ? alpha(colors.cyan, 0.08) : 'transparent',
           transform: [{ rotate: `${tf.rotation}deg` }, { scaleX: tf.flip_x ? -1 : 1 }],
         }}
       >
@@ -126,7 +132,7 @@ function ItemView(props: ItemProps) {
 interface Floating { id: number; emoji: string; x: number }
 
 function FloatingEmoji({ f, size, onDone }: { f: Floating; size: number; onDone: (id: number) => void }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const [v] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(v, { toValue: 1, duration: 1600, useNativeDriver: true }).start(() => onDone(f.id));
   }, [v, f.id, onDone]);
@@ -153,8 +159,17 @@ function Board({
   speech?: { sender: string; text: string } | null;
 }) {
   const sorted = useMemo(() => [...items].sort((a, b) => a.tf.z_index - b.tf.z_index), [items]);
+  const tColor = teamColor(side);
   return (
-    <View style={[s.board, { width: size, height: size }]}>
+    <View style={[s.board, { width: size, height: size, borderColor: alpha(tColor, editable ? 0.6 : 0.35), shadowColor: tColor }]}>
+      <LinearGradient colors={['#0F2142', '#08111F']} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />
+      {/* Hafif ızgara */}
+      {[0.25, 0.5, 0.75].map((p) => (
+        <React.Fragment key={p}>
+          <View pointerEvents="none" style={[s.gridLineH, { top: `${p * 100}%` }]} />
+          <View pointerEvents="none" style={[s.gridLineV, { left: `${p * 100}%` }]} />
+        </React.Fragment>
+      ))}
       {editable && (
         <Pressable style={StyleSheet.flatten([s.fill])} onPress={() => onSelect?.(null)} />
       )}
@@ -173,12 +188,16 @@ function Board({
       {floating?.map((f) => <FloatingEmoji key={f.id} f={f} size={size} onDone={onFloatDone ?? (() => undefined)} />)}
       {speech && (
         <View style={s.speechBubble} pointerEvents="none">
-          <Text style={s.speechSender}>💬 {speech.sender}:</Text>
-          <Text style={s.speechText}>"{speech.text}"</Text>
+          <Ionicons name="chatbubble-ellipses" size={14} color={colors.cyan} />
+          <Text style={s.speechSender}>{speech.sender}:</Text>
+          <Text style={s.speechText}>“{speech.text}”</Text>
         </View>
       )}
       {items.length === 0 && (
-        <View style={s.empty} pointerEvents="none"><Text style={s.emptyText}>{editable ? 'Aşağıdan parça ekle ⬇️' : 'Mimar parça ekliyor…'}</Text></View>
+        <View style={s.empty} pointerEvents="none">
+          <Ionicons name={editable ? 'arrow-down-circle' : 'hourglass'} size={34} color={colors.subtle} />
+          <Text style={s.emptyText}>{editable ? 'Aşağıdan parça ekle' : 'Mimar parça ekliyor…'}</Text>
+        </View>
       )}
     </View>
   );
@@ -206,7 +225,9 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
   const rows = useMemo(() => data.canvas.filter((c) => c.side === side), [data.canvas, side]);
   const architectId = data.players.find((p) => p.team_side === side && p.is_architect)?.id;
   const architectRef = useRef(architectId);
-  architectRef.current = architectId;
+  useEffect(() => {
+    architectRef.current = architectId;
+  }, [architectId]);
 
   const [live, setLive] = useState<Record<string, Partial<TF> & { ts: number }>>({});
   const [selected, setSelected] = useState<string | null>(null);
@@ -227,7 +248,9 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
     [rows, live, data.teamPieces, catalog],
   );
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   const latest = (id: string) => itemsRef.current.find((i) => i.id === id)?.tf;
 
   const pushReaction = (emoji: string) => {
@@ -235,23 +258,6 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
     setFloating((f) => [...f, { id, emoji, x: Math.random() }]);
   };
   const dropFloating = React.useCallback((id: number) => setFloating((f) => f.filter((x) => x.id !== id)), []);
-
-  // Takım kanalı: canlı hareket + emoji tepkileri
-  useEffect(() => {
-    const ch = supabase.channel(`canvas-${data.room.id}-${side}`, { config: { broadcast: { self: false } } });
-    ch.on('broadcast', { event: 'move' }, ({ payload }) => {
-      if (payload.from !== architectRef.current) return; // yalnız Mimar'ın hareketleri geçerli
-      setLive((prev) => ({ ...prev, [payload.id]: { ...payload.tf, ts: Date.now() } }));
-    });
-    ch.on('broadcast', { event: 'react' }, ({ payload }) => pushReaction(payload.emoji));
-    ch.subscribe();
-    channel.current = ch;
-    return () => {
-      supabase.removeChannel(ch);
-      channel.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.room.id, side]);
 
   // Yayın geçersiz kılmaları kısa süre sonra veritabanındaki gerçek duruma bırakır
   useEffect(() => {
@@ -286,7 +292,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
 
   const persist = (id: string, tf: TF) => {
     supabase.from('canvas_items').update(tf).eq('id', id).then(({ error }) => {
-      if (error) show('Kaydedilemedi: ' + error.message);
+      if (error) show('Kaydedilemedi: ' + error.message, 'error');
     });
   };
 
@@ -353,7 +359,6 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
       supabase.removeChannel(ch);
       channel.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.room.id, side]);
 
   const add = async (tp: TeamPiece) => {
@@ -366,7 +371,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
       .insert({ room_id: data.room.id, side, team_piece_id: tp.id, x: j(), y: j(), z_index: z })
       .select('id')
       .single();
-    if (error) show(error.message);
+    if (error) show(error.message, 'error');
     else if (row) setSelected(row.id as string);
   };
   const remove = async () => {
@@ -376,7 +381,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
     const id = selected;
     setSelected(null);
     const { error } = await supabase.from('canvas_items').delete().eq('id', id);
-    if (error) show(error.message);
+    if (error) show(error.message, 'error');
   };
 
   const sendReaction = (item: { emoji: string; sound: string }) => {
@@ -410,24 +415,28 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
         <>
           <Hint id="canvas_gestures" text="Sürükle • iki parmakla büyüt/döndür • düğmeler hassas ayar için." />
           <View style={[s.toolbar, { width: size }]}>
-            <Tool label="⟲" onPress={() => apply((t) => ({ rotation: t.rotation - 15 }))} disabled={!selected} />
-            <Tool label="⟳" onPress={() => apply((t) => ({ rotation: t.rotation + 15 }))} disabled={!selected} />
-            <Tool label="➖" onPress={() => apply((t) => ({ scale: clamp(t.scale * 0.85, 0.2, 6) }))} disabled={!selected} />
-            <Tool label="➕" onPress={() => apply((t) => ({ scale: clamp(t.scale * 1.18, 0.2, 6) }))} disabled={!selected} />
-            <Tool label="↔️" onPress={() => apply((t) => ({ flip_x: !t.flip_x }))} disabled={!selected} />
-            <Tool label="⬆️" onPress={() => apply(() => ({ z_index: Math.max(0, ...zs) + 1 }))} disabled={!selected} />
-            <Tool label="⬇️" onPress={() => apply(() => ({ z_index: Math.min(0, ...zs) - 1 }))} disabled={!selected} />
-            <Tool label="🗑️" onPress={remove} disabled={!selected} danger />
+            <Tool icon="refresh" flip onPress={() => apply((t) => ({ rotation: t.rotation - 15 }))} disabled={!selected} />
+            <Tool icon="refresh" onPress={() => apply((t) => ({ rotation: t.rotation + 15 }))} disabled={!selected} />
+            <Tool icon="remove" onPress={() => apply((t) => ({ scale: clamp(t.scale * 0.85, 0.2, 6) }))} disabled={!selected} />
+            <Tool icon="add" onPress={() => apply((t) => ({ scale: clamp(t.scale * 1.18, 0.2, 6) }))} disabled={!selected} />
+            <Tool icon="swap-horizontal" onPress={() => apply((t) => ({ flip_x: !t.flip_x }))} disabled={!selected} />
+            <Tool icon="arrow-up" onPress={() => apply(() => ({ z_index: Math.max(0, ...zs) + 1 }))} disabled={!selected} />
+            <Tool icon="arrow-down" onPress={() => apply(() => ({ z_index: Math.min(0, ...zs) - 1 }))} disabled={!selected} />
+            <Tool icon="trash" onPress={remove} disabled={!selected} danger />
           </View>
           <View style={{ width: size }}>
             {unplaced.length === 0 ? (
-              <Muted style={{ textAlign: 'center' }}>Tüm parçalar tuvalde 👏</Muted>
+              <View style={s.allPlaced}>
+                <Ionicons name="checkmark-circle" size={18} color={colors.mint} />
+                <Muted>Tüm parçalar tuvalde</Muted>
+              </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {unplaced.map((tp) => (
-                  <Pressable key={tp.id} onPress={() => add(tp)} style={s.tray}>
+                  <Pressable key={tp.id} onPress={() => add(tp)} style={({ pressed }) => [s.tray, pressed && { transform: [{ scale: 0.94 }] }]}>
                     <Text style={{ fontSize: 30 }}>{catalog[tp.piece_id]?.emoji}</Text>
                     <Text style={s.trayName} numberOfLines={1}>{catalog[tp.piece_id]?.name_tr}</Text>
+                    <View style={s.trayAdd}><Ionicons name="add" size={12} color="#05281A" /></View>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -440,7 +449,10 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
 
           {/* Sesli Yönlendirme Çipleri (Soundboard) */}
           <View style={s.soundboardSection}>
-            <Text style={s.soundboardLabel}>📢 MİMARA SESLİ YÖNLENDİRME</Text>
+            <View style={s.soundboardHead}>
+              <Ionicons name="megaphone" size={13} color={colors.subtle} />
+              <Text style={s.soundboardLabel}>MİMARA SESLİ YÖNLENDİRME</Text>
+            </View>
             <View style={s.phraseGrid}>
               {SOUNDBOARD_PHRASES.map((item) => (
                 <Pressable
@@ -448,6 +460,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
                   onPress={() => sendSoundboard(item)}
                   style={({ pressed }) => [s.phraseBtn, pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] }]}
                 >
+                  <Ionicons name={item.icon} size={14} color={colors.cyan} />
                   <Text style={s.phraseText}>{item.text}</Text>
                 </Pressable>
               ))}
@@ -460,9 +473,9 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
               <Pressable
                 key={item.emoji}
                 onPress={() => sendReaction(item)}
-                style={({ pressed }) => [s.react, pressed && { transform: [{ scale: 0.88 }] }]}
+                style={({ pressed }) => [s.react, pressed && { transform: [{ scale: 0.86 }] }]}
               >
-                <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
+                <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
               </Pressable>
             ))}
           </View>
@@ -473,54 +486,108 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
   );
 }
 
-function Tool({ label, onPress, disabled, danger }: { label: string; onPress: () => void; disabled?: boolean; danger?: boolean }) {
+function Tool({ icon, onPress, disabled, danger, flip }: { icon: IconName; onPress: () => void; disabled?: boolean; danger?: boolean; flip?: boolean }) {
   return (
     <Pressable
       onPress={onPress} disabled={disabled}
-      style={({ pressed }) => [s.tool, danger && { backgroundColor: colors.red + '55' }, { opacity: disabled ? 0.3 : 1, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
+      style={({ pressed }) => [
+        s.tool,
+        danger && { backgroundColor: alpha(colors.red, 0.18), borderColor: alpha(colors.red, 0.5) },
+        { opacity: disabled ? 0.3 : 1, transform: [{ scale: pressed ? 0.9 : 1 }] },
+      ]}
     >
-      <Text style={{ fontSize: 20, color: colors.text, fontWeight: '900' }}>{label}</Text>
+      <Ionicons name={icon} size={20} color={danger ? colors.red : colors.textSoft} style={flip ? { transform: [{ scaleX: -1 }] } : undefined} />
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  board: { backgroundColor: '#0E131F', borderWidth: 1, borderColor: '#1E2838', borderRadius: 20, overflow: 'hidden' },
+  board: {
+    borderWidth: 1.5,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#08111F',
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  gridLineH: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(120,190,255,0.07)' },
+  gridLineV: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(120,190,255,0.07)' },
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  empty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: colors.muted, fontWeight: '800', fontSize: 15 },
-  toolbar: { flexDirection: 'row', gap: 8, justifyContent: 'space-between', marginVertical: 6 },
-  tool: { flex: 1, height: 44, borderRadius: 12, backgroundColor: '#161D2B', borderWidth: 1, borderColor: '#222D3E', alignItems: 'center', justifyContent: 'center' },
-  tray: { width: 84, alignItems: 'center', backgroundColor: '#111622', borderRadius: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#1E283A' },
-  trayName: { color: '#8E9BAE', fontSize: 11, fontWeight: '700', marginTop: 4 },
-  react: { padding: 8, borderRadius: 14, backgroundColor: '#161D2B', borderWidth: 1, borderColor: '#222D3E' },
+  empty: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  emptyText: { color: colors.muted, fontWeight: '600', fontSize: 14 },
+  toolbar: { flexDirection: 'row', gap: 7, justifyContent: 'space-between', marginVertical: 4 },
+  tool: {
+    flex: 1,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allPlaced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  tray: {
+    width: 86,
+    alignItems: 'center',
+    backgroundColor: colors.glass,
+    borderRadius: 18,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  trayName: { color: colors.muted, fontSize: 11, fontWeight: '600', marginTop: 4, maxWidth: 74 },
+  trayAdd: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  react: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
   speechBubble: {
     position: 'absolute',
     top: 12,
     alignSelf: 'center',
-    backgroundColor: 'rgba(16, 21, 33, 0.94)',
+    backgroundColor: 'rgba(8, 16, 32, 0.95)',
     borderWidth: 1,
-    borderColor: '#242F46',
+    borderColor: alpha(colors.cyan, 0.5),
     borderRadius: 100,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 7,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     zIndex: 9999,
   },
-  speechSender: { color: '#38BDF8', fontSize: 12, fontWeight: '800' },
-  speechText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  soundboardSection: { width: '100%', gap: 6, alignItems: 'center', marginVertical: 4 },
-  soundboardLabel: { color: '#7E8B9E', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+  speechSender: { color: colors.cyan, fontSize: 12, fontWeight: '700' },
+  speechText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  soundboardSection: { width: '100%', gap: 8, alignItems: 'center', marginVertical: 2 },
+  soundboardHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  soundboardLabel: { color: colors.subtle, fontSize: 10, fontWeight: '700', letterSpacing: 1.4 },
   phraseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   phraseBtn: {
-    backgroundColor: '#161D2C',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: alpha(colors.cyan, 0.08),
     borderWidth: 1,
-    borderColor: '#242F46',
+    borderColor: alpha(colors.cyan, 0.35),
     borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
-  phraseText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  phraseText: { color: colors.text, fontSize: 12, fontWeight: '700' },
 });

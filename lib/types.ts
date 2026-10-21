@@ -2,11 +2,13 @@ export type Side = 'A' | 'B';
 export type Phase = 'lobby' | 'question' | 'minigame' | 'building' | 'voting' | 'results';
 export type Tier = 'base' | 'body' | 'roof';
 
+export type GameMode = 'quick' | 'standard' | 'long';
+
 export interface Room {
   id: string;
   code: string;
   host_user_id: string;
-  mode: 'quick' | 'long';
+  mode: GameMode;
   phase: Phase;
   jokers_per_team: number;
   paused: boolean;
@@ -14,6 +16,8 @@ export interface Room {
   phase_started_at: string | null;
   phase_ends_at: string | null;
   midpoint_done: boolean;
+  building_ready_a?: boolean;
+  building_ready_b?: boolean;
 }
 
 export interface Player {
@@ -36,6 +40,7 @@ export interface TeamState {
   jokers_left: number;
   credits: number;
   creature_name: string | null;
+  creature_title?: string | null;
 }
 
 export interface Round {
@@ -94,11 +99,14 @@ export interface TeamPiece {
   source: 'question' | 'steal' | 'joker' | 'minigame';
 }
 
+export type MinigameKind = 'reflex' | 'social_guess' | 'math_guess' | 'memory';
+
 export interface Minigame {
   id: string;
   room_id: string;
-  kind: 'reflex' | 'social_guess';
+  kind: MinigameKind;
   prompt: string | null;
+  target_num?: number | null;
   status: 'pending' | 'live' | 'done';
   starts_at: string | null;
   winner_side: Side | null;
@@ -111,6 +119,7 @@ export interface MinigameEntry {
   player_id: string;
   target_player_id: string | null;
   reaction_ms: number | null;
+  guess_num?: number | null;
 }
 
 export interface CanvasItem {
@@ -157,5 +166,5 @@ export interface Ctx {
 export interface GameResults {
   official_winner: Side | null;
   funny_winner: Side | null;
-  teams: Record<Side, { score: number; pieces: number; funny_votes: number; creature_name: string | null }>;
+  teams: Record<Side, { score: number; pieces: number; funny_votes: number; creature_name: string | null; creature_title?: string | null }>;
 }

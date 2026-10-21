@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { GameResults, Side } from './types';
+import type { GameMode, GameResults, Side } from './types';
 
 const MESSAGES: Record<string, string> = {
   not_authenticated: 'Oturum açılamadı, tekrar dene.',
@@ -23,6 +23,8 @@ const MESSAGES: Record<string, string> = {
   invalid_answer: 'Cevap 1-80 karakter olmalı.',
   no_credits: 'Krediniz bitti.',
   no_more_letters: 'Açılabilecek harf kalmadı.',
+  not_building_phase: 'İnşa aşaması tamamlanmış.',
+  not_architect: 'İnşaat hazır butonuna sadece Mimar basabilir.',
 };
 
 export class GameError extends Error {
@@ -41,7 +43,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 }
 
 export const api = {
-  createRoom: (nick: string, mode: 'quick' | 'long') =>
+  createRoom: (nick: string, mode: GameMode = 'standard') =>
     rpc<{ room_id: string; code: string }>('create_room', { p_nickname: nick, p_mode: mode }),
   joinRoom: (code: string, nick: string) =>
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
@@ -54,9 +56,20 @@ export const api = {
   playJoker: (room: string) => rpc<string>('use_joker', { p_room: room }),
   buyLetter: (round: string) => rpc<{ pos: number; letter: string }>('buy_letter', { p_round: round }),
   togglePause: (room: string) => rpc<boolean>('toggle_pause', { p_room: room }),
-  setCreatureName: (room: string, name: string) => rpc<void>('set_creature_name', { p_room: room, p_name: name }),
-  minigameEntry: (mg: string, target?: string) =>
-    rpc<void>('submit_minigame_entry', { p_minigame: mg, p_target: target ?? null }),
+  setBuildingReady: (room: string, ready = true) =>
+    rpc<{ ready_a: boolean; ready_b: boolean; phase: string }>('set_building_ready', { p_room: room, p_ready: ready }),
+  setCreatureName: (room: string, name: string, title?: string | null) => {
+    const params: Record<string, unknown> = { p_room: room, p_name: name };
+    if (title) params.p_title = title;
+    return rpc<void>('set_creature_name', params);
+  },
+  minigameEntry: (mg: string, target?: string, guess?: number) => {
+    const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null };
+    if (guess !== undefined && guess !== null) {
+      params.p_guess = guess;
+    }
+    return rpc<void>('submit_minigame_entry', params);
+  },
   castVote: (room: string, side: Side) => rpc<void>('cast_vote', { p_room: room, p_side: side }),
   voteArchitect: (room: string, candidate: string) =>
     rpc<boolean>('vote_architect', { p_room: room, p_candidate: candidate }),
