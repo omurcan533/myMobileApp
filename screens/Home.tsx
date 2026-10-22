@@ -204,9 +204,6 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     center
                     value={code}
                     onChangeText={(t) => setCode(t.toUpperCase())}
-                    onFocus={() => {
-                      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 260);
-                    }}
                     placeholder="ODA KODU"
                     autoCapitalize="characters"
                     maxLength={5}
@@ -291,9 +288,6 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     icon="happy"
                     value={nick}
                     onChangeText={setNick}
-                    onFocus={() => {
-                      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 260);
-                    }}
                     onBlur={() => { const n = nick.trim(); if (n) AsyncStorage.setItem('nickname', n); }}
                     placeholder="Takma adın"
                     maxLength={20}
@@ -339,7 +333,7 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
-  scroll: { gap: 16, paddingBottom: Platform.OS === 'web' ? 380 : 140, paddingTop: 4 },
+  scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },
 
   hero: {
     height: 212,

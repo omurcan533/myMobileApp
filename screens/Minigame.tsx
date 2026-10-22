@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, TimerBar, Title, Text, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, TimerBar, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api, GameError } from '../lib/api';
@@ -14,7 +14,7 @@ import { latestMinigame, secondsLeft } from '../lib/selectors';
 import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
-import type { Ctx } from '../lib/types';
+import type { Ctx, MinigameEntry } from '../lib/types';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -106,6 +106,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {mg.kind === 'math_guess' ? (
           <MathGuessGame
+            ctx={ctx}
+            entries={entries}
             prompt={mg.prompt ?? 'Sayıyı tahmin et'}
             targetNum={mg.target_num ?? null}
             live={live}
@@ -523,6 +525,8 @@ function SocialGuess({
             const isSelected = mineTarget === p.id;
             const isMe = p.id === me.id;
             const tColor = teamColor(p.team_side);
+            const pVotes = counts.find((c) => c.p.id === p.id)?.n ?? 0;
+            const pHasVoted = mgEntries.some((e) => e.player_id === p.id);
             return (
               <Pressable
                 key={p.id}
@@ -536,13 +540,25 @@ function SocialGuess({
               >
                 <Avatar source={avatarFor(p.nickname)} size={46} ring={tColor} glow={isSelected} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={s.playerNickText}>
-                    {p.nickname}{isMe ? ' (Sen)' : ''}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={s.playerNickText}>
+                      {p.nickname}{isMe ? ' (Sen)' : ''}
+                    </Text>
+                    {pHasVoted && (
+                      <Chip label="Oy Verdi" color={colors.mint} size="sm" icon="checkmark-circle" />
+                    )}
+                  </View>
                   <Text style={[s.playerTeamText, { color: tColor }]}>
                     {teamName(p.team_side)}
                   </Text>
                 </View>
+                {mineTarget && (
+                  <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
+                    <Text display style={{ color: pVotes > 0 ? colors.cyan : colors.muted, fontSize: 13, fontWeight: '700' }}>
+                      {pVotes} oy
+                    </Text>
+                  </View>
+                )}
                 <View style={[s.voteRadio, isSelected && s.voteRadioSelected]}>
                   {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
                 </View>
@@ -579,11 +595,12 @@ function SocialGuess({
 // 5. HIZLI MATEMATİK & TAHMİN OYUNU
 // =================================================================
 function MathGuessGame({
-  prompt, targetNum, live, mineGuess, onSubmit, busy,
+  ctx, entries, prompt, targetNum, live, mineGuess, onSubmit, busy,
 }: {
-  prompt: string; targetNum: number | null; live: boolean;
+  ctx: Ctx; entries: MinigameEntry[]; prompt: string; targetNum: number | null; live: boolean;
   mineGuess: number | null; onSubmit: (val: number) => void; busy: boolean;
 }) {
+  const { data, me } = ctx;
   const [val, setVal] = useState('');
 
   const pressDigit = (d: string) => {
@@ -611,6 +628,18 @@ function MathGuessGame({
 
   const done = mineGuess !== null;
 
+  // Tüm oyuncuların tahminleri
+  const playerGuesses = data.players.map((p) => {
+    const entry = entries.find((e) => e.player_id === p.id);
+    const guess = entry?.guess_num ?? null;
+    const isMe = p.id === me.id;
+    const diff = guess !== null && targetNum !== null ? Math.abs(guess - targetNum) : null;
+    return { player: p, guess, isMe, diff };
+  });
+
+  const validDiffs = playerGuesses.filter((g) => g.diff !== null).map((g) => g.diff!);
+  const bestDiff = validDiffs.length > 0 ? Math.min(...validDiffs) : null;
+
   return (
     <View style={{ gap: 16 }}>
       {/* Soru Kartı */}
@@ -633,7 +662,7 @@ function MathGuessGame({
             {mineGuess}
           </Text>
           <Muted>
-            {live ? 'Süre bitince en yakın cevaplar açıklanacak…' : (targetNum !== null ? `Gerçek Cevap: ${targetNum} (Fark: ${Math.abs(mineGuess - targetNum)})` : 'Tur tamamlandı')}
+            {live ? 'Diğer oyuncuların tahminleri bekleniyor…' : (targetNum !== null ? `Gerçek Cevap: ${targetNum} (Fark: ${Math.abs(mineGuess - targetNum)})` : 'Tur tamamlandı')}
           </Muted>
         </Card>
       ) : live ? (
@@ -684,6 +713,59 @@ function MathGuessGame({
           )}
         </Card>
       )}
+
+      {/* Diğer Tahminler & Oyuncu Durumu */}
+      <Card style={{ gap: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <SectionLabel>Tüm Tahminler</SectionLabel>
+          <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '700' }}>
+            {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} Cevap
+          </Text>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          {playerGuesses.map(({ player: p, guess, isMe, diff }) => {
+            const tColor = teamColor(p.team_side);
+            const isWinner = !live && targetNum !== null && diff !== null && diff === bestDiff;
+            return (
+              <View
+                key={p.id}
+                style={[
+                  s.guessRow,
+                  isWinner && { borderColor: colors.gold, backgroundColor: alpha(colors.gold, 0.12) },
+                ]}
+              >
+                <Avatar source={avatarFor(p.nickname)} size={36} ring={tColor} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
+                    {p.nickname} {isMe ? '(Sen)' : ''}
+                  </Text>
+                  <Text style={{ color: tColor, fontSize: 11, fontWeight: '600' }}>
+                    {teamName(p.team_side)}
+                  </Text>
+                </View>
+
+                {guess !== null ? (
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
+                      <Text display style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
+                        {guess}
+                      </Text>
+                    </View>
+                    {!live && targetNum !== null && diff !== null && (
+                      <Text style={{ color: isWinner ? colors.gold : colors.muted, fontSize: 11, fontWeight: '700' }}>
+                        {isWinner ? `🏆 En Yakın (Fark: ${diff})` : `Fark: ${diff}`}
+                      </Text>
+                    )}
+                  </View>
+                ) : (
+                  <Chip label="Düşünüyor..." color={colors.muted} size="sm" icon="time-outline" />
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </Card>
     </View>
   );
 }
@@ -884,4 +966,21 @@ const s = StyleSheet.create({
     borderColor: alpha(colors.cyan, 0.35),
   },
   numPadKeyText: { fontSize: 22, fontWeight: '800', color: colors.text },
+  guessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: alpha(colors.surface2, 0.45),
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  guessBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
 });

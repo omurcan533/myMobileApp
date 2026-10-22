@@ -40,6 +40,13 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
 // ============================================================================
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
+  const isIosWeb =
+    Platform.OS === 'web' &&
+    typeof navigator !== 'undefined' &&
+    /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const topPad = Math.max(insets.top, isIosWeb ? 48 : Platform.OS === 'web' ? 16 : 8);
+  const bottomPad = Math.max(insets.bottom, isIosWeb ? 24 : 8);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}>
       <ImageBackground source={art.bg} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={{ opacity: 0.6 }} />
@@ -53,8 +60,8 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
           {
             flex: 1,
             paddingHorizontal: 18,
-            paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 16 : 8),
-            paddingBottom: Math.max(insets.bottom, 8),
+            paddingTop: topPad,
+            paddingBottom: bottomPad,
           },
           style,
         ]}
@@ -505,13 +512,6 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
         {...rest}
         onFocus={(e) => {
           setFocus(true);
-          if (Platform.OS === 'web') {
-            setTimeout(() => {
-              try {
-                (e.target as any)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-              } catch {}
-            }, 180);
-          }
           onFocus?.(e);
         }}
         onBlur={(e) => { setFocus(false); onBlur?.(e); }}
@@ -539,6 +539,30 @@ export interface TabItem<K extends string> { key: K; label: string; icon: IconNa
 
 export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
   const insets = useSafeAreaInsets();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const onFocusIn = (e: FocusEvent) => {
+        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') {
+          setIsKeyboardOpen(true);
+        }
+      };
+      const onFocusOut = () => {
+        setIsKeyboardOpen(false);
+      };
+      document.addEventListener('focusin', onFocusIn);
+      document.addEventListener('focusout', onFocusOut);
+      return () => {
+        document.removeEventListener('focusin', onFocusIn);
+        document.removeEventListener('focusout', onFocusOut);
+      };
+    }
+  }, []);
+
+  if (isKeyboardOpen) return null;
+
   return (
     <View style={[s.tabWrap, { bottom: Math.max(insets.bottom, 10) + 4 }]} pointerEvents="box-none">
       <View style={s.tabBar}>

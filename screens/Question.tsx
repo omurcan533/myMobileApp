@@ -114,8 +114,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
     run(async () => {
       await api.playJoker(room.id);
       soundFx.cheer();
-      haptic.medium();
-      show('Joker! Bonus parça kazandın.', 'success');
+      haptic.success();
+      show('Joker kullanıldı! Soru çözüldü ve parça kazanıldı.', 'success');
     });
   const pause = () => run(async () => { await api.togglePause(room.id); });
 
@@ -330,21 +330,21 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             </Pulse>
           )}
 
-          {/* ================= KAPTAN AKSİYONLARI ================= */}
-          {me.is_captain && (
-            <View style={s.captainRow}>
-              <Btn
-                title={`Joker (${myTeam?.jokers_left ?? 0})`}
-                icon="sparkles"
-                tone="gold"
-                size="md"
-                disabled={!isOpen || !myTeam || myTeam.jokers_left <= 0}
-                onPress={joker}
-                style={{ flex: 1 }}
-              />
+          {/* ================= TAKIM AKSİYONLARI (JOKER & MOLA) ================= */}
+          <View style={s.captainRow}>
+            <Btn
+              title={`Joker (${myTeam?.jokers_left ?? 0})`}
+              icon="sparkles"
+              tone="gold"
+              size="md"
+              disabled={!isOpen || !myTeam || (myTeam.jokers_left ?? 0) <= 0}
+              onPress={joker}
+              style={{ flex: 1 }}
+            />
+            {me.is_captain && (
               <Btn title="Mola" icon="pause" tone="ghost" size="md" onPress={pause} style={{ flex: 1 }} />
-            </View>
-          )}
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 

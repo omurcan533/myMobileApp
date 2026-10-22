@@ -100,19 +100,24 @@ export default function App() {
         const style = document.createElement('style');
         style.id = styleId;
         style.textContent = `
-          html, body, #root {
+          html, body {
             background-color: #050A14 !important;
             height: 100% !important;
+            min-height: 100% !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow-x: hidden !important;
+            overscroll-behavior-y: none !important;
+            -webkit-text-size-adjust: 100% !important;
+          }
+          #root {
+            background-color: #050A14 !important;
+            height: 100% !important;
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
             overflow: hidden !important;
-            overscroll-behavior: none !important;
-            position: fixed !important;
-            top: 0; left: 0; right: 0; bottom: 0;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
           }
           input, textarea, select {
             font-size: 16px !important;
@@ -130,20 +135,26 @@ export default function App() {
         document.head.appendChild(style);
       }
 
+      const onScroll = () => {
+        if (window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      };
+
       const resetScroll = () => {
         setTimeout(() => {
           window.scrollTo(0, 0);
           if (document.body) document.body.scrollTop = 0;
           if (document.documentElement) document.documentElement.scrollTop = 0;
-        }, 50);
+        }, 60);
       };
 
+      window.addEventListener('scroll', onScroll, { passive: true });
       document.addEventListener('focusout', resetScroll);
-      window.visualViewport?.addEventListener('resize', resetScroll);
 
       return () => {
+        window.removeEventListener('scroll', onScroll);
         document.removeEventListener('focusout', resetScroll);
-        window.visualViewport?.removeEventListener('resize', resetScroll);
       };
     }
   }, []);

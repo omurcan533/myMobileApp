@@ -23,7 +23,11 @@ function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: num
       if (!mg) return false;
       if (mg.status === 'live') {
         const entries = d.entries.filter((e) => e.minigame_id === mg.id).length;
-        return now >= ms(room.phase_ends_at) + 300 || entries >= d.players.length;
+        return (
+          now >= ms(room.phase_ends_at) + 300 ||
+          entries >= d.players.length ||
+          (mg.kind === 'math_guess' && entries >= 2)
+        );
       }
       return now >= ms(mg.resolved_at) + 6300;
     }
