@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -92,6 +92,55 @@ export default function App() {
 
   useEffect(() => { boot(); }, [boot]);
 
+  // Mobil web (Safari/Chrome) için rubberband, klavye kayması ve beyaz boşluk koruması
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const styleId = 'app-mobile-web-fix';
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+          html, body, #root {
+            background-color: #050A14 !important;
+            height: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            overscroll-behavior: none !important;
+            position: fixed !important;
+            top: 0; left: 0; right: 0; bottom: 0;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+          }
+          input, textarea {
+            font-size: 16px !important;
+            user-select: auto !important;
+            -webkit-user-select: auto !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      const resetScroll = () => {
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          if (document.body) document.body.scrollTop = 0;
+          if (document.documentElement) document.documentElement.scrollTop = 0;
+        }, 50);
+      };
+
+      document.addEventListener('focusout', resetScroll);
+      window.visualViewport?.addEventListener('resize', resetScroll);
+
+      return () => {
+        document.removeEventListener('focusout', resetScroll);
+        window.visualViewport?.removeEventListener('resize', resetScroll);
+      };
+    }
+  }, []);
+
   const enter = useCallback((id: string) => { AsyncStorage.setItem(ROOM_KEY, id); setRoomId(id); }, []);
   const leave = useCallback(() => { AsyncStorage.removeItem(ROOM_KEY); setRoomId(null); }, []);
 
@@ -100,7 +149,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="light" />
       {error ? (
         <Screen>

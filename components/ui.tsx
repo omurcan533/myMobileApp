@@ -39,15 +39,28 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
 // Ekran iskeleti
 // ============================================================================
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}>
       <ImageBackground source={art.bg} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={{ opacity: 0.6 }} />
       <LinearGradient
         colors={['rgba(5,10,20,0.5)', 'rgba(5,10,20,0.8)', 'rgba(5,10,20,0.95)']}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
-      <SafeAreaView style={[{ flex: 1, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 }, style]}>{children}</SafeAreaView>
+      <SafeAreaView
+        style={[
+          {
+            flex: 1,
+            paddingHorizontal: 18,
+            paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 16 : 8),
+            paddingBottom: Math.max(insets.bottom, 8),
+          },
+          style,
+        ]}
+      >
+        {children}
+      </SafeAreaView>
     </View>
   );
 }
