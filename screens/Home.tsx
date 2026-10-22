@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
-  SectionLabel, TabBar, TabItem, Text, Title, useToast,
+  SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
 import { art, avatarFor } from '../lib/art';
@@ -161,13 +161,15 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     ] as const).map(([m, icon, label, sub, c]) => {
                       const on = mode === m;
                       return (
-                        <Pressable
+                        <Tap
                           key={m}
+                          color={alpha(c, 0.32)}
+                          accent={c}
+                          scaleTo={0.93}
                           onPress={() => { soundFx.click(); setMode(m); }}
-                          style={({ pressed }) => [
+                          style={[
                             s.mode,
                             on && { borderColor: c, backgroundColor: alpha(c, 0.14), shadowColor: c, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-                            pressed && { transform: [{ scale: 0.97 }] },
                           ]}
                         >
                           <View style={[s.modeIcon, { backgroundColor: alpha(c, on ? 0.22 : 0.1) }]}>
@@ -180,7 +182,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                               <Ionicons name="checkmark" size={12} color="#0A1020" />
                             </View>
                           )}
-                        </Pressable>
+                        </Tap>
                       );
                     })}
                   </View>

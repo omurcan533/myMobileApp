@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, TimerBar, Title, Text, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, TimerBar, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api, GameError } from '../lib/api';
@@ -210,13 +210,13 @@ function ReflexGame({
       <Pulse active={live && go && !mineDone} amount={1.05}>
         <View style={s.ringOuter}>
           <View style={[s.ringMid, { borderColor: alpha(tint, 0.18), backgroundColor: alpha(tint, 0.05) }]}>
-            <Pressable
+            <Tap
               onPress={() => (go ? onTap() : onEarly())}
               disabled={!live || mineDone}
-              style={({ pressed }) => [
-                s.reflexBtn,
-                { shadowColor: tint, transform: [{ scale: pressed ? 0.95 : 1 }] },
-              ]}
+              color={alpha(tint, 0.4)}
+              accent="#FFFFFF"
+              scaleTo={0.93}
+              style={[s.reflexBtn, { shadowColor: tint }]}
             >
               <LinearGradient colors={grad} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={s.reflexFill}>
                 <View style={s.reflexSheen} />
@@ -232,7 +232,7 @@ function ReflexGame({
                   </>
                 )}
               </LinearGradient>
-            </Pressable>
+            </Tap>
           </View>
         </View>
       </Pulse>
@@ -380,15 +380,17 @@ function MemoryGame({
         {MEMORY_PIECES.map((item) => {
           const isHighlighted = activeStep === item.id;
           return (
-            <Pressable
+            <Tap
               key={item.id}
               disabled={!isClickable}
               onPress={() => handleTap(item.id)}
-              style={({ pressed }) => [
+              color={alpha(colors.cyan, 0.34)}
+              accent={colors.mint}
+              scaleTo={0.9}
+              style={[
                 s.memoryCard,
                 isHighlighted && s.memoryCardActive,
                 isClickable && { borderColor: alpha(colors.cyan, 0.45) },
-                pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >
               {isHighlighted && showingStep && (
@@ -398,7 +400,7 @@ function MemoryGame({
               )}
               <Text style={{ fontSize: 40 }}>{item.emoji}</Text>
               <Text style={[s.memoryName, isHighlighted && { color: colors.mint }]}>{item.name}</Text>
-            </Pressable>
+            </Tap>
           );
         })}
       </View>
@@ -535,14 +537,16 @@ function SocialGuess({
             const pVotes = counts.find((c) => c.p.id === p.id)?.n ?? 0;
             const pHasVoted = mgEntries.some((e) => e.player_id === p.id);
             return (
-              <Pressable
+              <Tap
                 key={p.id}
                 disabled={!!mineTarget || busy}
                 onPress={() => onSelect(p.id)}
-                style={({ pressed }) => [
+                color={alpha(tColor, 0.3)}
+                accent={tColor}
+                scaleTo={0.96}
+                style={[
                   s.playerVoteCard,
                   isSelected && s.playerVoteCardSelected,
-                  pressed && { transform: [{ scale: 0.98 }] },
                 ]}
               >
                 <Avatar source={avatarFor(p.nickname)} size={46} ring={tColor} glow={isSelected} />
@@ -569,7 +573,7 @@ function SocialGuess({
                 <View style={[s.voteRadio, isSelected && s.voteRadioSelected]}>
                   {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
                 </View>
-              </Pressable>
+              </Tap>
             );
           })}
         </View>
@@ -684,19 +688,21 @@ function MathGuessGame({
           {/* Sayısal Tuş Takımı */}
           <View style={s.numPadGrid}>
             {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => (
-              <Pressable
+              <Tap
                 key={k}
+                color={alpha(colors.cyan, 0.34)}
+                accent={colors.cyan}
+                scaleTo={0.88}
                 onPress={() => (k === 'C' ? clear() : k === '⌫' ? backspace() : pressDigit(k))}
-                style={({ pressed }) => [
+                style={[
                   s.numPadKey,
                   (k === 'C' || k === '⌫') && s.numPadActionKey,
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] },
                 ]}
               >
                 <Text display style={[s.numPadKeyText, (k === 'C' || k === '⌫') && { color: colors.cyan }]}>
                   {k}
                 </Text>
-              </Pressable>
+              </Tap>
             ))}
           </View>
 

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasStudio } from '../components/Canvas';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Input, Muted, ProgressBar, Screen, Sheet, Text, Title, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Input, Muted, ProgressBar, Screen, Sheet, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
@@ -165,9 +165,9 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
             />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {['Alev Püskürten', 'Kozmik Yıkıcı', 'Galaksi Fatihi', 'Lazer Gözlü', 'Uykusuz Şampiyon'].map((sug) => (
-                <Pressable key={sug} onPress={() => setTitle(sug)}>
+                <Tap key={sug} onPress={() => setTitle(sug)} color={alpha(colors.violet, 0.4)} accent={colors.violet} scaleTo={0.92} style={{ borderRadius: 100 }}>
                   <Chip size="sm" color={colors.violet} icon="sparkles" label={sug} />
-                </Pressable>
+                </Tap>
               ))}
             </View>
             <Btn
@@ -206,20 +206,19 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
               {mates.map((p) => {
                 const isArch = p.is_architect;
                 return (
-                  <Pressable
+                  <Tap
                     key={p.id}
                     disabled={isArch}
+                    color={alpha(colors.mint, 0.3)}
+                    accent={colors.mint}
+                    scaleTo={0.96}
                     onPress={() =>
                       guard(async () => {
                         const changed = await api.voteArchitect(data.room.id, p.id);
                         show(changed ? 'Yeni Mimar seçildi!' : 'Oyun kaydedildi', 'success');
                       })
                     }
-                    style={({ pressed }) => [
-                      s.memberRow,
-                      isArch ? s.memberRowActive : s.memberRowInactive,
-                      pressed && !isArch && { opacity: 0.8, transform: [{ scale: 0.985 }] },
-                    ]}
+                    style={[s.memberRow, isArch ? s.memberRowActive : s.memberRowInactive]}
                   >
                     <View style={s.memberInfo}>
                       <Avatar source={avatarFor(p.nickname)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
@@ -231,7 +230,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
                       icon={isArch ? 'construct' : 'hand-right'}
                       label={isArch ? 'Aktif Mimar' : 'Oy Ver'}
                     />
-                  </Pressable>
+                  </Tap>
                 );
               })}
             </View>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Easing, Image, ImageBackground, ImageSourcePropType, Modal, Platform, Pressable,
+  ActivityIndicator, Animated, Easing, GestureResponderEvent, Image, ImageBackground, ImageSourcePropType, LayoutChangeEvent,
+  Modal, Platform, Pressable, PressableProps,
   StyleProp, StyleSheet, Text as RNText, TextInput, TextInputProps, TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,28 +39,52 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
 // ============================================================================
 // Ekran iskeleti
 // ============================================================================
-const AnimatedSafeArea = Animated.createAnimatedComponent(SafeAreaView);
+/**
+ * Mobil web'de sanal klavye açılınca içerik alanı, tarayıcının GERÇEK görünür alanına
+ * (visualViewport yüksekliği + üst kayması) küçültülür. Böylece odaklanan input ve altındaki
+ * kartlar klavyenin altında kalmaz; kapanışta alan tek bir CSS geçişiyle yumuşakça genişler.
+ */
+const KB_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
-  const [kbHeight, setKbHeight] = useState(0);
+  const [outerH, setOuterH] = useState(0);
+  const [vv, setVv] = useState<{ h: number; top: number } | null>(null); // null = klavye kapalı
 
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.visualViewport) {
-      const updateKb = () => {
-        const vv = window.visualViewport;
-        if (!vv) return;
-        const diff = Math.max(0, window.innerHeight - vv.height);
-        setKbHeight(diff > 70 ? diff : 0);
-      };
-      window.visualViewport.addEventListener('resize', updateKb);
-      window.visualViewport.addEventListener('scroll', updateKb);
-      return () => {
-        window.visualViewport?.removeEventListener('resize', updateKb);
-        window.visualViewport?.removeEventListener('scroll', updateKb);
-      };
-    }
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) return;
+    const vp = window.visualViewport;
+    const update = () => {
+      const covered = window.innerHeight - vp.height;
+      if (covered > 120) {
+        const h = Math.round(vp.height);
+        const top = Math.round(vp.offsetTop);
+        setVv((p) => (p && p.h === h && p.top === top ? p : { h, top }));
+      } else {
+        setVv((p) => (p === null ? p : null));
+      }
+    };
+    update();
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    return () => {
+      vp.removeEventListener('resize', update);
+      vp.removeEventListener('scroll', update);
+    };
   }, []);
+
+  // Klavye açılıp alan oturduktan sonra odaktaki input'u görünür alanın ortasına getir.
+  const vvH = vv ? vv.h : 0;
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !vvH || typeof document === 'undefined') return;
+    const t = setTimeout(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (el && /^(input|textarea)$/i.test(el.tagName)) {
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+      }
+    }, 340);
+    return () => clearTimeout(t);
+  }, [vvH]);
 
   const isIosWeb =
     Platform.OS === 'web' &&
@@ -67,49 +92,43 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
     /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const topPad = Math.max(insets.top, isIosWeb ? 48 : Platform.OS === 'web' ? 16 : 8);
   const userStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
-  const baseBottom = userStyle.paddingBottom !== undefined 
-    ? Number(userStyle.paddingBottom) 
+  const bottomPad = userStyle.paddingBottom !== undefined
+    ? Number(userStyle.paddingBottom)
     : Math.max(insets.bottom, isIosWeb ? 24 : 8);
 
-  const [animPad] = useState(() => new Animated.Value(baseBottom));
-
-  useEffect(() => {
-    const target = kbHeight > 0 ? kbHeight + baseBottom : baseBottom;
-    Animated.timing(animPad, {
-      toValue: target,
-      duration: kbHeight > 0 ? 220 : 360,
-      easing: kbHeight > 0 ? Easing.out(Easing.cubic) : Easing.bezier(0.25, 0.1, 0.25, 1),
-      useNativeDriver: false,
-    }).start();
-  }, [kbHeight, baseBottom, animPad]);
+  // Ölçü alınana kadar (ve native'de) klasik flex:1; web'de ölçüden sonra piksel yüksekliği (geçiş animasyonu için).
+  const areaStyle: ViewStyle =
+    Platform.OS === 'web' && outerH > 0
+      ? ({
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: vv ? vv.top : 0,
+          height: vv ? Math.min(vv.h, outerH) : outerH,
+          transition: `height 380ms ${KB_EASE}`,
+        } as ViewStyle)
+      : { flex: 1 };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}>
+    <View
+      style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}
+      onLayout={(e) => setOuterH(Math.round(e.nativeEvent.layout.height))}
+    >
       <ImageBackground source={art.bg} resizeMode="cover" style={StyleSheet.absoluteFill} imageStyle={{ opacity: 0.6 }} />
       <LinearGradient
         colors={['rgba(5,10,20,0.5)', 'rgba(5,10,20,0.8)', 'rgba(5,10,20,0.95)']}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
-      <AnimatedSafeArea
+      <SafeAreaView
         style={[
-          {
-            flex: 1,
-            paddingHorizontal: 18,
-            paddingTop: topPad,
-            paddingBottom: animPad,
-            ...(Platform.OS === 'web'
-              ? ({
-                  transition: 'padding-bottom 360ms cubic-bezier(0.25, 0.1, 0.25, 1)',
-                  willChange: 'padding-bottom',
-                } as any)
-              : {}),
-          },
+          { paddingHorizontal: 18, paddingTop: topPad, paddingBottom: bottomPad },
+          areaStyle,
           style,
         ]}
       >
         {children}
-      </AnimatedSafeArea>
+      </SafeAreaView>
     </View>
   );
 }
@@ -192,6 +211,135 @@ export function LiveDot({ color = colors.mint, size = 8 }: { color?: string; siz
 }
 
 // ============================================================================
+// Dokunma efekti: dokunulan noktadan yayılan dalga + halka + kıvılcımlar + parıltı
+// ============================================================================
+type RippleItem = { id: number; x: number; y: number; v: Animated.Value };
+const SPARKS = [0, 1, 2, 3, 4, 5].map((i) => {
+  const a = (i / 6) * Math.PI * 2 + 0.4;
+  return { dx: Math.cos(a), dy: Math.sin(a), d: 24 + (i % 3) * 10 };
+});
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+let rippleSeq = 0;
+
+function useRipple(color: string, accent: string, borderRadius: number) {
+  const [ripples, setRipples] = useState<RippleItem[]>([]);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [flash] = useState(() => new Animated.Value(0));
+  const [node, setNode] = useState<View | null>(null);
+
+  const spawn = (x: number, y: number) => {
+    const id = rippleSeq++;
+    const v = new Animated.Value(0);
+    setRipples((r) => [...r.slice(-2), { id, x, y, v }]);
+    Animated.timing(v, { toValue: 1, duration: 720, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() =>
+      setRipples((r) => r.filter((i) => i.id !== id)),
+    );
+  };
+
+  const onPressIn = (e: GestureResponderEvent) => {
+    const { pageX, pageY } = e.nativeEvent;
+    Animated.timing(flash, { toValue: 1, duration: 90, useNativeDriver: true }).start();
+    const center = () => spawn(box.w / 2, box.h / 2);
+    if (node && typeof node.measureInWindow === 'function' && typeof pageX === 'number') {
+      node.measureInWindow((x, y) => {
+        const px = pageX - x;
+        const py = pageY - y;
+        if (Number.isFinite(px) && Number.isFinite(py)) spawn(clamp(px, 0, box.w), clamp(py, 0, box.h));
+        else center();
+      });
+    } else {
+      center();
+    }
+  };
+
+  const onPressOut = () => {
+    Animated.timing(flash, { toValue: 0, duration: 340, useNativeDriver: true }).start();
+  };
+
+  const onLayout = (e: LayoutChangeEvent) =>
+    setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
+
+  const D = Math.max(60, Math.hypot(box.w, box.h) * 2);
+  const layer = (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius, overflow: 'hidden' }]}>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { backgroundColor: color, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.32] }) }]}
+      />
+      {ripples.map((r) => (
+        <React.Fragment key={r.id}>
+          <Animated.View
+            style={{
+              position: 'absolute', left: r.x - D / 2, top: r.y - D / 2, width: D, height: D, borderRadius: D / 2,
+              backgroundColor: color,
+              opacity: r.v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.55, 0] }),
+              transform: [{ scale: r.v.interpolate({ inputRange: [0, 1], outputRange: [0.03, 1] }) }],
+            }}
+          />
+          <Animated.View
+            style={{
+              position: 'absolute', left: r.x - D / 2, top: r.y - D / 2, width: D, height: D, borderRadius: D / 2,
+              borderWidth: 2, borderColor: accent,
+              opacity: r.v.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.8, 0] }),
+              transform: [{ scale: r.v.interpolate({ inputRange: [0, 1], outputRange: [0.03, 0.7] }) }],
+            }}
+          />
+          {SPARKS.map((sp, i) => (
+            <Animated.View
+              key={i}
+              style={{
+                position: 'absolute', left: r.x - 2.5, top: r.y - 2.5, width: 5, height: 5, borderRadius: 2.5, backgroundColor: accent,
+                opacity: r.v.interpolate({ inputRange: [0, 0.1, 0.7, 1], outputRange: [0, 1, 0.6, 0] }),
+                transform: [
+                  { translateX: r.v.interpolate({ inputRange: [0, 1], outputRange: [0, sp.dx * sp.d] }) },
+                  { translateY: r.v.interpolate({ inputRange: [0, 1], outputRange: [0, sp.dy * sp.d] }) },
+                  { scale: r.v.interpolate({ inputRange: [0, 1], outputRange: [1.2, 0.2] }) },
+                ],
+              }}
+            />
+          ))}
+        </React.Fragment>
+      ))}
+    </View>
+  );
+
+  return { attach: setNode, layer, onLayout, onPressIn, onPressOut };
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/* eslint-disable react-hooks/refs -- useRipple React ref kullanmaz (state tabanlı callback ref); derleyici yanlış pozitif veriyor */
+
+/**
+ * Dokunma geri bildirimli Pressable: yaylı basılma + dokunulan noktadan dalga/halka/kıvılcım.
+ * Her tıklanabilir kart/çip/buton için `Pressable` yerine kullanılır.
+ */
+export function Tap({
+  children, style, onPress, onPressIn, onPressOut, color = 'rgba(255,255,255,0.3)', accent = '#FFFFFF', scaleTo = 0.95, ...rest
+}: Omit<PressableProps, 'style' | 'children'> & {
+  children: React.ReactNode; style?: StyleProp<ViewStyle>; color?: string; accent?: string; scaleTo?: number;
+}) {
+  const [scale] = useState(() => new Animated.Value(1));
+  const flat = (StyleSheet.flatten(style) || {}) as ViewStyle;
+  const rp = useRipple(color, accent, typeof flat.borderRadius === 'number' ? flat.borderRadius : 0);
+  const spring = (to: number) =>
+    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 45, bounciness: 9 }).start();
+  return (
+    <AnimatedPressable
+      {...rest}
+      ref={rp.attach as any}
+      onLayout={rp.onLayout}
+      onPress={onPress}
+      onPressIn={(e: GestureResponderEvent) => { spring(scaleTo); rp.onPressIn(e); onPressIn?.(e); }}
+      onPressOut={(e: GestureResponderEvent) => { spring(1); rp.onPressOut(); onPressOut?.(e); }}
+      style={[style, { transform: [{ scale }] }] as any}
+    >
+      {children}
+      {rp.layer}
+    </AnimatedPressable>
+  );
+}
+
+// ============================================================================
 // Butonlar
 // ============================================================================
 type Tone = 'primary' | 'success' | 'danger' | 'gold' | 'violet' | 'ghost' | 'custom';
@@ -240,6 +388,7 @@ export function Btn({
   };
 
   const fg = cfg ? cfg.fg : colors.textSoft;
+  const rp = useRipple(cfg ? 'rgba(255,255,255,0.4)' : alpha(colors.cyan, 0.32), cfg ? '#FFFFFF' : colors.cyan, radius.full);
 
   return (
     <Animated.View
@@ -256,10 +405,12 @@ export function Btn({
       ]}
     >
       <Pressable
+        ref={rp.attach}
+        onLayout={rp.onLayout}
         disabled={disabled || loading}
         onPress={handlePress}
-        onPressIn={() => press(0.96)}
-        onPressOut={() => press(1)}
+        onPressIn={(e) => { press(0.95); rp.onPressIn(e); }}
+        onPressOut={() => { press(1); rp.onPressOut(); }}
         style={{ borderRadius: radius.full, overflow: 'hidden', backgroundColor: 'transparent' }}
       >
         {cfg ? (
@@ -285,10 +436,13 @@ export function Btn({
             </View>
           </View>
         )}
+        {rp.layer}
       </Pressable>
     </Animated.View>
   );
 }
+
+/* eslint-enable react-hooks/refs */
 
 /** Yuvarlak cam ikon butonu. */
 export function IconBtn({
@@ -297,12 +451,15 @@ export function IconBtn({
   icon: IconName; onPress: () => void; size?: number; color?: string; disabled?: boolean; active?: boolean; badge?: number | string; style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable
+    <Tap
       disabled={disabled}
       onPress={() => { soundFx.click(); haptic.light(); onPress(); }}
-      style={({ pressed }) => [
+      color={alpha(colors.cyan, 0.35)}
+      accent={colors.cyan}
+      scaleTo={0.86}
+      style={[
         s.iconBtn,
-        { width: size, height: size, borderRadius: size / 2, opacity: disabled ? 0.35 : 1, transform: [{ scale: pressed ? 0.92 : 1 }] },
+        { width: size, height: size, borderRadius: size / 2, opacity: disabled ? 0.35 : 1 },
         active && { backgroundColor: alpha(colors.cyan, 0.18), borderColor: alpha(colors.cyan, 0.55) },
         style,
       ]}
@@ -311,7 +468,7 @@ export function IconBtn({
       {badge !== undefined && (
         <View style={s.iconBadge}><Text style={s.iconBadgeText}>{badge}</Text></View>
       )}
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -588,6 +745,29 @@ export interface TabItem<K extends string> { key: K; label: string; icon: IconNa
 
 const TAB_ITEM_WIDTH = 100;
 
+/** Sekme ikonu: aktif olunca yaylanarak büyür ve hafifçe sallanır. */
+function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: number }) {
+  const [v] = useState(() => new Animated.Value(on ? 1 : 0));
+  useEffect(() => {
+    if (!on) { v.setValue(0); return; }
+    v.setValue(0);
+    Animated.spring(v, { toValue: 1, friction: 3.4, tension: 150, useNativeDriver: true }).start();
+  }, [on, v]);
+  return (
+    <Animated.View
+      style={{
+        transform: [
+          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [5, -1] }) },
+          { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.12] }) },
+          { rotate: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-14deg', '8deg', '0deg'] }) },
+        ],
+      }}
+    >
+      <Ionicons name={name} size={size} color={on ? colors.cyan : colors.muted} />
+    </Animated.View>
+  );
+}
+
 export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
   const insets = useSafeAreaInsets();
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -694,8 +874,11 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
         {items.map((it) => {
           const on = it.key === active;
           return (
-            <Pressable
+            <Tap
               key={it.key}
+              color={alpha(colors.cyan, 0.3)}
+              accent={colors.cyan}
+              scaleTo={0.9}
               onPress={() => {
                 if (!on) {
                   soundFx.click();
@@ -705,11 +888,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
               }}
               style={s.tabItem}
             >
-              <Ionicons
-                name={on ? it.iconActive ?? it.icon : it.icon}
-                size={22}
-                color={on ? colors.cyan : colors.muted}
-              />
+              <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} />
               <Text
                 style={[
                   s.tabLabel,
@@ -718,7 +897,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
               >
                 {it.label}
               </Text>
-            </Pressable>
+            </Tap>
           );
         })}
       </View>

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Avatar, Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, TimerBar, Title, Text, useToast,
+  Avatar, Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, Tap, TimerBar, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
@@ -243,7 +243,10 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                       const pColor = teamColor(p.team_side);
                       const pSuggestions = suggestions.filter((sug) => sug.body.trim().toLowerCase() === p.nickname.trim().toLowerCase()).length;
                       return (
-                        <Pressable
+                        <Tap
+                          color={alpha(pColor, 0.3)}
+                          accent={pColor}
+                          scaleTo={0.96}
                           key={p.id}
                           onPress={() => {
                             soundFx.click();
@@ -263,10 +266,9 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                               });
                             }
                           }}
-                          style={({ pressed }) => [
+                          style={[
                             s.socialPlayerCard,
                             isSelected && s.socialPlayerCardSelected,
-                            pressed && { transform: [{ scale: 0.98 }] },
                           ]}
                         >
                           <Avatar source={avatarFor(p.nickname)} size={44} ring={pColor} glow={isSelected} />
@@ -282,7 +284,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                           <View style={[s.socialRadio, isSelected && s.socialRadioSelected]}>
                             {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
                           </View>
-                        </Pressable>
+                        </Tap>
                       );
                     })}
                   </View>
@@ -328,15 +330,18 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                       {suggestions.map((a) => {
                         const who = data.players.find((p) => p.id === a.player_id)?.nickname ?? '?';
                         return (
-                          <Pressable
+                          <Tap
                             key={a.id}
                             disabled={!me.is_captain}
+                            color={alpha(colors.cyan, 0.32)}
+                            accent={colors.cyan}
+                            scaleTo={0.93}
                             onPress={() => sendFinal(a.body)}
-                            style={({ pressed }) => [s.chip, me.is_captain && { borderColor: alpha(colors.cyan, 0.5) }, pressed && { transform: [{ scale: 0.96 }] }]}
+                            style={[s.chip, me.is_captain && { borderColor: alpha(colors.cyan, 0.5) }]}
                           >
                             <Text style={s.chipText}>{a.body}</Text>
                             <Text style={s.chipWho}>{who}</Text>
-                          </Pressable>
+                          </Tap>
                         );
                       })}
                     </View>
