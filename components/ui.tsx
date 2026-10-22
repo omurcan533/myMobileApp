@@ -38,6 +38,8 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
 // ============================================================================
 // Ekran iskeleti
 // ============================================================================
+const AnimatedSafeArea = Animated.createAnimatedComponent(SafeAreaView);
+
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
   const [kbHeight, setKbHeight] = useState(0);
@@ -68,7 +70,18 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
   const baseBottom = userStyle.paddingBottom !== undefined 
     ? Number(userStyle.paddingBottom) 
     : Math.max(insets.bottom, isIosWeb ? 24 : 8);
-  const finalBottomPad = kbHeight > 0 ? kbHeight + baseBottom : baseBottom;
+
+  const [animPad] = useState(() => new Animated.Value(baseBottom));
+
+  useEffect(() => {
+    const target = kbHeight > 0 ? kbHeight + baseBottom : baseBottom;
+    Animated.timing(animPad, {
+      toValue: target,
+      duration: kbHeight > 0 ? 220 : 360,
+      easing: kbHeight > 0 ? Easing.out(Easing.cubic) : Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [kbHeight, baseBottom, animPad]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}>
@@ -78,19 +91,25 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
-      <SafeAreaView
+      <AnimatedSafeArea
         style={[
           {
             flex: 1,
             paddingHorizontal: 18,
             paddingTop: topPad,
+            paddingBottom: animPad,
+            ...(Platform.OS === 'web'
+              ? ({
+                  transition: 'padding-bottom 360ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+                  willChange: 'padding-bottom',
+                } as any)
+              : {}),
           },
           style,
-          { paddingBottom: finalBottomPad },
         ]}
       >
         {children}
-      </SafeAreaView>
+      </AnimatedSafeArea>
     </View>
   );
 }
@@ -611,7 +630,16 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
     }
   }, []);
 
-  if (isKeyboardOpen) return null;
+  const [tabOpacity] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    Animated.timing(tabOpacity, {
+      toValue: isKeyboardOpen ? 0 : 1,
+      duration: isKeyboardOpen ? 180 : 340,
+      easing: isKeyboardOpen ? Easing.out(Easing.quad) : Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [isKeyboardOpen, tabOpacity]);
 
   const leftPos = slideAnim.interpolate({
     inputRange: [0, Math.max(1, items.length - 1)],
@@ -619,7 +647,24 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
   });
 
   return (
-    <View style={[s.tabWrap, { bottom: Math.max(insets.bottom, 12) + 6 }]} pointerEvents="box-none">
+    <Animated.View
+      style={[
+        s.tabWrap,
+        {
+          bottom: Math.max(insets.bottom, 12) + 6,
+          opacity: tabOpacity,
+          transform: [
+            {
+              translateY: tabOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [24, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+      pointerEvents={isKeyboardOpen ? 'none' : 'box-none'}
+    >
       <View style={s.tabBar}>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
@@ -673,12 +718,11 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
               >
                 {it.label}
               </Text>
-              {on && <View style={s.activeDot} />}
             </Pressable>
           );
         })}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -797,7 +841,6 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(0, 229, 255, 0.38)',
-    borderTopColor: 'rgba(255, 255, 255, 0.55)',
     shadowColor: colors.cyan,
     shadowOpacity: 0.38,
     shadowRadius: 24,
@@ -820,11 +863,15 @@ const s = StyleSheet.create({
   },
   indicatorSheen: {
     position: 'absolute',
-    top: 0,
-    left: 8,
-    right: 8,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    bottom: 3,
+    left: 14,
+    right: 14,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
+    shadowOpacity: 0.95,
+    shadowRadius: 4,
   },
   tabItem: {
     width: 100,
