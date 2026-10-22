@@ -40,12 +40,35 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
 // ============================================================================
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
+  const [kbHeight, setKbHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.visualViewport) {
+      const updateKb = () => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const diff = Math.max(0, window.innerHeight - vv.height);
+        setKbHeight(diff > 70 ? diff : 0);
+      };
+      window.visualViewport.addEventListener('resize', updateKb);
+      window.visualViewport.addEventListener('scroll', updateKb);
+      return () => {
+        window.visualViewport?.removeEventListener('resize', updateKb);
+        window.visualViewport?.removeEventListener('scroll', updateKb);
+      };
+    }
+  }, []);
+
   const isIosWeb =
     Platform.OS === 'web' &&
     typeof navigator !== 'undefined' &&
     /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const topPad = Math.max(insets.top, isIosWeb ? 48 : Platform.OS === 'web' ? 16 : 8);
-  const bottomPad = Math.max(insets.bottom, isIosWeb ? 24 : 8);
+  const userStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
+  const baseBottom = userStyle.paddingBottom !== undefined 
+    ? Number(userStyle.paddingBottom) 
+    : Math.max(insets.bottom, isIosWeb ? 24 : 8);
+  const finalBottomPad = kbHeight > 0 ? kbHeight + baseBottom : baseBottom;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, overflow: 'hidden' }}>
@@ -61,9 +84,9 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
             flex: 1,
             paddingHorizontal: 18,
             paddingTop: topPad,
-            paddingBottom: bottomPad,
           },
           style,
+          { paddingBottom: finalBottomPad },
         ]}
       >
         {children}
@@ -512,6 +535,13 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
         {...rest}
         onFocus={(e) => {
           setFocus(true);
+          if (Platform.OS === 'web') {
+            setTimeout(() => {
+              try {
+                ((e.target as unknown) as HTMLElement)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+              } catch {}
+            }, 220);
+          }
           onFocus?.(e);
         }}
         onBlur={(e) => { setFocus(false); onBlur?.(e); }}
@@ -537,9 +567,29 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 // ============================================================================
 export interface TabItem<K extends string> { key: K; label: string; icon: IconName; iconActive?: IconName }
 
+const TAB_ITEM_WIDTH = 100;
+
 export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
   const insets = useSafeAreaInsets();
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const activeIdx = Math.max(0, items.findIndex((it) => it.key === active));
+  const [slideAnim] = useState(() => new Animated.Value(activeIdx));
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: activeIdx,
+        useNativeDriver: false,
+        tension: 65,
+        friction: 8,
+      }),
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 0.93, duration: 80, useNativeDriver: false }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: false }),
+      ]),
+    ]).start();
+  }, [activeIdx, slideAnim, scaleAnim]);
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -563,27 +613,67 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
 
   if (isKeyboardOpen) return null;
 
+  const leftPos = slideAnim.interpolate({
+    inputRange: [0, Math.max(1, items.length - 1)],
+    outputRange: [6, 6 + (items.length - 1) * (TAB_ITEM_WIDTH + 6)],
+  });
+
   return (
-    <View style={[s.tabWrap, { bottom: Math.max(insets.bottom, 10) + 4 }]} pointerEvents="box-none">
+    <View style={[s.tabWrap, { bottom: Math.max(insets.bottom, 12) + 6 }]} pointerEvents="box-none">
       <View style={s.tabBar}>
-        <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(8,16,32,0.72)' }]} />
+        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        <LinearGradient
+          colors={['rgba(10,22,46,0.92)', 'rgba(6,12,28,0.98)']}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Akıcı Kayan Gösterge (Sliding Glow Pill) */}
+        <Animated.View
+          style={[
+            s.tabIndicator,
+            {
+              left: leftPos,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={['rgba(0, 229, 255, 0.35)', 'rgba(168, 85, 247, 0.22)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={s.indicatorSheen} />
+        </Animated.View>
+
         {items.map((it) => {
           const on = it.key === active;
           return (
             <Pressable
               key={it.key}
-              onPress={() => { if (!on) { soundFx.click(); haptic.light(); } onChange(it.key); }}
+              onPress={() => {
+                if (!on) {
+                  soundFx.click();
+                  haptic.light();
+                  onChange(it.key);
+                }
+              }}
               style={s.tabItem}
             >
-              {on && (
-                <LinearGradient
-                  colors={[alpha(colors.cyan, 0.32), alpha(colors.violet, 0.2)]}
-                  style={[StyleSheet.absoluteFill, { borderRadius: 22, borderWidth: 1, borderColor: alpha(colors.cyan, 0.5) }]}
-                />
-              )}
-              <Ionicons name={on ? it.iconActive ?? it.icon : it.icon} size={22} color={on ? colors.cyan : colors.muted} />
-              <Text style={{ color: on ? colors.text : colors.subtle, fontSize: 10.5, fontWeight: '700', letterSpacing: 0.3 }}>{it.label}</Text>
+              <Ionicons
+                name={on ? it.iconActive ?? it.icon : it.icon}
+                size={22}
+                color={on ? colors.cyan : colors.muted}
+              />
+              <Text
+                style={[
+                  s.tabLabel,
+                  on ? { color: colors.text, fontWeight: '800' } : { color: colors.subtle },
+                ]}
+              >
+                {it.label}
+              </Text>
+              {on && <View style={s.activeDot} />}
             </Pressable>
           );
         })}
@@ -700,10 +790,65 @@ const s = StyleSheet.create({
 
   tabWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   tabBar: {
-    flexDirection: 'row', gap: 6, padding: 6, borderRadius: 30, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderLight,
-    shadowColor: colors.cyan, shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
+    flexDirection: 'row',
+    gap: 6,
+    padding: 6,
+    borderRadius: 36,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.38)',
+    borderTopColor: 'rgba(255, 255, 255, 0.55)',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.38,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 16,
   },
-  tabItem: { minWidth: 92, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 22, alignItems: 'center', gap: 3 },
+  tabIndicator: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    width: 100,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.75)',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  indicatorSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 8,
+    right: 8,
+    height: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+  },
+  tabItem: {
+    width: 100,
+    paddingVertical: 9,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    zIndex: 2,
+  },
+  tabLabel: {
+    fontSize: 10.5,
+    letterSpacing: 0.3,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.cyan,
+    marginTop: -1,
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.9,
+    shadowRadius: 4,
+  },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(2,6,14,0.78)' },
   dialog: {

@@ -5,10 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, TimerBar, Title, Text, useToast,
+  Avatar, Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, TimerBar, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
+import { avatarFor } from '../lib/art';
 import { currentRound, effNow, secondsLeft } from '../lib/selectors';
 import { alpha, colors, gradients, teamColor, teamName, tierLabel } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
@@ -146,8 +147,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             <View style={s.questionHeader}>
               <Chip
                 color={tierColor}
-                icon={round.kind === 'anagram' ? 'shuffle' : 'extension-puzzle'}
-                label={round.kind === 'anagram' ? 'Harfleri Düzenle' : 'Bilmeceyi Çöz'}
+                icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
+                label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
               />
               {prize && (
                 <View style={s.prizeTag}>
@@ -174,7 +175,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               <Text display style={s.riddle}>{round.prompt}</Text>
             )}
 
-            {isOpen && slots.length > 0 && (
+            {isOpen && round.kind !== 'social' && slots.length > 0 && (
               <View style={s.slotsWrap}>
                 <Text style={s.slotsLabel}>CEVAP</Text>
                 <View style={s.slotsRow}>
@@ -196,7 +197,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               </View>
             )}
 
-            {isOpen && (
+            {isOpen && round.kind !== 'social' && (
               <View style={s.creditRow}>
                 <CoinPill value={credits} label="kredi" />
                 {slots.length > 0 && (
@@ -223,13 +224,80 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
           {round.kind === 'riddle' && isOpen && (
             <Hint id="riddle" text="Takım arkadaşların tahmin yazar, Kaptan onaylayıp gönderir." />
           )}
+          {round.kind === 'social' && isOpen && (
+            <Hint id="social" text="Şıklar odadaki oyunculardır. Takım olarak bir oyuncuyu seçin!" />
+          )}
           {me.is_captain && isOpen && myTeam && myTeam.jokers_left > 0 && (
             <Hint id="joker" text="Joker: soruyu çözmeden direkt bonus parça kazandırır. Dikkatli kullan!" />
           )}
 
           {/* ================= CEVAP GİRİŞİ ================= */}
           {isOpen ? (
-            round.kind === 'anagram' ? (
+            round.kind === 'social' ? (
+              <View style={{ gap: 12 }}>
+                <Card style={{ gap: 12 }}>
+                  <Eyebrow icon="people" color={colors.violet}>Odadaki Oyuncular (Şıklar)</Eyebrow>
+                  <View style={{ gap: 8 }}>
+                    {data.players.map((p) => {
+                      const isSelected = (me.is_captain ? final : text) === p.nickname;
+                      const pColor = teamColor(p.team_side);
+                      const pSuggestions = suggestions.filter((sug) => sug.body.trim().toLowerCase() === p.nickname.trim().toLowerCase()).length;
+                      return (
+                        <Pressable
+                          key={p.id}
+                          onPress={() => {
+                            soundFx.click();
+                            haptic.light();
+                            if (me.is_captain) {
+                              setFinal(p.nickname);
+                              sendFinal(p.nickname);
+                            } else {
+                              setText(p.nickname);
+                              run(async () => {
+                                const r = await api.submitAnswer(round.id, p.nickname);
+                                if (r.suggested) {
+                                  soundFx.pop();
+                                  haptic.medium();
+                                  show(`${p.nickname} önerisi takıma iletildi`, 'success');
+                                }
+                              });
+                            }
+                          }}
+                          style={({ pressed }) => [
+                            s.socialPlayerCard,
+                            isSelected && s.socialPlayerCardSelected,
+                            pressed && { transform: [{ scale: 0.98 }] },
+                          ]}
+                        >
+                          <Avatar source={avatarFor(p.nickname)} size={44} ring={pColor} glow={isSelected} />
+                          <View style={{ flex: 1, gap: 2 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={s.socialNickText}>{p.nickname}{p.id === me.id ? ' (Sen)' : ''}</Text>
+                              {pSuggestions > 0 && (
+                                <Chip label={`${pSuggestions} öneri`} color={colors.cyan} size="sm" icon="chatbubbles" />
+                              )}
+                            </View>
+                            <Text style={[s.socialTeamText, { color: pColor }]}>{teamName(p.team_side)}</Text>
+                          </View>
+                          <View style={[s.socialRadio, isSelected && s.socialRadioSelected]}>
+                            {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {me.is_captain ? (
+                    <Muted style={{ textAlign: 'center', fontSize: 13, marginTop: 4 }}>
+                      Bir oyuncuya dokunup takımının nihai cevabı olarak onayla.
+                    </Muted>
+                  ) : (
+                    <Muted style={{ textAlign: 'center', fontSize: 13, marginTop: 4 }}>
+                      Bir oyuncuya dokunarak Kaptanına öneride bulun.
+                    </Muted>
+                  )}
+                </Card>
+              </View>
+            ) : round.kind === 'anagram' ? (
               <View style={{ gap: 12 }}>
                 <Input
                   icon="create"
@@ -370,14 +438,16 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
           <Text display style={s.confirmBody}>“{confirmAnswer}”</Text>
         </View>
         <Muted style={{ textAlign: 'center' }}>
-          Dikkat: Cevap yanlışsa bu yapı parçası doğrudan rakip takıma devredilir!
+          {round.kind === 'social'
+            ? 'Takımının ortak seçimi olarak onaylanacak ve parça takımına kazandırılacak!'
+            : 'Dikkat: Cevap yanlışsa bu yapı parçası doğrudan rakip takıma devredilir!'}
         </Muted>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, alignSelf: 'stretch' }}>
           <Btn title="Vazgeç" tone="ghost" size="md" style={{ flex: 1 }} onPress={() => setConfirmAnswer(null)} />
           <Btn
             title="Gönder"
-            icon="rocket"
-            tone="danger"
+            icon={round.kind === 'social' ? 'checkmark-circle' : 'rocket'}
+            tone={round.kind === 'social' ? 'success' : 'danger'}
             size="md"
             loading={busy}
             style={{ flex: 1 }}
@@ -500,6 +570,36 @@ const s = StyleSheet.create({
   },
   chipText: { color: colors.text, fontWeight: '700', fontSize: 14 },
   chipWho: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+
+  socialPlayerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: alpha(colors.surface2, 0.7),
+    borderWidth: 1,
+    borderColor: alpha('#fff', 0.08),
+    gap: 12,
+  },
+  socialPlayerCardSelected: {
+    borderColor: colors.mint,
+    backgroundColor: alpha(colors.mint, 0.08),
+  },
+  socialNickText: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  socialTeamText: { fontSize: 12, fontWeight: '600' },
+  socialRadio: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: alpha(colors.text, 0.25),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialRadioSelected: {
+    borderColor: colors.mint,
+    backgroundColor: colors.mint,
+  },
 
   resultCard: { alignItems: 'center', gap: 12, paddingVertical: 24 },
   resIcon: { width: 76, height: 76, borderRadius: 38, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },

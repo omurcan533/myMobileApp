@@ -72,7 +72,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
   };
 
   return (
-    <Screen style={{ paddingBottom: 0 }}>
+    <Screen>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* ================= ÜST BAR ================= */}
         <View style={s.topBar}>

@@ -98,7 +98,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && (
           <TimerBar
             left={left}
-            total={mg.kind === 'social_guess' ? 40 : variant === 'memory' ? 60 : 30}
+            total={mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />
@@ -252,7 +252,7 @@ const MEMORY_PIECES = [
   { id: 5, emoji: '🪽', name: 'Kanat' },
 ];
 
-// mg.id'den deterministik karıştırma: her turda farklı, iki takımda aynı sıra
+// mg.id'den deterministik karıştırma: her turda farklı, iki takımda aynı sıra (4 parça)
 function seededSequence(seed: string): number[] {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -271,7 +271,7 @@ function seededSequence(seed: string): number[] {
     const j = Math.floor(rand() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return arr;
+  return arr.slice(0, 4);
 }
 
 function MemoryGame({
@@ -280,24 +280,28 @@ function MemoryGame({
   seed: string; live: boolean; go: boolean; mineDone: boolean; reactionMs: number | null;
   onComplete: () => void;
 }) {
-  const sequence = useMemo(() => seededSequence(seed), [seed]); // 6 adımlı rastgele sıralama
+  const sequence = useMemo(() => seededSequence(seed), [seed]); // 4 adımlı sıralama
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [showingStep, setShowingStep] = useState<number | null>(null);
-  const [showing, setShowing] = useState(true);
+  const [showing, setShowing] = useState(!mineDone);
   const [playerIdx, setPlayerIdx] = useState(0);
   const [errorFlash, setErrorFlash] = useState(false);
   const startTime = useRef(0);
+  const demonstratedRef = useRef(false);
 
   useEffect(() => {
     if (!live || !go || mineDone) return;
+    if (demonstratedRef.current) return;
+    demonstratedRef.current = true;
+
     setShowing(true);
     setPlayerIdx(0);
     setShowingStep(null);
     setErrorFlash(false);
 
-    const stepDuration = 1000; // Her adım için 1 saniye (çok daha sakin & akılda kalıcı)
-    const activeDuration = 750; // 750ms boyunca parlak yanar
-    const startDelay = 800; // Başlamadan önce 0.8s hazırlık
+    const stepDuration = 650; // 650ms adım aralığı (akıcı & hızlı)
+    const activeDuration = 480; // 480ms yanar
+    const startDelay = 500; // Başlamadan önce 0.5s hazırlık
 
     const timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -323,7 +327,7 @@ function MemoryGame({
       setShowingStep(null);
       startTime.current = Date.now();
       soundFx.whistle();
-    }, startDelay + sequence.length * stepDuration + 200);
+    }, startDelay + sequence.length * stepDuration + 150);
     timers.push(doneTimer);
 
     return () => timers.forEach(clearTimeout);
@@ -340,7 +344,7 @@ function MemoryGame({
       setPlayerIdx(next);
 
       if (next === sequence.length) {
-        // Tüm 6 parça başarıyla tamamlandı!
+        // Tüm parçalar başarıyla tamamlandı!
         soundFx.correct();
         haptic.success();
         onComplete();
@@ -363,6 +367,8 @@ function MemoryGame({
     ? { icon: 'close-circle', text: 'Hatalı! Baştan başla…', color: colors.red }
     : { icon: 'finger-print', text: `Sıra sende! Dokun (${playerIdx}/${sequence.length})`, color: colors.yellow };
 
+  const isClickable = !showing && !mineDone && live;
+
   return (
     <Card style={s.gameContainer}>
       <View style={[s.statusBanner, { backgroundColor: alpha(status.color, 0.12), borderColor: alpha(status.color, 0.4) }]}>
@@ -376,11 +382,12 @@ function MemoryGame({
           return (
             <Pressable
               key={item.id}
-              disabled={showing || mineDone || !live}
+              disabled={!isClickable}
               onPress={() => handleTap(item.id)}
               style={({ pressed }) => [
                 s.memoryCard,
                 isHighlighted && s.memoryCardActive,
+                isClickable && { borderColor: alpha(colors.cyan, 0.45) },
                 pressed && { transform: [{ scale: 0.94 }] },
               ]}
             >
