@@ -114,10 +114,17 @@ export default function App() {
             -webkit-user-select: none;
             user-select: none;
           }
-          input, textarea {
+          input, textarea, select {
             font-size: 16px !important;
             user-select: auto !important;
             -webkit-user-select: auto !important;
+            outline: none !important;
+            box-shadow: none !important;
+            -webkit-tap-highlight-color: transparent !important;
+          }
+          input:focus, textarea:focus, select:focus {
+            outline: none !important;
+            box-shadow: none !important;
           }
         `;
         document.head.appendChild(style);

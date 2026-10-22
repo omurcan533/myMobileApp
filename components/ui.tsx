@@ -503,10 +503,27 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
         placeholderTextColor={colors.subtle}
         selectionColor={colors.cyan}
         {...rest}
-        onFocus={(e) => { setFocus(true); onFocus?.(e); }}
+        onFocus={(e) => {
+          setFocus(true);
+          if (Platform.OS === 'web') {
+            setTimeout(() => {
+              try {
+                (e.target as any)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+              } catch {}
+            }, 180);
+          }
+          onFocus?.(e);
+        }}
         onBlur={(e) => { setFocus(false); onBlur?.(e); }}
         style={[
-          { flex: 1, color: colors.text, fontSize: 16, fontFamily: 'Sora_600SemiBold', paddingVertical: Platform.OS === 'ios' ? 15 : 12 },
+          {
+            flex: 1,
+            color: colors.text,
+            fontSize: 16,
+            fontFamily: 'Sora_600SemiBold',
+            paddingVertical: Platform.OS === 'ios' ? 15 : 12,
+            ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' } as any) : {}),
+          },
           center && { textAlign: 'center' },
           style,
         ]}

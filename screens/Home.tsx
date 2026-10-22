@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +40,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
   const [profile, setProfile] = useState<Profile>({ games: 0, wins: 0, lastRoom: null });
   const [sound, setSound] = useState(soundFx.isEnabled());
   const { toast, show } = useToast();
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('nickname').then((v) => v && setNick(v));
@@ -91,6 +92,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -202,6 +204,9 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     center
                     value={code}
                     onChangeText={(t) => setCode(t.toUpperCase())}
+                    onFocus={() => {
+                      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 260);
+                    }}
                     placeholder="ODA KODU"
                     autoCapitalize="characters"
                     maxLength={5}
@@ -286,6 +291,9 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     icon="happy"
                     value={nick}
                     onChangeText={setNick}
+                    onFocus={() => {
+                      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 260);
+                    }}
                     onBlur={() => { const n = nick.trim(); if (n) AsyncStorage.setItem('nickname', n); }}
                     placeholder="Takma adın"
                     maxLength={20}
@@ -331,7 +339,7 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
-  scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },
+  scroll: { gap: 16, paddingBottom: Platform.OS === 'web' ? 380 : 140, paddingTop: 4 },
 
   hero: {
     height: 212,
