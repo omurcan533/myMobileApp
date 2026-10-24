@@ -120,7 +120,6 @@ export default function App() {
             overflow: hidden !important;
           }
           input, textarea, select {
-            font-size: 16px !important;
             user-select: auto !important;
             -webkit-user-select: auto !important;
             outline: none !important;

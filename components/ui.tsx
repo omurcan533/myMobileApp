@@ -683,6 +683,8 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
   icon?: IconName; containerStyle?: StyleProp<ViewStyle>; center?: boolean;
 }) {
   const [focus, setFocus] = useState(false);
+  const requestedFontSize = StyleSheet.flatten(style)?.fontSize;
+  const webFontSize = typeof requestedFontSize === 'number' ? Math.max(17, requestedFontSize) : 17;
   return (
     <View
       style={[
@@ -712,6 +714,7 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
           },
           center && { textAlign: 'center' },
           style,
+          Platform.OS === 'web' && { fontSize: webFontSize },
         ]}
       />
     </View>
@@ -771,19 +774,36 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
   }, [activeIdx, slideAnim, scaleAnim]);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && typeof window !== 'undefined') {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+
+      let baselineHeight = Math.max(window.innerHeight, viewport.height);
+      let keyboardVisible = false;
+      const updateFromViewport = () => {
+        const visibleHeight = viewport.height;
+        if (!keyboardVisible && visibleHeight > baselineHeight) baselineHeight = visibleHeight;
+        keyboardVisible = baselineHeight - visibleHeight > 120;
+        setIsKeyboardOpen(keyboardVisible);
+      };
       const onFocusIn = (e: FocusEvent) => {
         const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea') {
+          keyboardVisible = true;
           setIsKeyboardOpen(true);
         }
       };
       const onFocusOut = () => {
+        keyboardVisible = false;
         setIsKeyboardOpen(false);
       };
+      viewport.addEventListener('resize', updateFromViewport);
+      window.addEventListener('resize', updateFromViewport);
       document.addEventListener('focusin', onFocusIn);
       document.addEventListener('focusout', onFocusOut);
       return () => {
+        viewport.removeEventListener('resize', updateFromViewport);
+        window.removeEventListener('resize', updateFromViewport);
         document.removeEventListener('focusin', onFocusIn);
         document.removeEventListener('focusout', onFocusOut);
       };
