@@ -301,24 +301,28 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
  * Her tıklanabilir kart/çip/buton için `Pressable` yerine kullanılır.
  */
 export function Tap({
-  children, style, onPress, onPressIn, onPressOut, color = 'rgba(255,255,255,0.3)', accent = '#FFFFFF', scaleTo = 0.95, ...rest
+  children, style, onPress, onPressIn, onPressOut, color = 'rgba(255,255,255,0.3)', accent = '#FFFFFF', scaleTo = 0.93, ...rest
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: React.ReactNode; style?: StyleProp<ViewStyle>; color?: string; accent?: string; scaleTo?: number;
 }) {
-  const [scale] = useState(() => new Animated.Value(1));
+  const [pressAnim] = useState(() => new Animated.Value(0));
   const flat = (StyleSheet.flatten(style) || {}) as ViewStyle;
   const rp = useRipple(color, accent, typeof flat.borderRadius === 'number' ? flat.borderRadius : 0);
   const spring = (to: number) =>
-    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 45, bounciness: 9 }).start();
+    Animated.spring(pressAnim, { toValue: to, useNativeDriver: true, speed: 50, bounciness: 5 }).start();
+
+  const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, scaleTo] });
+  const translateY = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 3] });
+
   return (
     <AnimatedPressable
       {...rest}
       ref={rp.attach as any}
       onLayout={rp.onLayout}
       onPress={onPress}
-      onPressIn={(e: GestureResponderEvent) => { spring(scaleTo); rp.onPressIn(e); onPressIn?.(e); }}
-      onPressOut={(e: GestureResponderEvent) => { spring(1); rp.onPressOut(); onPressOut?.(e); }}
-      style={[style, { transform: [{ scale }] }] as any}
+      onPressIn={(e: GestureResponderEvent) => { spring(1); rp.onPressIn(e); onPressIn?.(e); }}
+      onPressOut={(e: GestureResponderEvent) => { spring(0); rp.onPressOut(); onPressOut?.(e); }}
+      style={[style, { transform: [{ scale }, { translateY }] }] as any}
     >
       {children}
       {rp.layer}
@@ -358,7 +362,7 @@ export function Btn({
   icon?: IconName;
   size?: BtnSize;
 }) {
-  const [scale] = useState(() => new Animated.Value(1));
+  const [pressAnim] = useState(() => new Animated.Value(0));
   const sz = SIZES[size];
   const isGhost = tone === 'ghost';
   const cfg = tone === 'custom'
@@ -366,7 +370,7 @@ export function Btn({
     : isGhost ? null : TONES[tone];
 
   const press = (to: number) =>
-    Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
+    Animated.spring(pressAnim, { toValue: to, useNativeDriver: true, speed: 50, bounciness: 4 }).start();
 
   const handlePress = () => {
     soundFx.click();
@@ -374,13 +378,20 @@ export function Btn({
     onPress();
   };
 
+  const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] });
+  const translateY = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 4] });
+
   const fg = cfg ? cfg.fg : colors.textSoft;
   const rp = useRipple(cfg ? 'rgba(255,255,255,0.4)' : alpha(colors.cyan, 0.32), cfg ? '#FFFFFF' : colors.cyan, radius.full);
 
   return (
     <Animated.View
       style={[
-        { transform: [{ scale }], opacity: disabled ? 0.45 : 1, borderRadius: radius.full },
+        {
+          transform: [{ scale }, { translateY }],
+          opacity: disabled ? 0.45 : 1,
+          borderRadius: radius.full,
+        },
         cfg && {
           shadowColor: cfg.glow,
           shadowOpacity: 0.55,
@@ -396,8 +407,8 @@ export function Btn({
         onLayout={rp.onLayout}
         disabled={disabled || loading}
         onPress={handlePress}
-        onPressIn={(e) => { press(0.95); rp.onPressIn(e); }}
-        onPressOut={() => { press(1); rp.onPressOut(); }}
+        onPressIn={(e) => { press(1); rp.onPressIn(e); }}
+        onPressOut={() => { press(0); rp.onPressOut(); }}
         style={{ borderRadius: radius.full, overflow: 'hidden', backgroundColor: 'transparent' }}
       >
         {cfg ? (
@@ -1017,7 +1028,9 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
-    borderTopColor: 'rgba(255,255,255,0.65)',
+    borderTopColor: 'rgba(255,255,255,0.7)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: 'rgba(0,0,0,0.32)',
   },
   btnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   btnGhost: { backgroundColor: colors.glass, borderColor: colors.borderLight },

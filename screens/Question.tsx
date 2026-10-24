@@ -94,11 +94,18 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
           <Card accent={roundColor} style={s.briefingCard}>
             <Eyebrow live color={roundColor} dot={roundColor}>Soru Başlangıcı</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>Hazır Olun</Title>
-            <Chip
-              icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
-              label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
-              color={roundColor}
-            />
+            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Chip
+                icon="help-circle"
+                label={`Soru ${round.idx + 1} / ${data.rounds.length}`}
+                color={colors.cyan}
+              />
+              <Chip
+                icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
+                label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
+                color={roundColor}
+              />
+            </View>
             {prize && (
               <View style={{ alignItems: 'center', gap: 2, marginVertical: 4 }}>
                 <Text style={{ fontSize: 36 }}>{prize.emoji}</Text>
@@ -231,7 +238,10 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               {me.is_captain && <Chip color={colors.gold} icon="ribbon" label="Kaptan" />}
               {me.is_architect && <Chip color={colors.magenta} icon="construct" label="Mimar" />}
             </View>
-            <Chip color={tierColor} label={`${tierLabel[round.tier as Tier]} · Tur ${round.idx + 1}`} />
+            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+              <Chip color={colors.cyan} icon="help-circle" label={`Soru ${round.idx + 1} / ${data.rounds.length}`} />
+              <Chip color={tierColor} label={tierLabel[round.tier as Tier]} />
+            </View>
           </View>
 
           {isOpen && <TimerBar left={left} total={total} label="Soru Süresi" />}

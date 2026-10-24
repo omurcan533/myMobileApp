@@ -16,10 +16,19 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
   const waitingForHost =
     (data.room.phase === 'question' && !hasOpenRound && hasResolvedRound) ||
     (data.room.phase === 'minigame' && latestMinigame?.status === 'done');
+  const currentRound = data.rounds.find((r) => r.status === 'open') ?? [...data.rounds].filter((r) => r.status === 'resolved').sort((a, b) => b.idx - a.idx)[0];
+  const questionCount = data.rounds.length;
+
   return (
     <View style={s.wrap}>
       <View style={s.topRow}>
         <Text style={s.roomCode}>ODA {data.room.code}</Text>
+        {currentRound && data.room.phase === 'question' && (
+          <View style={s.questionBadge}>
+            <Ionicons name="help-circle" size={14} color={colors.cyan} />
+            <Text style={s.questionBadgeText}>Soru {currentRound.idx + 1} / {questionCount}</Text>
+          </View>
+        )}
         <RoomExitButton onExit={ctx.exitRoom} />
       </View>
       <View style={s.row}>
@@ -114,6 +123,23 @@ const s = StyleSheet.create({
   wrap: { marginBottom: 10 },
   topRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   roomCode: { color: colors.subtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  questionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: alpha(colors.cyan, 0.14),
+    borderWidth: 1,
+    borderColor: alpha(colors.cyan, 0.45),
+  },
+  questionBadgeText: {
+    color: colors.cyan,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   row: { flexDirection: 'row', gap: 10 },
   hostStatus: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 13, borderWidth: 1, borderColor: alpha(colors.cyan, 0.36), backgroundColor: alpha(colors.cyan, 0.1) },
   hostStatusText: { flex: 1, color: colors.textSoft, fontSize: 11, fontWeight: '700' },

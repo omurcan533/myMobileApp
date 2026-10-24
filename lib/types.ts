@@ -18,6 +18,46 @@ export interface Room {
   midpoint_done: boolean;
   building_ready_a?: boolean;
   building_ready_b?: boolean;
+  captain_rolls?: Record<Side, TeamDiceDuel> | null;
+  captain_duel?: CaptainDuelState | null;
+}
+
+export interface CaptainDuelRoll {
+  round: number;
+  player_id: string;
+  d1: number;
+  d2: number;
+  total: number;
+  rolled_at: string;
+}
+
+export interface CaptainDuelState {
+  active_side: 'A' | 'B' | 'done';
+  round: number;
+  tied_player_ids: string[];
+  turn_player_id: string | null;
+  current_roll: CaptainDuelRoll | null;
+  rolls: CaptainDuelRoll[];
+  captains: Partial<Record<Side, string>>;
+}
+
+export interface DiceRollEntry {
+  player_id: string;
+  d1: number;
+  d2: number;
+  total: number;
+}
+
+export interface DiceRound {
+  round: number;
+  rolls: DiceRollEntry[];
+  max_total: number;
+  tied_player_ids: string[];
+}
+
+export interface TeamDiceDuel {
+  rounds: DiceRound[];
+  winner_player_id: string;
 }
 
 export interface Player {

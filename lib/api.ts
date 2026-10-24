@@ -27,6 +27,9 @@ const MESSAGES: Record<string, string> = {
   no_more_letters: 'Açılabilecek harf kalmadı.',
   not_building_phase: 'İnşa aşaması tamamlanmış.',
   not_architect: 'İnşaat hazır butonuna sadece Mimar basabilir.',
+  not_your_turn: 'Sıra sende değil!',
+  duel_finished: 'Zar düellosu tamamlandı.',
+  captain_duel_in_progress: 'Önce kaptanlık zar düellosu tamamlanmalı.',
 };
 
 export class GameError extends Error {
@@ -51,6 +54,7 @@ export const api = {
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
   assignTeams: (room: string) => rpc<void>('assign_teams', { p_room: room }),
   shuffleTeams: (room: string) => rpc<void>('shuffle_teams', { p_room: room }),
+  rollCaptainDice: (room: string) => rpc<any>('roll_captain_dice', { p_room: room }),
   leaveRoom: (room: string) => rpc<void>('leave_room', { p_room: room }),
   startGame: (room: string) => rpc<void>('start_game', { p_room: room }),
   advance: (room: string) => rpc<{ phase: string; advanced: boolean }>('advance_game', { p_room: room }),
