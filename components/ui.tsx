@@ -684,7 +684,7 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 }) {
   const [focus, setFocus] = useState(false);
   const requestedFontSize = StyleSheet.flatten(style)?.fontSize;
-  const webFontSize = typeof requestedFontSize === 'number' ? Math.max(17, requestedFontSize) : 17;
+  const webFontSize = typeof requestedFontSize === 'number' ? Math.max(20, requestedFontSize) : 20;
   return (
     <View
       style={[
