@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CoinPill, Avatar, GemIcon, RoomExitButton, Text } from './ui';
 import { teamMascot } from '../lib/art';
 import { alpha, colors, teamColor, teamName } from '../lib/theme';
+import { totalQuestionsForRoom } from '../lib/selectors';
 import type { Ctx, Side } from '../lib/types';
 
 /** Canlı takip: iki takımın anlık puanı, topladığı parçalar ve kredisi (Fantasy kart tarzı HUD). */
@@ -17,7 +18,7 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
     (data.room.phase === 'question' && !hasOpenRound && hasResolvedRound) ||
     (data.room.phase === 'minigame' && latestMinigame?.status === 'done');
   const currentRound = data.rounds.find((r) => r.status === 'open') ?? [...data.rounds].filter((r) => r.status === 'resolved').sort((a, b) => b.idx - a.idx)[0];
-  const questionCount = data.rounds.length;
+  const questionCount = totalQuestionsForRoom(data.room.mode, data.rounds.length);
 
   return (
     <View style={s.wrap}>

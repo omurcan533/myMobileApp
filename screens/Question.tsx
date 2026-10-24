@@ -10,7 +10,7 @@ import {
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { avatarFor } from '../lib/art';
-import { currentRound, effNow, secondsLeft } from '../lib/selectors';
+import { currentRound, effNow, secondsLeft, totalQuestionsForRoom } from '../lib/selectors';
 import { alpha, colors, gradients, teamColor, teamName, tierLabel } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
@@ -23,6 +23,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   const { room } = data;
   const now = effNow(room, useNow());
   const round = useMemo(() => currentRound(data.rounds), [data.rounds]);
+  const totalQuestions = useMemo(() => totalQuestionsForRoom(room.mode, data.rounds.length), [room.mode, data.rounds.length]);
   const [text, setText] = useState('');
   const [final, setFinal] = useState('');
   const [confirmAnswer, setConfirmAnswer] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
               <Chip
                 icon="help-circle"
-                label={`Soru ${round.idx + 1} / ${data.rounds.length}`}
+                label={`Soru ${round.idx + 1} / ${totalQuestions}`}
                 color={colors.cyan}
               />
               <Chip
@@ -239,7 +240,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               {me.is_architect && <Chip color={colors.magenta} icon="construct" label="Mimar" />}
             </View>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-              <Chip color={colors.cyan} icon="help-circle" label={`Soru ${round.idx + 1} / ${data.rounds.length}`} />
+              <Chip color={colors.cyan} icon="help-circle" label={`Soru ${round.idx + 1} / ${totalQuestions}`} />
               <Chip color={tierColor} label={tierLabel[round.tier as Tier]} />
             </View>
           </View>
@@ -762,7 +763,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.mint,
   },
 
-  resultCard: { alignItems: 'center', gap: 12, paddingVertical: 24 },
+  resultCard: { alignItems: 'center', gap: 12, paddingVertical: 24, overflow: 'hidden' },
   finalAnswers: { width: '100%', gap: 7, marginTop: 4, padding: 10, borderRadius: 14, backgroundColor: colors.inset, borderWidth: 1, borderColor: colors.border },
   finalAnswerRow: { gap: 3, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, backgroundColor: 'rgba(5,10,20,0.72)' },
   finalAnswerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

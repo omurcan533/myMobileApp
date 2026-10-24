@@ -123,21 +123,38 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
 // ============================================================================
 // Animasyonlar
 // ============================================================================
-/** Yumuşak "nabız" animasyonu: öne çıkan öğeler için. */
-export function Pulse({ children, active = true, amount = 1.03 }: { children: React.ReactNode; active?: boolean; amount?: number }) {
+/** Yumuşak "nabız" animasyonu: öne çıkan öğeler için.
+ * Kart ve kutuların (div) nefes alırken ekranın sağına/soluna taşmasını kesinlikle engellemek için,
+ * nabız hareketi 1.0 tepe noktasından hafifçe içeriye doğru nefes alır (1.0 -> 0.975 -> 1.0).
+ * Böylece öğe hiçbir zaman 1.0 ölçeğini aşmaz ve ekran marjları içinde kalır.
+ */
+export function Pulse({
+  children,
+  active = true,
+  amount = 1.025,
+  style,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  amount?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const [v] = useState(() => new Animated.Value(1));
   useEffect(() => {
     if (!active) { v.setValue(1); return; }
+    // amount > 1 ise (örn: 1.025 veya 1.03), dışa doğru balonlaşıp sağdan/soldan taşmak yerine
+    // 1.0 ile hafifçe içe doğru nefes aldırır (örn: 0.975 - 1.0).
+    const minScale = amount > 1 ? Math.max(0.95, 1 - (amount - 1)) : amount;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(v, { toValue: amount, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: minScale, duration: 850, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 850, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();
     return () => loop.stop();
   }, [active, amount, v]);
-  return <Animated.View style={{ transform: [{ scale: v }] }}>{children}</Animated.View>;
+  return <Animated.View style={[{ transform: [{ scale: v }] }, style]}>{children}</Animated.View>;
 }
 
 /** Açılışta aşağıdan yukarı süzülerek belirir. */
