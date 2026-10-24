@@ -114,6 +114,9 @@ export default function App() {
           #root {
             background-color: #050A14 !important;
             height: 100% !important;
+            height: 100dvh !important;
+            min-height: 100% !important;
+            min-height: 100dvh !important;
             width: 100% !important;
             display: flex !important;
             flex-direction: column !important;
