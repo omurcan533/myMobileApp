@@ -135,6 +135,14 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                     icon="happy"
                     value={nick}
                     onChangeText={setNick}
+                    onBlur={() => {
+                      if (Platform.OS !== 'web') return;
+                      setTimeout(() => {
+                        if (typeof document !== 'undefined' && document.activeElement === document.body) {
+                          scrollRef.current?.scrollTo({ y: 0, animated: false });
+                        }
+                      }, 420);
+                    }}
                     placeholder="örn. Çorap Avcısı"
                     maxLength={20}
                   />
