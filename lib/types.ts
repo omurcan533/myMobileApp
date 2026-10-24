@@ -32,6 +32,7 @@ export interface CaptainDuelRoll {
 }
 
 export interface CaptainDuelState {
+  started?: boolean;
   active_side: 'A' | 'B' | 'done';
   round: number;
   tied_player_ids: string[];

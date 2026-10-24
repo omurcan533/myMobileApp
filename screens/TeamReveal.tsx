@@ -11,11 +11,11 @@ import { haptic } from '../lib/haptics';
 import type { CaptainDuelRoll, CaptainDuelState, Ctx, Player, Side } from '../lib/types';
 
 // Multi-stage sequential animation timeline constants
-const PLAYER_START_MS = 500;
-const PLAYER_INTERVAL_MS = 1650;
-const STAGE_REVEAL_MS = 380;
-const STAGE_SHAKE_MS = 260;
-const STAGE_FLIGHT_MS = 670;
+const PLAYER_START_MS = 800;
+const PLAYER_INTERVAL_MS = 3200;
+const STAGE_REVEAL_MS = 900;
+const STAGE_SHAKE_MS = 650;
+const STAGE_FLIGHT_MS = 950;
 
 const DIE_PIPS: Record<number, number[]> = {
   1: [4],
@@ -135,41 +135,41 @@ function PlayerSpotlight({
   const hasImpacted = useRef(false);
 
   useEffect(() => {
-    // 1. AŞAMA: The Reveal (0 - 380ms)
+    // 1. AŞAMA: The Reveal (0 - 900ms)
     // 0.4 -> 1.04 dengeli yay + neon parıltı (ekran dışına taşmaz)
     haptic.light();
     Animated.parallel([
-      Animated.timing(revealOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.timing(revealOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.sequence([
         Animated.timing(revealScale, {
           toValue: 1.04,
-          duration: 190,
+          duration: 250,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.spring(revealScale, { toValue: 1.0, friction: 6, tension: 120, useNativeDriver: true }),
+        Animated.spring(revealScale, { toValue: 1.0, friction: 6, tension: 100, useNativeDriver: true }),
       ]),
       Animated.sequence([
-        Animated.timing(neonGlow, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.timing(neonGlow, { toValue: 0.1, duration: 220, useNativeDriver: true }),
+        Animated.timing(neonGlow, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.timing(neonGlow, { toValue: 0.1, duration: 320, useNativeDriver: true }),
       ]),
     ]).start();
 
-    // 2. AŞAMA: The Decision / Shake (380 - 640ms)
+    // 2. AŞAMA: The Decision / Shake (900 - 1550ms)
     const shakeTimer = setTimeout(() => {
       setPhaseText('shake');
       haptic.light();
       Animated.sequence([
-        Animated.timing(shakeVal, { toValue: -1, duration: 42, useNativeDriver: true }),
-        Animated.timing(shakeVal, { toValue: 1, duration: 44, useNativeDriver: true }),
-        Animated.timing(shakeVal, { toValue: -0.8, duration: 44, useNativeDriver: true }),
-        Animated.timing(shakeVal, { toValue: 0.8, duration: 44, useNativeDriver: true }),
-        Animated.timing(shakeVal, { toValue: -0.4, duration: 42, useNativeDriver: true }),
-        Animated.timing(shakeVal, { toValue: 0, duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: -1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: 1, duration: 58, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: -0.8, duration: 58, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: 0.8, duration: 58, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: -0.4, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeVal, { toValue: 0, duration: 50, useNativeDriver: true }),
       ]).start();
     }, STAGE_REVEAL_MS);
 
-    // 3. & 4. AŞAMA: Arc Motion (Kavisli Yol) + Squash & Stretch (640 - 1310ms)
+    // 3. & 4. AŞAMA: Arc Motion (Kavisli Yol) + Squash & Stretch (1550 - 2500ms)
     const flightTimer = setTimeout(() => {
       setPhaseText('flight');
       Animated.timing(flightVal, {
@@ -178,13 +178,13 @@ function PlayerSpotlight({
         easing: Easing.bezier(0.2, 0.0, 0.15, 1.0),
         useNativeDriver: true,
       }).start(() => {
-        // 5. AŞAMA: The Impact (1310ms - Çarpma anı)
+        // 5. AŞAMA: The Impact (2500ms - Çarpma anı)
         if (!hasImpacted.current) {
           hasImpacted.current = true;
           onImpact?.(side);
 
           Animated.sequence([
-            Animated.timing(impactBounce, { toValue: 0.86, duration: 60, useNativeDriver: true }),
+            Animated.timing(impactBounce, { toValue: 0.86, duration: 75, useNativeDriver: true }),
             Animated.spring(impactBounce, { toValue: 1, friction: 3.2, tension: 100, useNativeDriver: true }),
           ]).start();
         }
@@ -291,7 +291,7 @@ function PlayerSpotlight({
       >
         <LinearGradient
           colors={[alpha(color, 0.35), 'rgba(5,10,20,0.96)']}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
         />
 
         {/* 1. Aşama Beyaz Neon Patlama Işıması */}
@@ -397,7 +397,7 @@ function TeamColumn({
     >
       <LinearGradient
         colors={[alpha(color, 0.3), alpha(color, 0.12), 'rgba(5,10,20,0.94)']}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
       />
 
       {/* 5. Aşama: Çarpma anında yanan Neon Işıma Parıltısı */}
@@ -447,7 +447,7 @@ function CaptainCard({ player, side, winningRoll }: { player: Player; side: Side
   const color = teamColor(side);
   return (
     <View style={[s.captainCard, { borderColor: alpha(color, 0.55) }]}>
-      <LinearGradient colors={[alpha(color, 0.34), 'rgba(5,10,20,0.94)']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={[alpha(color, 0.34), 'rgba(5,10,20,0.94)']} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
       <Avatar source={avatarFor(player.nickname)} size={46} ring={colors.gold} glow />
       <View style={s.captainInfo}>
         <Text style={[s.captainTeam, { color }]}>TAKIM {side} KAPTANI</Text>
@@ -556,7 +556,7 @@ function GiantDiceDuelArena({
     <View style={[s.arenaCard, { borderColor: alpha(activeColor, 0.75) }]}>
       <LinearGradient
         colors={[alpha(activeColor, 0.35), 'rgba(5, 10, 20, 0.96)']}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
       />
 
       {/* Arena Header */}
@@ -833,6 +833,9 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
   const hasAnyRoll = !!(captainDuel?.rolls && captainDuel.rolls.length > 0);
   const isPlacingTeams = elapsed < totalPlacementDuration && !hasAnyRoll;
 
+  // Kurucu "Zar Düellosuna Başla" butonuna bastı mı?
+  const isDuelStarted = captainDuel?.started === true || hasAnyRoll;
+
   const [showCaptainsSummary, setShowCaptainsSummary] = useState(false);
 
   useEffect(() => {
@@ -855,13 +858,13 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
     }
   }, [captainDuel?.active_side, captainDuel?.current_roll?.rolled_at]);
 
-  const isDuelActive = hasInteractiveDuel && !isPlacingTeams && !showCaptainsSummary;
+  const isDuelActive = hasInteractiveDuel && isDuelStarted && !showCaptainsSummary;
   const captainsFinished = hasInteractiveDuel ? captainDuel.active_side === 'done' : elapsed >= 10000;
 
-  // Exact millisecond when the player impacts into the team box (at ~1310ms into slot)
+  // Oyuncunun takım kutusuna çarptığı tam an
   const visibleAt = (player: Player) => {
     const idx = players.findIndex((p) => p.id === player.id);
-    return elapsed >= PLAYER_START_MS + idx * PLAYER_INTERVAL_MS + 1300;
+    return elapsed >= PLAYER_START_MS + idx * PLAYER_INTERVAL_MS + (STAGE_REVEAL_MS + STAGE_SHAKE_MS + STAGE_FLIGHT_MS);
   };
 
   const captains = (['A', 'B'] as const)
@@ -875,6 +878,20 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
       haptic.medium();
       soundFx.click();
       await api.rollCaptainDice(ctx.data.room.id);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleStartDuel = async () => {
+    if (!ctx.me.is_host || busy) return;
+    setBusy(true);
+    try {
+      haptic.medium();
+      soundFx.click();
+      await api.startCaptainDuel(ctx.data.room.id);
     } catch (error) {
       show((error as Error).message, 'error');
     } finally {
@@ -915,6 +932,8 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
             <Eyebrow live color={colors.mint} dot={colors.mint}>
               {isPlacingTeams
                 ? 'Takım Dağılımı'
+                : !isDuelStarted
+                ? 'Takımlar Hazır'
                 : isDuelActive
                 ? 'Canlı Kaptanlık Düellosu'
                 : 'Takımlar ve Liderler'}
@@ -922,6 +941,8 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
             <Text display style={s.title}>
               {isPlacingTeams
                 ? 'Taraflar Belli Oluyor'
+                : !isDuelStarted
+                ? 'Kadrolar Belirlendi! ⚔️'
                 : isDuelActive
                 ? 'Zarları At, Lider Ol! 🎲'
                 : 'Takımlar ve Kaptanlar'}
@@ -929,6 +950,8 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
             <Text style={s.subtitle}>
               {isPlacingTeams
                 ? 'Oyuncular sırayla takımlarına yerleşiyor'
+                : !isDuelStarted
+                ? 'Takımlar oluşturuldu, kaptanlar zar düellosuyla seçilecek'
                 : isDuelActive
                 ? 'Oyuncular sırayla 2 zar atıyor, en yüksek atan kaptan seçiliyor'
                 : 'Takım dağılımı ve kaptanlar tamamlandı'}
@@ -937,7 +960,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
           <RoomExitButton onExit={ctx.exitRoom} />
         </View>
 
-        {/* 1. AŞAMA: TAKIM DAĞILIMI (5 Aşamalı Oyun UI Animasyonu) */}
+        {/* 1. AŞAMA: TAKIM DAĞILIMI (Animasyon Aşaması) */}
         {isPlacingTeams ? (
           <View style={{ gap: 10 }}>
             <View style={s.spotlight}>
@@ -972,8 +995,34 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
               />
             </View>
           </View>
+        ) : !isDuelStarted ? (
+          /* 1.5. AŞAMA: TAKIMLAR OLUŞTURULDU - ZAR DÜELLOSU ÖNCESİ KADRO İNCELEME */
+          <View style={{ gap: 10 }}>
+            <View style={s.spotlight}>
+              <View style={s.readySpotlight}>
+                <LinearGradient
+                  colors={[alpha(colors.cyan, 0.16), 'rgba(5, 10, 20, 0.94)']}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 20 }]}
+                />
+                <Ionicons name="shield-checkmark" size={28} color={colors.cyan} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text display style={s.readyTitle}>Takımlar Belirlendi! ⚔️</Text>
+                  <Text style={s.readySubtitle}>
+                    {ctx.me.is_host
+                      ? 'Kaptanlık zar düellosunu başlatmak için aşağıdaki butona tıklayın'
+                      : 'Kurucunun kaptanlık zar düellosunu başlatması bekleniyor…'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={[s.teams, { height: Math.max(160, Math.min(260, height - 440)) }]}>
+              <TeamColumn side="A" players={playersBySide.A} />
+              <TeamColumn side="B" players={playersBySide.B} />
+            </View>
+          </View>
         ) : isDuelActive && captainDuel ? (
-          /* 2. AŞAMA: BÜYÜK ZAR DÜELLOSU (Takımlar oturduktan sonra başlar) */
+          /* 2. AŞAMA: BÜYÜK ZAR DÜELLOSU (Takımlar oturduktan ve kurucu başlattıktan sonra) */
           <Reveal key="giant-arena" style={{ width: '100%' }}>
             <GiantDiceDuelArena
               duel={captainDuel}
@@ -1029,9 +1078,37 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
             <View style={s.hostWaiting}>
               <Ionicons name="sparkles" size={18} color={colors.gold} />
               <Text style={s.hostWaitingText}>
-                Takım yerleşimi tamamlanıyor… Ardından kaptanlık zar düellosu başlayacak 🎲
+                Takım yerleşimi yapılıyor… Sırayla takımlar oluşturuluyor
               </Text>
             </View>
+          ) : !isDuelStarted ? (
+            ctx.me.is_host ? (
+              <View style={s.hostActions}>
+                <Btn
+                  title="Takımları Yeniden Karıştır"
+                  icon="shuffle"
+                  tone="ghost"
+                  size="md"
+                  loading={busy}
+                  onPress={shuffleTeams}
+                />
+                <Btn
+                  title="Kaptanlık Zar Düellosuna Başla"
+                  icon="dice"
+                  tone="success"
+                  size="lg"
+                  loading={busy}
+                  onPress={handleStartDuel}
+                />
+              </View>
+            ) : (
+              <View style={s.hostWaiting}>
+                <Ionicons name="hourglass" size={18} color={colors.cyan} />
+                <Text style={s.hostWaitingText}>
+                  Takımlar oluşturuldu! Kurucunun zar düellosunu başlatması bekleniyor…
+                </Text>
+              </View>
+            )
           ) : !captainsFinished ? (
             <View style={s.hostWaiting}>
               <Ionicons name="dice" size={18} color={colors.gold} />
@@ -1079,12 +1156,30 @@ const s = StyleSheet.create({
 
   spotlight: { minHeight: 122, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   spotlightReveal: { width: '100%', maxWidth: 350, alignSelf: 'center' },
-  spotlightCard: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1.8, backgroundColor: colors.glassStrong },
+  spotlightCard: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1.8, backgroundColor: colors.glassStrong, overflow: 'hidden' },
   spotlightInfo: { flex: 1, gap: 3 },
   spotlightName: { color: colors.text, fontSize: 23, fontWeight: '900' },
   assignment: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5 },
   waitingSpotlight: { width: '100%', maxWidth: 350, alignSelf: 'center', height: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.glass },
   waitingText: { color: colors.textSoft, fontSize: 13, fontWeight: '700' },
+  readySpotlight: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: alpha(colors.cyan, 0.45),
+    backgroundColor: colors.glassStrong,
+    overflow: 'hidden',
+    width: '100%',
+    maxWidth: 350,
+    alignSelf: 'center',
+  },
+  readyTitle: { color: colors.cyan, fontSize: 17, fontWeight: '900' },
+  readySubtitle: { color: colors.textSoft, fontSize: 11.5, fontWeight: '600', lineHeight: 16 },
 
   /* Giant Arena Styles */
   arenaCard: {
@@ -1243,7 +1338,7 @@ const s = StyleSheet.create({
   captainsTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
   captainsTitle: { color: colors.gold, fontSize: 16, fontWeight: '900' },
   captainGrid: { flexDirection: 'row', gap: 8 },
-  captainCard: { flex: 1, minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, backgroundColor: colors.glassStrong },
+  captainCard: { flex: 1, minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, backgroundColor: colors.glassStrong, overflow: 'hidden' },
   captainInfo: { flex: 1, gap: 2 },
   captainTeam: { color: colors.textSoft, fontSize: 10, fontWeight: '800' },
   captainName: { color: colors.text, fontSize: 14, fontWeight: '900' },

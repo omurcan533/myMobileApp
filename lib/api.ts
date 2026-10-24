@@ -54,6 +54,7 @@ export const api = {
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
   assignTeams: (room: string) => rpc<void>('assign_teams', { p_room: room }),
   shuffleTeams: (room: string) => rpc<void>('shuffle_teams', { p_room: room }),
+  startCaptainDuel: (room: string) => rpc<any>('start_captain_duel', { p_room: room }),
   rollCaptainDice: (room: string) => rpc<any>('roll_captain_dice', { p_room: room }),
   leaveRoom: (room: string) => rpc<void>('leave_room', { p_room: room }),
   startGame: (room: string) => rpc<void>('start_game', { p_room: room }),
