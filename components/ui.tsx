@@ -73,19 +73,6 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
     };
   }, []);
 
-  // Klavye açılıp alan oturduktan sonra odaktaki input'u görünür alanın ortasına getir.
-  const vvH = vv ? vv.h : 0;
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !vvH || typeof document === 'undefined') return;
-    const t = setTimeout(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && /^(input|textarea)$/i.test(el.tagName)) {
-        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
-      }
-    }, 340);
-    return () => clearTimeout(t);
-  }, [vvH]);
-
   const isIosWeb =
     Platform.OS === 'web' &&
     typeof navigator !== 'undefined' &&
@@ -711,13 +698,6 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
         {...rest}
         onFocus={(e) => {
           setFocus(true);
-          if (Platform.OS === 'web') {
-            setTimeout(() => {
-              try {
-                ((e.target as unknown) as HTMLElement)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-              } catch {}
-            }, 220);
-          }
           onFocus?.(e);
         }}
         onBlur={(e) => { setFocus(false); onBlur?.(e); }}

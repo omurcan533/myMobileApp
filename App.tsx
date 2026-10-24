@@ -135,27 +135,6 @@ export default function App() {
         document.head.appendChild(style);
       }
 
-      const onScroll = () => {
-        if (window.scrollY !== 0) {
-          window.scrollTo(0, 0);
-        }
-      };
-
-      const resetScroll = () => {
-        setTimeout(() => {
-          window.scrollTo(0, 0);
-          if (document.body) document.body.scrollTop = 0;
-          if (document.documentElement) document.documentElement.scrollTop = 0;
-        }, 60);
-      };
-
-      window.addEventListener('scroll', onScroll, { passive: true });
-      document.addEventListener('focusout', resetScroll);
-
-      return () => {
-        window.removeEventListener('scroll', onScroll);
-        document.removeEventListener('focusout', resetScroll);
-      };
     }
   }, []);
 
