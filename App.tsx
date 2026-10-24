@@ -12,6 +12,7 @@ import { Btn, Float, Muted, Screen, Text, Title } from './components/ui';
 import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
+import { api } from './lib/api';
 import { syncServerTime } from './lib/serverTime';
 import { art } from './lib/art';
 import { alpha, colors } from './lib/theme';
@@ -23,6 +24,7 @@ import { MinigameScreen } from './screens/Minigame';
 import { QuestionScreen } from './screens/Question';
 import { ResultsScreen } from './screens/Results';
 import { VotingScreen } from './screens/Voting';
+import { TeamRevealScreen } from './screens/TeamReveal';
 
 const ROOM_KEY = 'roomId';
 
@@ -47,16 +49,24 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
   const { data, gone } = useRoom(roomId);
   const me = data?.players.find((p) => p.user_id === userId);
   useGameDriver(data, me?.id);
+  const exitRoom = useCallback(async () => {
+    await api.leaveRoom(roomId);
+    onLeave();
+  }, [roomId, onLeave]);
 
   useEffect(() => { if (gone) onLeave(); }, [gone, onLeave]);
 
   if (!data || !me) {
     return <Loading text="Odaya bağlanılıyor…" />;
   }
-  const ctx: Ctx = { data, me, catalog, onLeave };
+  const ctx: Ctx = { data, me, catalog, onLeave, exitRoom };
 
   switch (data.room.phase) {
     case 'lobby': return <LobbyScreen ctx={ctx} />;
+    case 'team_reveal':
+      return data.players.every((player) => player.team_side !== null)
+        ? <TeamRevealScreen ctx={ctx} />
+        : <Loading text="Takımlar belirleniyor…" />;
     case 'question': return <QuestionScreen ctx={ctx} />;
     case 'minigame': return <MinigameScreen ctx={ctx} />;
     case 'building': return <BuildingScreen ctx={ctx} />;

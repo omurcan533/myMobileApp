@@ -15,19 +15,27 @@ const MAX_PLAYERS = 12;
 const MIN_SLOTS = 4;
 
 export function LobbyScreen({ ctx }: { ctx: Ctx }) {
-  const { data, me, onLeave } = ctx;
+  const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
 
-  const start = async () => {
+  const assignTeams = async () => {
     setBusy(true);
     try {
-      await api.startGame(room.id);
+      await api.assignTeams(room.id);
     } catch (e) {
       show((e as Error).message, 'error');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const leave = async () => {
+    try {
+      await exitRoom();
+    } catch (e) {
+      show((e as Error).message, 'error');
     }
   };
 
@@ -63,7 +71,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <View style={s.playersHead}>
               <View>
                 <Title size={20}>Oyuncular</Title>
-                <Muted>Takımlar oyun başlayınca belirlenir</Muted>
+                <Muted>Kurucu takımları belirleyince herkes sonucu görecek</Muted>
               </View>
               <View style={s.countBadge}>
                 <Text display style={s.countText}>{players.length}</Text>
@@ -105,20 +113,20 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         <Reveal delay={180} style={{ gap: 12 }}>
           {me.is_host ? (
             <Btn
-              title={canStart ? 'Oyunu Başlat' : 'En az 2 kişi gerekli'}
-              icon={canStart ? 'rocket' : 'hourglass'}
+              title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
+              icon={canStart ? 'people' : 'hourglass'}
               disabled={!canStart}
               loading={busy}
               tone="success"
-              onPress={start}
+              onPress={assignTeams}
             />
           ) : (
             <Card style={s.waiting}>
               <Ionicons name="hourglass" size={22} color={colors.cyan} />
-              <Muted style={{ flex: 1 }}>Kurucunun oyunu başlatması bekleniyor…</Muted>
+              <Muted style={{ flex: 1 }}>Kurucunun takımları belirlemesi bekleniyor…</Muted>
             </Card>
           )}
-          <Btn title="Odadan Ayrıl" tone="ghost" icon="exit-outline" size="md" onPress={onLeave} />
+          <Btn title="Odadan Ayrıl" tone="ghost" icon="exit-outline" size="md" onPress={leave} />
         </Reveal>
       </ScrollView>
       {toast}

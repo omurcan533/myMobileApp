@@ -1,5 +1,5 @@
 export type Side = 'A' | 'B';
-export type Phase = 'lobby' | 'question' | 'minigame' | 'building' | 'voting' | 'results';
+export type Phase = 'lobby' | 'team_reveal' | 'question' | 'minigame' | 'building' | 'voting' | 'results';
 export type Tier = 'base' | 'body' | 'roof';
 
 export type GameMode = 'quick' | 'standard' | 'long';
@@ -161,6 +161,7 @@ export interface Ctx {
   me: Player;
   catalog: Record<string, Piece>;
   onLeave: () => void;
+  exitRoom: () => Promise<void>;
 }
 
 export interface GameResults {

@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasBoard } from '../components/Canvas';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, Muted, Pulse, Reveal, Screen, SectionLabel, Title, Text,
+  Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, Muted, Pulse, Reveal, RoomExitButton, Screen, SectionLabel, Title, Text, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
 import { teamMascot } from '../lib/art';
@@ -15,10 +15,19 @@ import { haptic } from '../lib/haptics';
 import type { Ctx, GameResults, Side } from '../lib/types';
 
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
-  const { data, me, catalog, onLeave } = ctx;
+  const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
+  const { toast, show } = useToast();
+
+  const leave = async () => {
+    try {
+      await exitRoom();
+    } catch (error) {
+      show((error as Error).message, 'error');
+    }
+  };
 
   useEffect(() => {
     api.results(data.room.id).then((r) => {
@@ -33,6 +42,9 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     return (
       <Screen>
         <View style={s.center}>
+          <View style={{ alignSelf: 'flex-end', width: '100%', alignItems: 'flex-end' }}>
+            <RoomExitButton onExit={exitRoom} />
+          </View>
           <Float amount={8}>
             <View style={s.bigIcon}><Ionicons name="flag" size={42} color={colors.gold} /></View>
           </Float>
@@ -54,9 +66,12 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* ================= BAŞLIK ================= */}
-        <View style={s.header}>
-          <Eyebrow live color={colors.mint} dot={colors.mint}>Oyun tamamlandı</Eyebrow>
-          <Title size={32}>Sonuçlar</Title>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={[s.header, { flex: 1 }]}>
+            <Eyebrow live color={colors.mint} dot={colors.mint}>Oyun tamamlandı</Eyebrow>
+            <Title size={32}>Sonuçlar</Title>
+          </View>
+          <RoomExitButton onExit={exitRoom} />
         </View>
 
         {/* ================= RESMİ ŞAMPİYON ================= */}
@@ -205,9 +220,10 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
 
         {/* ================= ANA MENÜ ================= */}
         <View style={{ marginTop: 10, marginBottom: 16 }}>
-          <Btn title="Ana Menüye Dön" tone="gold" icon="home" onPress={onLeave} />
+          <Btn title="Ana Menüye Dön" tone="gold" icon="home" onPress={leave} />
         </View>
       </ScrollView>
+      {toast}
     </Screen>
   );
 }

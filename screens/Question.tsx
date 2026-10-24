@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
@@ -53,12 +53,102 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   }
 
   const isOpen = round.status === 'open';
+  const isPreparing = isOpen && !round.opens_at;
+  if (isPreparing) {
+    const roundColor = TIER_COLOR[round.tier];
+    const instructions = round.kind === 'anagram'
+      ? 'Karışık harfleri çöz ve cevabı en hızlı şekilde yaz. İlk doğru cevap takımına parça kazandırır.'
+      : round.kind === 'social'
+        ? 'Oyunculardan birini seçip takımına öner. Kaptan, takımın adına nihai cevabı gönderir.'
+        : 'Tahminini önce takımına öner. Kaptan doğru cevabı gönderir; yanlış cevap parçayı rakibe verir.';
+    const briefingReadyAt = (room.phase_started_at ? Date.parse(room.phase_started_at) : 0) + 5000;
+    const canContinue = now >= briefingReadyAt;
+    const waitSeconds = Math.max(0, Math.ceil((briefingReadyAt - now) / 1000));
+
+    const toggleBriefingPause = async () => {
+      setBusy(true);
+      try {
+        await api.togglePause(room.id);
+      } catch (error) {
+        show((error as Error).message, 'error');
+      } finally {
+        setBusy(false);
+      }
+    };
+    const startQuestion = async () => {
+      if (!me.is_host || room.paused || busy || !canContinue) return;
+      setBusy(true);
+      try {
+        await api.confirmBriefing(room.id);
+      } catch (error) {
+        show((error as Error).message, 'error');
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    return (
+      <Screen>
+        <Scoreboard ctx={ctx} />
+        <View style={s.briefingWrap}>
+          <Card accent={roundColor} style={s.briefingCard}>
+            <Eyebrow live color={roundColor} dot={roundColor}>Soru Başlangıcı</Eyebrow>
+            <Title size={26} style={{ textAlign: 'center' }}>Hazır Olun</Title>
+            <Chip
+              icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
+              label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
+              color={roundColor}
+            />
+            {prize && (
+              <View style={{ alignItems: 'center', gap: 2, marginVertical: 4 }}>
+                <Text style={{ fontSize: 36 }}>{prize.emoji}</Text>
+                <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>Ödül: {prize.name_tr}</Text>
+              </View>
+            )}
+            <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{instructions}</Muted>
+            {me.is_host ? (
+              <Btn
+                title={canContinue ? 'Devam Et' : `Devam Et · ${waitSeconds} sn`}
+                icon={canContinue ? 'play' : 'hourglass'}
+                tone={canContinue ? 'success' : 'ghost'}
+                size="lg"
+                loading={busy}
+                disabled={!canContinue || room.paused}
+                onPress={startQuestion}
+                style={{ alignSelf: 'stretch', marginTop: 6 }}
+              />
+            ) : (
+              <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <ActivityIndicator size="small" color={roundColor} />
+                <Muted style={{ textAlign: 'center' }}>Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.</Muted>
+              </View>
+            )}
+          </Card>
+        </View>
+        {room.paused && (
+          <View style={s.paused}>
+            <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
+            <Title size={26}>Oyun Duraklatıldı</Title>
+            <Muted>Kaptanlar dilediğinde devam ettirebilir.</Muted>
+            {me.is_captain && (
+              <Btn title="Devam Et" icon="play" tone="success" disabled={busy} onPress={toggleBriefingPause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
+            )}
+          </View>
+        )}
+        {toast}
+      </Screen>
+    );
+  }
+
   const left = secondsLeft(round.closes_at, now);
   const total = round.opens_at && round.closes_at ? (Date.parse(round.closes_at) - Date.parse(round.opens_at)) / 1000 : 1;
   const lockedLeft = me.locked_until ? Math.max(0, (Date.parse(me.locked_until) - now) / 1000) : 0;
   const suggestions = data.answers.filter((a) => a.round_id === round.id && a.side === me.team_side && !a.is_final);
   const showHint = isOpen && round.hints.length > 0 && left < total / 2;
   const tierColor = TIER_COLOR[round.tier as Tier];
+  const continueAt = round.resolved_at ? Date.parse(round.resolved_at) + 3000 : 0;
+  const continueReady = !isOpen && !!round.resolved_at && now >= continueAt;
+  const continueWait = Math.max(0, Math.ceil((continueAt - now) / 1000));
 
   // ---- Harf kredisi: cevap maskesi + satın alınan harfler ----
   const credits = myTeam?.credits ?? 0;
@@ -119,10 +209,14 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
       show('Joker kullanıldı! Soru çözüldü ve parça kazanıldı.', 'success');
     });
   const pause = () => run(async () => { await api.togglePause(room.id); });
+  const continueGame = () => run(async () => { await api.advanceHost(room.id); });
 
   const iWon = round.winner_side === me.team_side;
   const resultColor = round.winner_side ? (iWon ? colors.mint : colors.red) : colors.muted;
   const resultIcon: IconName = round.winner_side ? (iWon ? 'trophy' : 'sad') : 'alarm';
+  const roundAnswers = data.answers
+    .filter((answer) => answer.round_id === round.id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return (
     <Screen>
@@ -398,9 +492,58 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                   <Text style={s.revealedLabel}>Doğru Cevap</Text>
                   <Text display style={s.revealedText}>{round.revealed_answer}</Text>
                 </View>
+                {roundAnswers.length > 0 ? (
+                  <View style={s.finalAnswers}>
+                    <Eyebrow icon="chatbubbles" color={colors.muted}>Gönderilen Cevaplar</Eyebrow>
+                    {roundAnswers.map((answer) => {
+                      const sender = data.players.find((player) => player.id === answer.player_id);
+                      const answerColor = answer.is_correct === true ? colors.mint : answer.is_correct === false ? colors.red : colors.cyan;
+                      const answerLabel = answer.is_final
+                        ? answer.is_correct === true ? 'Doğru karar' : 'Yanlış karar'
+                        : 'Takım önerisi';
+                      return (
+                        <View key={answer.id} style={[s.finalAnswerRow, { borderColor: alpha(answerColor, 0.35) }]}>
+                          <View style={s.finalAnswerMeta}>
+                            <Text numberOfLines={1} style={s.finalAnswerSender}>
+                              {sender?.nickname ?? 'Oyuncu'} · {teamName(answer.side)}
+                            </Text>
+                            <Chip
+                              label={answerLabel}
+                              icon={answer.is_final ? answer.is_correct ? 'checkmark-circle' : 'close-circle' : 'chatbubble-ellipses'}
+                              color={answerColor}
+                              size="sm"
+                            />
+                          </View>
+                          <Text style={[s.finalAnswerBody, { color: answerColor }]}>{answer.body}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Muted style={{ textAlign: 'center' }}>Bu turda kayıtlı cevap bulunmuyor.</Muted>
+                )}
                 {round.winner_side && <Text style={{ fontSize: 46, marginTop: 4 }}>{prize?.emoji}</Text>}
               </Card>
             </Pulse>
+          )}
+
+          {!isOpen && round.status === 'resolved' && (
+            <Card accent={colors.cyan} style={s.advanceCard}>
+              <Eyebrow icon="eye" color={colors.cyan}>Tur sonucu</Eyebrow>
+              {me.is_host ? (
+                <Btn
+                  title={continueReady ? 'Sonraki Aşamaya Geç' : `Sonucu İncele · ${continueWait} sn`}
+                  icon={continueReady ? 'play-forward' : 'hourglass'}
+                  tone="primary"
+                  size="md"
+                  disabled={!continueReady || busy || room.paused}
+                  loading={busy}
+                  onPress={continueGame}
+                />
+              ) : (
+                <Muted style={{ textAlign: 'center' }}>Sonraki aşama için kurucu bekleniyor.</Muted>
+              )}
+            </Card>
           )}
 
           {/* ================= TAKIM AKSİYONLARI (JOKER & MOLA) ================= */}
@@ -488,6 +631,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
+  briefingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 },
+  briefingCard: { width: '100%', maxWidth: 420, alignItems: 'center', gap: 12, paddingVertical: 24 },
+  briefingCountdown: { color: colors.text, fontSize: 64, fontWeight: '900', lineHeight: 72 },
 
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   metaLeft: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', flexShrink: 1 },
@@ -607,6 +753,11 @@ const s = StyleSheet.create({
   },
 
   resultCard: { alignItems: 'center', gap: 12, paddingVertical: 24 },
+  finalAnswers: { width: '100%', gap: 7, marginTop: 4, padding: 10, borderRadius: 14, backgroundColor: colors.inset, borderWidth: 1, borderColor: colors.border },
+  finalAnswerRow: { gap: 3, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 10, borderWidth: 1, backgroundColor: 'rgba(5,10,20,0.72)' },
+  finalAnswerMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  finalAnswerSender: { flex: 1, color: colors.textSoft, fontSize: 10, fontWeight: '700' },
+  finalAnswerBody: { fontSize: 16, fontWeight: '900' },
   resIcon: { width: 76, height: 76, borderRadius: 38, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   revealedPill: {
     flexDirection: 'row',
@@ -623,6 +774,7 @@ const s = StyleSheet.create({
   revealedText: { color: colors.yellow, fontSize: 17, fontWeight: '900' },
 
   captainRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  advanceCard: { gap: 10, paddingVertical: 12 },
   paused: {
     position: 'absolute',
     top: 0,

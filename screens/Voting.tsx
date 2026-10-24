@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasBoard } from '../components/Canvas';
 import { Hint } from '../components/Hint';
-import { Avatar, Btn, Eyebrow, Muted, Screen, TimerBar, Title, Text, useToast } from '../components/ui';
+import { Avatar, Btn, Eyebrow, Muted, RoomExitButton, Screen, TimerBar, Title, Text, useToast } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { teamMascot } from '../lib/art';
@@ -37,9 +37,12 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* ================= BAŞLIK & DURUM ================= */}
-        <View style={s.header}>
-          <Eyebrow live icon="eye-off" color={colors.violet} dot={colors.violet}>Gizli oylama evresi</Eyebrow>
-          <Title size={30}>En Çılgın Tasarım?</Title>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={[s.header, { flex: 1 }]}>
+            <Eyebrow live icon="eye-off" color={colors.violet} dot={colors.violet}>Gizli oylama evresi</Eyebrow>
+            <Title size={30}>En Çılgın Tasarım?</Title>
+          </View>
+          <RoomExitButton onExit={ctx.exitRoom} />
         </View>
 
         <TimerBar left={left} total={30} label="Kalan Oy Süresi" color={colors.violet} />

@@ -33,14 +33,31 @@ const B = await player();
 const { data: created } = await A.rpc('create_room', { p_nickname: 'Ali', p_mode: 'quick' });
 const room = created.room_id;
 await B.rpc('join_room', { p_code: created.code, p_nickname: 'Veli' });
-await A.rpc('start_game', { p_room: room });
+const assigned = await A.rpc('assign_teams', { p_room: room });
+check('Takım dağılımı tanıtım fazını başlattı', !assigned.error, assigned.error?.message);
 
 // Hangi istemci hangi takımda?
-const { data: ps } = await A.from('players').select('id,nickname,team_side,is_captain,is_architect').eq('room_id', room);
+let { data: ps } = await A.from('players').select('id,nickname,team_side,is_captain,is_architect').eq('room_id', room);
 const nick = (n) => ps.find((p) => p.nickname === n);
-const teamOf = { Ali: nick('Ali').team_side, Veli: nick('Veli').team_side };
+let teamOf = { Ali: nick('Ali').team_side, Veli: nick('Veli').team_side };
 check('İki oyuncu farklı takımlarda, ikisi de kaptan+mimar',
   teamOf.Ali !== teamOf.Veli && ps.every((p) => p.is_captain && p.is_architect));
+const { data: revealPhase } = await A.from('rooms').select('phase,phase_started_at').eq('id', room).single();
+check('Oyun takım tanıtımı bitene kadar başlamadı', revealPhase.phase === 'team_reveal', `faz=${revealPhase.phase}`);
+const shuffled = await A.rpc('shuffle_teams', { p_room: room });
+check('Kurucu takımları yeniden karıştırabildi', !shuffled.error, shuffled.error?.message);
+const { data: shuffledPhase } = await A.from('rooms').select('phase,phase_started_at').eq('id', room).single();
+check('Karıştırma animasyon zamanını sıfırladı',
+  shuffledPhase.phase === 'team_reveal' && shuffledPhase.phase_started_at > revealPhase.phase_started_at);
+({ data: ps } = await A.from('players').select('id,nickname,team_side,is_captain,is_architect').eq('room_id', room));
+teamOf = { Ali: nick('Ali').team_side, Veli: nick('Veli').team_side };
+check('Yeni dağılımda iki takımın da kaptanı ve mimarı var',
+  teamOf.Ali !== teamOf.Veli && ps.every((p) => p.is_captain && p.is_architect));
+const earlyStart = await A.rpc('start_game', { p_room: room });
+check('Tanıtım sürerken oyun başlatılamıyor', earlyStart.error?.message.includes('team_reveal_in_progress'));
+await sleep(8_010 + ps.length * 1_450 + 250);
+const started = await A.rpc('start_game', { p_room: room });
+check('Kurucu onayıyla oyun başladı', !started.error, started.error?.message);
 const clientOf = { [teamOf.Ali]: A, [teamOf.Veli]: B };
 const aSide = teamOf.Ali;
 
@@ -71,7 +88,7 @@ for (let guard = 0; guard < 40; guard++) {
     const early = await B.rpc('advance_game', { p_room: room });
     if (open) check('Tur çözülür çözülmez advance_game bekletiyor (3 sn gösterim)', early.data?.advanced === false);
     await sleep(3300);
-    const adv = await B.rpc('advance_game', { p_room: room });
+    const adv = await A.rpc('advance_game_host', { p_room: room });
     if (adv.error) { check('advance_game', false, adv.error.message); break; }
   } else if (r.phase === 'minigame') {
     sawMinigame = true;
@@ -80,7 +97,7 @@ for (let guard = 0; guard < 40; guard++) {
     // Yerel saat sunucudan farklı olabilir: sunucu "BAS!" diyene kadar tekrar dene.
     const tap = async (c) => {
       for (let i = 0; i < 40; i++) {
-        const res = await c.rpc('submit_minigame_entry', { p_minigame: mg.id, p_target: nick('Veli').id });
+        const res = await c.rpc('submit_minigame_entry', { p_minigame: mg.id, p_target: nick('Veli').id, p_guess: null });
         if (!res.error?.message?.includes('too_early')) return res;
         await sleep(250);
       }
@@ -93,7 +110,7 @@ for (let guard = 0; guard < 40; guard++) {
     const { data: done } = await A.from('room_minigames').select('status,winner_side').eq('id', mg.id).single();
     check('Mini oyun herkes girince çözüldü', done.status === 'done', JSON.stringify(done));
     await sleep(6300);
-    const adv = await B.rpc('advance_game', { p_room: room });
+    const adv = await A.rpc('advance_game_host', { p_room: room });
     check('Mini oyundan sonra soru fazına dönüldü', adv.data?.phase === 'question', JSON.stringify(adv.data));
   } else break;
 }
@@ -103,7 +120,12 @@ let r = await phaseOf();
 check('Tüm turlar bitince inşa fazı', r.phase === 'building', `faz=${r.phase}`);
 
 const { data: rounds } = await A.from('room_rounds').select('status').eq('room_id', room);
-check('6 tur da çözüldü', rounds.length === 6 && rounds.every((x) => x.status === 'resolved'), `${rounds.length} tur`);
+        const early = await B.rpc('advance_game', { p_room: room });
+        if (open) check('Tur çözülür çözülmez advance_game bekletiyor (3 sn gösterim)', early.data?.advanced === false);
+        await sleep(3300);
+        const nonHostAdvance = await B.rpc('advance_game_host', { p_room: room });
+        check('Kurucu olmayan sonuçtan sonra ilerletemiyor', !!nonHostAdvance.error);
+        const adv = await A.rpc('advance_game_host', { p_room: room });
 
 // ---- İNŞA ----
 const { data: myPieces } = await A.from('team_pieces').select('id').eq('room_id', room).eq('side', aSide);

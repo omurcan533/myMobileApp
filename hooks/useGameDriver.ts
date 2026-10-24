@@ -9,19 +9,22 @@ const ms = (iso: string | null | undefined) => (iso ? Date.parse(iso) : 0);
 /** İstemci tarafında "şimdi ilerletme zamanı mı?" kararı. Sunucu yine de doğrular (idempotent). */
 function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: number): boolean {
   const { room } = d;
-  if (room.paused || room.phase === 'lobby' || room.phase === 'results') return false;
+  if (room.paused || room.phase === 'lobby' || room.phase === 'team_reveal' || room.phase === 'results') return false;
 
   switch (room.phase) {
     case 'question': {
       const open = d.rounds.find((r) => r.status === 'open');
-      if (open) return now >= ms(open.closes_at) + 300;
-      const lastResolved = Math.max(0, ...d.rounds.filter((r) => r.status === 'resolved').map((r) => ms(r.resolved_at)));
-      return now >= lastResolved + 3300;
+      if (open) {
+        if (!open.opens_at || !open.closes_at) return false;
+        return now >= ms(open.closes_at) + 300;
+      }
+      return false;
     }
     case 'minigame': {
       const mg = latestMinigame(d.minigames);
       if (!mg) return false;
       if (mg.status === 'live') {
+        if (!mg.starts_at || !d.room.phase_ends_at) return false;
         const entries = d.entries.filter((e) => e.minigame_id === mg.id).length;
         return (
           now >= ms(room.phase_ends_at) + 300 ||
@@ -29,7 +32,7 @@ function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: num
           (mg.kind === 'math_guess' && entries >= 2)
         );
       }
-      return now >= ms(mg.resolved_at) + 6300;
+      return false;
     }
     case 'building':
       return now >= ms(room.phase_ends_at) + 300;

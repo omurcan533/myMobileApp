@@ -924,6 +924,41 @@ export function Sheet({ visible, onClose, children, centered }: {
   );
 }
 
+export function RoomExitButton({ onExit }: { onExit: () => Promise<void> }) {
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const { toast, show } = useToast();
+
+  const leave = async () => {
+    setBusy(true);
+    try {
+      await onExit();
+      setVisible(false);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <IconBtn icon="exit-outline" size={38} color={colors.red} onPress={() => setVisible(true)} />
+      <Sheet visible={visible} centered onClose={() => setVisible(false)}>
+        <View style={{ gap: 14 }}>
+          <Title size={22}>Oyundan ayrıl?</Title>
+          <Muted>Odadan çıkacaksın. Kurucuysan oda başka bir oyuncuya devredilir.</Muted>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+            <Btn title="Vazgeç" tone="ghost" size="md" onPress={() => setVisible(false)} />
+            <Btn title="Odadan Ayrıl" tone="danger" size="md" loading={busy} onPress={leave} />
+          </View>
+        </View>
+      </Sheet>
+      {toast}
+    </>
+  );
+}
+
 // ============================================================================
 // Toast
 // ============================================================================

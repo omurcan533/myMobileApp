@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   own_team_vote: 'Kendi takımına oy veremezsin.',
   voting_closed: 'Oylama kapandı.',
   no_questions: 'Soru havuzu boş.',
+  teams_not_assigned: 'Önce takım dağılımı tamamlanmalı.',
+  team_reveal_in_progress: 'Takım tanıtımı henüz tamamlanmadı.',
   invalid_answer: 'Cevap 1-80 karakter olmalı.',
   no_credits: 'Krediniz bitti.',
   no_more_letters: 'Açılabilecek harf kalmadı.',
@@ -47,8 +49,13 @@ export const api = {
     rpc<{ room_id: string; code: string }>('create_room', { p_nickname: nick, p_mode: mode }),
   joinRoom: (code: string, nick: string) =>
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
+  assignTeams: (room: string) => rpc<void>('assign_teams', { p_room: room }),
+  shuffleTeams: (room: string) => rpc<void>('shuffle_teams', { p_room: room }),
+  leaveRoom: (room: string) => rpc<void>('leave_room', { p_room: room }),
   startGame: (room: string) => rpc<void>('start_game', { p_room: room }),
   advance: (room: string) => rpc<{ phase: string; advanced: boolean }>('advance_game', { p_room: room }),
+  advanceHost: (room: string) => rpc<{ phase: string; advanced: boolean }>('advance_game_host', { p_room: room }),
+  confirmBriefing: (room: string) => rpc<void>('confirm_briefing', { p_room: room }),
   submitAnswer: (round: string, body: string) =>
     rpc<{ correct?: boolean; locked_until?: string; suggested?: boolean }>('submit_answer', { p_round: round, p_body: body }),
   submitFinal: (round: string, body: string) =>
@@ -64,10 +71,7 @@ export const api = {
     return rpc<void>('set_creature_name', params);
   },
   minigameEntry: (mg: string, target?: string, guess?: number) => {
-    const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null };
-    if (guess !== undefined && guess !== null) {
-      params.p_guess = guess;
-    }
+    const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null, p_guess: guess ?? null };
     return rpc<void>('submit_minigame_entry', params);
   },
   castVote: (room: string, side: Side) => rpc<void>('cast_vote', { p_room: room, p_side: side }),

@@ -3,7 +3,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasStudio } from '../components/Canvas';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Input, Muted, ProgressBar, Screen, Sheet, Tap, Text, Title, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Input, Muted, ProgressBar, RoomExitButton, Screen, Sheet, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
@@ -61,7 +61,10 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
             </View>
           </View>
         </View>
-        <IconBtn icon="settings-sharp" onPress={() => setOpen(true)} size={48} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <RoomExitButton onExit={ctx.exitRoom} />
+          <IconBtn icon="settings-sharp" onPress={() => setOpen(true)} size={48} />
+        </View>
       </View>
 
       {/* ================= SÜRE KARTI ================= */}

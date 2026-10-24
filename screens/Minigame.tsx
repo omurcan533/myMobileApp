@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
@@ -14,7 +14,7 @@ import { latestMinigame, secondsLeft } from '../lib/selectors';
 import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
-import type { Ctx, MinigameEntry } from '../lib/types';
+import type { Ctx, MinigameEntry, Player, Side } from '../lib/types';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -41,10 +41,21 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const entries = data.entries.filter((e) => e.minigame_id === mg.id);
   const mine = entries.find((e) => e.player_id === me.id);
   const live = mg.status === 'live';
+  const isPreparing = live && !mg.starts_at;
   const goAt = mg.starts_at ? Date.parse(mg.starts_at) : 0;
-  const go = now >= goAt;
+  const go = !isPreparing && (mg.starts_at ? now >= goAt : false);
   const total = data.players.length;
-  const left = secondsLeft(data.room.phase_ends_at, now);
+  const left = data.room.paused && data.room.paused_at && data.room.phase_ends_at
+    ? Math.max(0, (Date.parse(data.room.phase_ends_at) - Date.parse(data.room.paused_at)) / 1000)
+    : secondsLeft(data.room.phase_ends_at, now);
+  const continueAt = mg.resolved_at ? Date.parse(mg.resolved_at) + 6000 : 0;
+  const continueReady = !live && !!mg.resolved_at && now >= continueAt;
+  const continueWait = Math.max(0, Math.ceil((continueAt - now) / 1000));
+
+  const briefingStart = data.room.phase_started_at ? Date.parse(data.room.phase_started_at) : 0;
+  const briefingReadyAt = briefingStart + 5000;
+  const canContinueBriefing = now >= briefingReadyAt;
+  const briefingWaitSeconds = Math.max(0, Math.ceil((briefingReadyAt - now) / 1000));
 
   // mg.id'ye göre her devre arasında senkronize ve adil mini-oyun varyantı:
   const code = (mg.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -53,7 +64,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     mg.kind === 'social_guess' ? 'reflex' : mod === 0 ? 'reflex' : mod === 1 ? 'memory' : 'balance';
 
   const tap = async (target?: string, guess?: number) => {
-    if (mine || busy) return;
+    if (mine || busy || data.room.paused) return;
     setBusy(true);
     try {
       for (let i = 0; i < 8; i++) {
@@ -74,6 +85,42 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     }
   };
 
+  const togglePause = async () => {
+    if (!me.is_captain || busy) return;
+    setBusy(true);
+    try {
+      await api.togglePause(data.room.id);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const continueGame = async () => {
+    if (!me.is_host || !continueReady || busy) return;
+    setBusy(true);
+    try {
+      await api.advanceHost(data.room.id);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startMinigame = async () => {
+    if (!me.is_host || data.room.paused || busy || !canContinueBriefing) return;
+    setBusy(true);
+    try {
+      await api.confirmBriefing(data.room.id);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
@@ -82,20 +129,37 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'memory' ? { icon: 'bulb', label: 'Hızlı eşleştirme', color: colors.cyan }
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
+  const briefingInstructions =
+    mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
+    : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
+    : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
+    : variant === 'balance' ? 'Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.'
+    : 'Sinyalin yeşile dönmesini bekle. Yeşil olduğunda olabildiğince hızlı dokun; erken dokunma.';
+  const briefingSeconds = Math.max(1, Math.ceil((goAt - now) / 1000));
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Scoreboard ctx={ctx} />
+      <Scoreboard ctx={ctx} />
 
+      <View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
           <Title size={30}>Devre Arası</Title>
         </View>
+        <Btn
+          title={me.is_captain ? (data.room.paused ? 'Devam Et' : 'Mola') : 'Mola · Kaptan'}
+          icon={data.room.paused ? 'play' : 'pause'}
+          tone={data.room.paused && me.is_captain ? 'success' : 'ghost'}
+          size="md"
+          disabled={busy || !me.is_captain}
+          onPress={togglePause}
+        />
+      </View>
 
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />
 
-        {live && (
+        {live && !isPreparing && (
           <TimerBar
             left={left}
             total={mg.kind === 'social_guess' ? 40 : 30}
@@ -104,7 +168,30 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           />
         )}
 
-        {mg.kind === 'math_guess' ? (
+        {isPreparing ? (
+          <Card accent={mode.color} style={s.briefingCard}>
+            <Eyebrow live color={mode.color} dot={mode.color}>Oyun Açıklaması</Eyebrow>
+            <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
+            <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
+            {me.is_host ? (
+              <Btn
+                title={canContinueBriefing ? 'Devam Et' : `Devam Et · ${briefingWaitSeconds} sn`}
+                icon={canContinueBriefing ? 'play' : 'hourglass'}
+                tone={canContinueBriefing ? 'success' : 'ghost'}
+                size="lg"
+                disabled={!canContinueBriefing || busy || data.room.paused}
+                loading={busy}
+                onPress={startMinigame}
+                style={{ alignSelf: 'stretch', marginTop: 6 }}
+              />
+            ) : (
+              <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <ActivityIndicator size="small" color={mode.color} />
+                <Muted style={{ textAlign: 'center' }}>Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.</Muted>
+              </View>
+            )}
+          </Card>
+        ) : mg.kind === 'math_guess' ? (
           <MathGuessGame
             ctx={ctx}
             entries={entries}
@@ -184,9 +271,93 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Muted>{mg.winner_side ? 'Bonus parça + 2 puan' : 'Bu sefer bonus yok.'}</Muted>
           </Card>
         )}
+
+        {!live && mg.kind === 'reflex' && (
+          <ReflexResults
+            title={variant === 'memory' ? 'Hafıza Sonuçları' : variant === 'balance' ? 'Denge Sonuçları' : 'Refleks Sonuçları'}
+            players={data.players}
+            entries={entries}
+            winnerSide={mg.winner_side}
+          />
+        )}
+
+        {!live && (
+          <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
+            <Eyebrow icon="eye" color={colors.cyan}>Mini oyun sonuçları</Eyebrow>
+            {me.is_host ? (
+              <Btn
+                title={continueReady ? 'Sonraki Oyuna Geç' : `Sonuçları İncele · ${continueWait} sn`}
+                icon={continueReady ? 'play-forward' : 'hourglass'}
+                tone="primary"
+                size="md"
+                disabled={!continueReady || busy || data.room.paused}
+                loading={busy}
+                onPress={continueGame}
+              />
+            ) : (
+              <Muted style={{ textAlign: 'center' }}>Sonraki oyun için kurucu bekleniyor.</Muted>
+            )}
+          </Card>
+        )}
       </ScrollView>
+      {data.room.paused && (
+        <View style={s.paused}>
+          <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
+          <Title size={26}>Mini Oyun Duraklatıldı</Title>
+          <Muted>Kaptanlardan biri devam ettirebilir.</Muted>
+          {me.is_captain && (
+            <Btn title="Devam Et" icon="play" tone="success" disabled={busy} onPress={togglePause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
+          )}
+        </View>
+      )}
       {toast}
     </Screen>
+  );
+}
+
+function ReflexResults({ title, players, entries, winnerSide }: {
+  title: string; players: Player[]; entries: MinigameEntry[]; winnerSide: Side | null;
+}) {
+  const teamResults = (['A', 'B'] as const).map((side) => {
+    const teammates = players.filter((player) => player.team_side === side);
+    const total = teammates.reduce((sum, player) => {
+      const entry = entries.find((item) => item.player_id === player.id);
+      return sum + (entry?.reaction_ms ?? 30000);
+    }, 0);
+    return { side, average: teammates.length ? total / teammates.length : 30000 };
+  });
+
+  return (
+    <Card accent={colors.cyan} style={{ gap: 10 }}>
+      <SectionLabel>{title}</SectionLabel>
+      <Muted>En düşük takım ortalaması kazanır. Yanıt vermeyen oyuncu 30 sn olarak hesaplanır.</Muted>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {teamResults.map(({ side, average }) => {
+          const color = teamColor(side);
+          const won = winnerSide === side;
+          return (
+            <View key={side} style={{ flex: 1, alignItems: 'center', gap: 3, padding: 8, borderRadius: 12, borderWidth: 1.5, borderColor: alpha(won ? colors.gold : color, won ? 0.8 : 0.34), backgroundColor: alpha(color, 0.12) }}>
+              <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>TAKIM {side}{won ? ' · +2 PUAN' : ''}</Text>
+              <Text display style={{ color: won ? colors.gold : color, fontSize: 20, fontWeight: '900' }}>{(average / 1000).toFixed(2)} sn</Text>
+              <Text style={{ color: colors.muted, fontSize: 9, fontWeight: '700' }}>{won ? 'kazandı · bonus parça' : 'takım ortalaması'}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ gap: 5 }}>
+        {players.map((player) => {
+          const time = entries.find((entry) => entry.player_id === player.id)?.reaction_ms;
+          return (
+            <View key={player.id} style={s.memoryResultRow}>
+              <Text numberOfLines={1} style={{ flex: 1, color: colors.textSoft, fontSize: 11, fontWeight: '700' }}>{player.nickname}</Text>
+              <Text style={{ color: teamColor(player.team_side), fontSize: 11, fontWeight: '800' }}>
+                {time === null || time === undefined ? 'Yanıt yok · 30 sn ceza' : `${(time / 1000).toFixed(2)} sn`}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </Card>
   );
 }
 
@@ -250,9 +421,10 @@ const MEMORY_PIECES = [
   { id: 3, emoji: '🧦', name: 'Çorap' },
   { id: 4, emoji: '🦷', name: 'Diş' },
   { id: 5, emoji: '🪽', name: 'Kanat' },
+  { id: 6, emoji: '🐙', name: 'Dokunaç' },
 ];
 
-// mg.id'den deterministik karıştırma: her turda farklı, iki takımda aynı sıra (4 parça)
+// mg.id'den deterministik karıştırma: her turda iki takım için aynı 7 adımlı sıra
 function seededSequence(seed: string): number[] {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
@@ -271,7 +443,7 @@ function seededSequence(seed: string): number[] {
     const j = Math.floor(rand() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return arr.slice(0, 4);
+  return arr.slice(0, 7);
 }
 
 function MemoryGame({
@@ -280,7 +452,7 @@ function MemoryGame({
   seed: string; live: boolean; go: boolean; mineDone: boolean; reactionMs: number | null;
   onComplete: () => void;
 }) {
-  const sequence = useMemo(() => seededSequence(seed), [seed]); // 4 adımlı sıralama
+  const sequence = useMemo(() => seededSequence(seed), [seed]);
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [showingStep, setShowingStep] = useState<number | null>(null);
   const [showing, setShowing] = useState(!mineDone);
@@ -787,6 +959,7 @@ const s = StyleSheet.create({
   scroll: { gap: 14, paddingBottom: 36, paddingTop: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   header: { gap: 4, marginTop: 2 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   bigIcon: {
     width: 88,
     height: 88,
@@ -798,6 +971,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
+  briefingCard: { alignItems: 'center', gap: 12, paddingVertical: 24, paddingHorizontal: 16 },
+  briefingCountdown: { color: colors.text, fontSize: 58, fontWeight: '900', lineHeight: 66 },
 
   // Refleks
   reflexWrap: { alignItems: 'center', gap: 20, paddingVertical: 10 },
@@ -835,6 +1010,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   statusBannerText: { fontSize: 13, fontWeight: '700' },
+  memoryResultRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.inset },
+  paused: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'rgba(5, 10, 20, 0.95)', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
 
   // Hafıza grid
   memoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', width: '100%' },

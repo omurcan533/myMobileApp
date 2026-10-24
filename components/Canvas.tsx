@@ -28,20 +28,32 @@ interface BoardItem { id: string; emoji: string; tf: TF }
 const tfOf = (i: CanvasItem): TF => ({ x: i.x, y: i.y, scale: i.scale, rotation: i.rotation, flip_x: i.flip_x, z_index: i.z_index });
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
-const REACTIONS = [
-  { emoji: '😂', sound: 'laugh' },
-  { emoji: '🔥', sound: 'cheer' },
-  { emoji: '💀', sound: 'horn' },
-  { emoji: '😱', sound: 'whistle' },
-  { emoji: '👏', sound: 'cheer' },
-  { emoji: '🤌', sound: 'boing' },
+const REACTIONS: { emoji: string; label: string; sound: string }[] = [
+  { emoji: '👑', label: 'Şaheser', sound: 'cheer' },
+  { emoji: '🔥', label: 'Ateş', sound: 'cheer' },
+  { emoji: '🧠', label: 'Dahice', sound: 'pop' },
+  { emoji: '🪄', label: 'Sihirli', sound: 'whistle' },
+  { emoji: '💅', label: 'İkonik', sound: 'pop' },
+  { emoji: '🤯', label: 'Beyin Yandı', sound: 'boing' },
+  { emoji: '🗿', label: 'Sigma', sound: 'horn' },
+  { emoji: '👾', label: 'Uzaylı', sound: 'whistle' },
+  { emoji: '🦖', label: 'Vahşi', sound: 'horn' },
+  { emoji: '🦄', label: 'Efsane', sound: 'cheer' },
+  { emoji: '🤡', label: 'Ne Yaptın?', sound: 'laugh' },
+  { emoji: '💀', label: 'Öldüm', sound: 'laugh' },
+  { emoji: '👁️', label: 'Gözüm!', sound: 'whistle' },
+  { emoji: '💩', label: 'Rezalet', sound: 'horn' },
+  { emoji: '🤌', label: 'Şef Dokunuşu', sound: 'boing' },
+  { emoji: '🚀', label: 'Uçtu Gitti', sound: 'whistle' },
 ];
 
 const SOUNDBOARD_PHRASES: { text: string; sound: string; icon: IconName }[] = [
   { text: 'Ters Çevir!', sound: 'whistle', icon: 'swap-horizontal' },
   { text: 'Daha Büyüt!', sound: 'boing', icon: 'expand' },
+  { text: 'Küçült Bunu!', sound: 'whistle', icon: 'contract' },
+  { text: 'Şaheser Oldu!', sound: 'cheer', icon: 'flame' },
   { text: 'Aşırı Çirkin!', sound: 'horn', icon: 'skull' },
-  { text: 'Harika Oldu!', sound: 'cheer', icon: 'flame' },
+  { text: 'Gözü Nerede?!', sound: 'horn', icon: 'eye' },
 ];
 
 // ---------------------------------------------------------------- Parça (sürüklenebilir)
@@ -467,17 +479,31 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
             </View>
           </View>
 
-          {/* Emoji Reaksiyonları */}
-          <View style={[s.toolbar, { width: size, justifyContent: 'space-between', paddingHorizontal: 4 }]}>
-            {REACTIONS.map((item) => (
-              <Pressable
-                key={item.emoji}
-                onPress={() => sendReaction(item)}
-                style={({ pressed }) => [s.react, pressed && { transform: [{ scale: 0.86 }] }]}
-              >
-                <Text style={{ fontSize: 24 }}>{item.emoji}</Text>
-              </Pressable>
-            ))}
+          {/* Canlı Emoji Reaksiyonları */}
+          <View style={{ width: size, gap: 6, marginVertical: 4 }}>
+            <View style={s.soundboardHead}>
+              <Ionicons name="sparkles" size={13} color={colors.cyan} />
+              <Text style={s.soundboardLabel}>CANLI TEPKİLER</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.reactScroll}
+            >
+              {REACTIONS.map((item) => (
+                <Pressable
+                  key={item.emoji}
+                  onPress={() => sendReaction(item)}
+                  style={({ pressed }) => [
+                    s.react,
+                    pressed && { transform: [{ scale: 0.88 }], backgroundColor: alpha(colors.cyan, 0.25) },
+                  ]}
+                >
+                  <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
+                  <Text style={s.reactLabel}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
         </View>
       )}
@@ -550,12 +576,29 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  reactScroll: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
   react: {
-    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 16,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+    backgroundColor: 'rgba(8, 20, 38, 0.85)',
+    borderWidth: 1.2,
+    borderColor: alpha(colors.cyan, 0.28),
+    minWidth: 52,
+    gap: 2,
+  },
+  reactLabel: {
+    color: colors.textSoft,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   speechBubble: {
     position: 'absolute',
