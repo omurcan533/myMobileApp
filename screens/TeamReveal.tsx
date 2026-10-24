@@ -120,11 +120,11 @@ function PlayerSpotlight({
   const side = player.team_side as Side;
   const color = teamColor(side);
   const isTeamA = side === 'A';
-  const targetX = (isTeamA ? -1 : 1) * Math.min(118, width * 0.28);
-  const targetY = 145;
+  const targetX = (isTeamA ? -1 : 1) * Math.min(106, width * 0.25);
+  const targetY = 135;
 
   // Animasyon Değerleri
-  const revealScale = useRef(new Animated.Value(0.3)).current;
+  const revealScale = useRef(new Animated.Value(0.4)).current;
   const revealOpacity = useRef(new Animated.Value(0)).current;
   const neonGlow = useRef(new Animated.Value(0)).current;
   const shakeVal = useRef(new Animated.Value(0)).current;
@@ -136,22 +136,22 @@ function PlayerSpotlight({
 
   useEffect(() => {
     // 1. AŞAMA: The Reveal (0 - 380ms)
-    // 0.3 -> 1.14 hızlı yay + beyaz neon parıltı
+    // 0.4 -> 1.04 dengeli yay + neon parıltı (ekran dışına taşmaz)
     haptic.light();
     Animated.parallel([
-      Animated.timing(revealOpacity, { toValue: 1, duration: 140, useNativeDriver: true }),
+      Animated.timing(revealOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
       Animated.sequence([
         Animated.timing(revealScale, {
-          toValue: 1.14,
-          duration: 220,
-          easing: Easing.out(Easing.back(1.8)),
+          toValue: 1.04,
+          duration: 190,
+          easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.spring(revealScale, { toValue: 1.0, friction: 4, tension: 90, useNativeDriver: true }),
+        Animated.spring(revealScale, { toValue: 1.0, friction: 6, tension: 120, useNativeDriver: true }),
       ]),
       Animated.sequence([
-        Animated.timing(neonGlow, { toValue: 1, duration: 160, useNativeDriver: true }),
-        Animated.timing(neonGlow, { toValue: 0.12, duration: 220, useNativeDriver: true }),
+        Animated.timing(neonGlow, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(neonGlow, { toValue: 0.1, duration: 220, useNativeDriver: true }),
       ]),
     ]).start();
 
@@ -300,23 +300,23 @@ function PlayerSpotlight({
           style={[
             StyleSheet.absoluteFill,
             {
-              borderRadius: 22,
-              borderWidth: 2.5,
+              borderRadius: 20,
+              borderWidth: 2,
               borderColor: '#FFFFFF',
               backgroundColor: '#FFFFFF',
               opacity: neonGlow.interpolate({
                 inputRange: [0, 0.4, 1],
-                outputRange: [0, 0.45, 0],
+                outputRange: [0, 0.35, 0],
               }),
               shadowColor: '#FFFFFF',
               shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.95,
-              shadowRadius: 20,
+              shadowOpacity: 0.85,
+              shadowRadius: 14,
             },
           ]}
         />
 
-        <Avatar source={avatarFor(player.nickname)} size={84} ring={color} glow />
+        <Avatar source={avatarFor(player.nickname)} size={70} ring={color} glow />
 
         <View style={s.spotlightInfo}>
           <Text style={[s.assignment, { color }]}>
@@ -338,7 +338,7 @@ function PlayerSpotlight({
 
         <Ionicons
           name={isTeamA ? 'arrow-back-circle' : 'arrow-forward-circle'}
-          size={34}
+          size={28}
           color={color}
         />
       </View>
@@ -1077,13 +1077,13 @@ const s = StyleSheet.create({
   title: { color: colors.text, fontSize: 23, fontWeight: '900', textAlign: 'center' },
   subtitle: { color: colors.muted, fontSize: 11.5, textAlign: 'center' },
 
-  spotlight: { minHeight: 140, justifyContent: 'center' },
-  spotlightReveal: { width: '100%' },
-  spotlightCard: { minHeight: 124, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 22, borderWidth: 1.8, backgroundColor: colors.glassStrong },
-  spotlightInfo: { flex: 1, gap: 4 },
-  spotlightName: { color: colors.text, fontSize: 26, fontWeight: '900' },
-  assignment: { fontSize: 10.5, fontWeight: '900', letterSpacing: 0.6 },
-  waitingSpotlight: { height: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.glass },
+  spotlight: { minHeight: 122, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  spotlightReveal: { width: '100%', maxWidth: 350, alignSelf: 'center' },
+  spotlightCard: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 20, borderWidth: 1.8, backgroundColor: colors.glassStrong },
+  spotlightInfo: { flex: 1, gap: 3 },
+  spotlightName: { color: colors.text, fontSize: 23, fontWeight: '900' },
+  assignment: { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.5 },
+  waitingSpotlight: { width: '100%', maxWidth: 350, alignSelf: 'center', height: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.glass },
   waitingText: { color: colors.textSoft, fontSize: 13, fontWeight: '700' },
 
   /* Giant Arena Styles */

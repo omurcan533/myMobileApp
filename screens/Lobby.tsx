@@ -69,9 +69,9 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         <Reveal delay={100}>
           <Card style={{ gap: 14 }}>
             <View style={s.playersHead}>
-              <View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
                 <Title size={20}>Oyuncular</Title>
-                <Muted>Kurucu takımları belirleyince herkes sonucu görecek</Muted>
+                <Muted style={{ marginTop: 2 }}>Kurucu takımları belirleyince herkes sonucu görecek</Muted>
               </View>
               <View style={s.countBadge}>
                 <Text display style={s.countText}>{players.length}</Text>
@@ -169,9 +169,10 @@ const s = StyleSheet.create({
     backgroundColor: alpha(colors.cyan, 0.1),
     borderWidth: 1,
     borderColor: alpha(colors.cyan, 0.38),
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
+    flexShrink: 0,
   },
   countText: { color: colors.cyan, fontSize: 22, fontWeight: '900' },
   countMax: { color: colors.muted, fontSize: 13, fontWeight: '700' },
