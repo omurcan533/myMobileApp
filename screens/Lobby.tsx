@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,20 +31,59 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { toast, show } = useToast();
 
   const selectedGames = room.selected_games ?? DEFAULT_GAMES;
-  const toggleGame = async (gameId: string) => {
+  const [draftGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
+  const [editingGames, setEditingGames] = useState(false);
+  const gamesLocked = room.selected_games_locked === true;
+
+  // Synchronize with the server only outside editing mode. Taps never send requests.
+  useEffect(() => {
+    if (!editingGames && !savingGames) setDraftGames([...selectedGames]);
+  }, [room.selected_games, editingGames, savingGames]);
+
+  const toggleGame = (gameId: string) => {
+    if (!me.is_host || gamesLocked && !editingGames || savingGames || busy) return;
+    setDraftGames((current) => current.includes(gameId)
+      ? current.filter((id) => id !== gameId)
+      : [...current, gameId]);
+  };
+
+  const lockGames = async () => {
     if (!me.is_host || savingGames || busy) return;
-    const next = selectedGames.includes(gameId) ? selectedGames.filter((id) => id !== gameId) : [...selectedGames, gameId];
-    if (!next.some((id) => id === 'anagram' || id === 'riddle')) {
+    if (!draftGames.some((id) => id === 'anagram' || id === 'riddle')) {
       show('En az bir bulmaca türü seçmelisin.', 'error');
       return;
     }
     setSavingGames(true);
-    try { await api.setRoomGames(room.id, next); }
-    catch (e) { show((e as Error).message, 'error'); }
-    finally { setSavingGames(false); }
+    try {
+      await api.setRoomGames(room.id, draftGames);
+      setEditingGames(false);
+      show('Oyun seçimleri kaydedildi ve kilitlendi.', 'success');
+    } catch (e) {
+      show((e as Error).message, 'error');
+    } finally {
+      setSavingGames(false);
+    }
+  };
+
+  const reopenGames = async () => {
+    if (!me.is_host || savingGames || busy) return;
+    setSavingGames(true);
+    try {
+      await api.unlockRoomGames(room.id);
+      setDraftGames([...selectedGames]);
+      setEditingGames(true);
+    } catch (e) {
+      show((e as Error).message, 'error');
+    } finally {
+      setSavingGames(false);
+    }
   };
 
   const assignTeams = async () => {
+    if (!gamesLocked) {
+      show('Önce oyun seçimlerini yapıp kilitlemelisin.', 'error');
+      return;
+    }
     setBusy(true);
     try {
       await api.assignTeams(room.id);
@@ -95,9 +134,10 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Title size={20}>Oynamak istediğin oyunları seç</Title>
             <Muted>{me.is_host ? 'Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.' : 'Oyun kurucusunun seçtiği türler aşağıda görünüyor.'}</Muted>
             {GAME_STYLES.map((game) => {
-              const enabled = selectedGames.includes(game.id);
+              const enabled = (me.is_host && (!gamesLocked || editingGames) ? draftGames : selectedGames).includes(game.id);
+              const canEdit = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
               return (
-                <Tap key={game.id} onPress={() => toggleGame(game.id)} style={[s.gameStyleRow, enabled && s.gameStyleSelected]}>
+                <Tap key={game.id} onPress={() => { if (canEdit) toggleGame(game.id); }} style={[s.gameStyleRow, enabled && s.gameStyleSelected, !canEdit && s.gameStyleDisabled]}>
                   <Ionicons name={game.icon} size={21} color={enabled ? colors.cyan : colors.muted} />
                   <View style={{ flex: 1, gap: 3 }}>
                     <Text style={s.gameStyleTitle}>{game.name}</Text>
@@ -107,7 +147,14 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                 </Tap>
               );
             })}
-            <Muted>{savingGames ? 'Seçimler kaydediliyor…' : me.is_host ? 'Seçimler otomatik kaydedilir. En az bir bulmaca türü gerekli.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
+            {me.is_host ? (
+              gamesLocked && !editingGames ? (
+                <Btn title="Yeniden Belirle" icon="create-outline" tone="ghost" disabled={savingGames || busy} onPress={reopenGames} />
+              ) : (
+                <Btn title="Seçimleri Yap ve Kilitle" icon="lock-closed" tone="success" loading={savingGames} disabled={busy || !draftGames.some((id) => id === 'anagram' || id === 'riddle')} onPress={lockGames} />
+              )
+            ) : null}
+            <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. En az bir bulmaca türü gerekli.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
           </Card>
         </Reveal>
 
@@ -161,7 +208,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Btn
               title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
               icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart || savingGames}
+              disabled={!canStart || savingGames || !gamesLocked}
               loading={busy}
               tone="success"
               onPress={assignTeams}
@@ -184,6 +231,7 @@ const s = StyleSheet.create({
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
   gameStyleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 15 },
   gameStyleSelected: { borderColor: colors.cyan, backgroundColor: alpha(colors.cyan, 0.08) },
+  gameStyleDisabled: { opacity: 0.65 },
   gameStyleTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
   codeCard: {
     borderRadius: 28,
