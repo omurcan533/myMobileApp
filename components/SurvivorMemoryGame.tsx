@@ -54,7 +54,11 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  useEffect(()=>{
   if(own?.reveal){
    const reveal=own.reveal;
-   setRevealedRows(prev=>prev[reveal.row]?.selectedCol===reveal.selectedCol && prev[reveal.row]?.outcome===reveal.outcome?prev:{...prev,[reveal.row]:reveal});
+   setRevealedRows(prev=>{
+    if(reveal.outcome==='red')return {};
+    if(reveal.outcome==='white')return Object.fromEntries(Object.entries(prev).filter(([row])=>Number(row)<(own?.row??0))) as Record<number,Reveal>;
+    return prev[reveal.row]?.selectedCol===reveal.selectedCol && prev[reveal.row]?.outcome===reveal.outcome?prev:{...prev,[reveal.row]:reveal};
+   });
   }
  },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
  const choose=async(col:number)=>{
@@ -65,7 +69,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    setLocalProgress(result);
    const reveal=result.reveal;
    if(reveal){
-    setRevealedRows(prev=>({...prev,[reveal.row]:reveal}));
+    setRevealedRows(prev=>reveal.outcome==='red'?{}:reveal.outcome==='white'?(Object.fromEntries(Object.entries(prev).filter(([row])=>Number(row)<result.row)) as Record<number,Reveal>):{...prev,[reveal.row]:reveal});
     setAnimationBusy(true);
     setFlipped(reveal);
     flipScale.setValue(0.8);
@@ -91,8 +95,9 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
     const visible=previewing&&preview;
     const rowReveal=flipped?.row===row?flipped:revealedRows[row];
+    const wrongSelection=rowReveal?.outcome==='red'||rowReveal?.outcome==='white';
     const revealRow=!!rowReveal;
-    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
+    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):wrongSelection?(rowReveal?.selectedCol===col?(rowReveal.outcome==='white'?'#F4F6FA':'#E65869'):'#2D4262'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
     return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||animationBusy||!live||paused}
       onPress={()=>choose(col)}
