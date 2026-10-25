@@ -143,7 +143,7 @@ export interface TeamPiece {
   source: 'question' | 'steal' | 'joker' | 'minigame';
 }
 
-export type MinigameKind = 'reflex' | 'social_guess' | 'math_guess' | 'memory';
+export type MinigameKind = 'reflex' | 'social_guess' | 'math_guess' | 'memory' | 'pong';
 
 export interface Minigame {
   id: string;
@@ -151,6 +151,7 @@ export interface Minigame {
   kind: MinigameKind;
   prompt: string | null;
   target_num?: number | null;
+  pong_state?: Record<string, any> | null;
   status: 'pending' | 'live' | 'done';
   starts_at: string | null;
   winner_side: Side | null;
