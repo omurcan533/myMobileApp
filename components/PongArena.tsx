@@ -64,7 +64,14 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
   }else{
    // Correct once per fresh server packet. Never pull every frame toward an old packet.
    const p=display.current;
-   const x=num(state.x,0.5),y=num(state.y,0.5);
+   const age=Number.isFinite(nextTick)?clamp((serverNow()-nextTick)/1000,0,0.35):0;
+   const synced=step(
+    {x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)},
+    {vx:num(state.vx,0.46),vy:num(state.vy,0.23)},age,params.current.playing,
+    {aUp:freshHeld(state,'holdAUp',serverNow()),aDown:freshHeld(state,'holdADown',serverNow()),
+     bUp:freshHeld(state,'holdBUp',serverNow()),bDown:freshHeld(state,'holdBDown',serverNow())}
+   );
+   const x=synced.x,y=synced.y;
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
    if(error>0.26){
