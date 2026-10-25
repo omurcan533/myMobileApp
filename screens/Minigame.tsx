@@ -155,9 +155,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   return (
     <Screen>
       <ScrollView ref={scrollRef} scrollEnabled={!pongHolding} style={[{ flex: 1 }, pongWebStyle]} contentContainerStyle={[s.scroll, pongWebStyle]} showsVerticalScrollIndicator={false}>
-        <Scoreboard ctx={ctx} />
+        {!(mg.kind === 'pong' && !isPreparing && live) && <Scoreboard ctx={ctx} />}
 
-      <View style={s.headerRow}>
+      {!(mg.kind === 'pong' && !isPreparing && live) && <View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
           <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : 'Devre Arası'}</Title>
@@ -170,11 +170,11 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           disabled={busy || !me.is_captain}
           onPress={togglePause}
         />
-      </View>
+      </View>}
 
         {mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
 
-        {live && !isPreparing && (
+        {live && !isPreparing && mg.kind !== 'pong' && (
           <TimerBar
             left={left}
             total={mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
