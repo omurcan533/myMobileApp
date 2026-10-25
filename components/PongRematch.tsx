@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { Btn, Card, Eyebrow, Muted, Text, Title, useToast } from './ui';
 import { colors } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
@@ -64,6 +65,12 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   }
   setBusy(false);
  };
+ const continueAfterVote = async () => {
+  if (!me.is_host || busy || remaining>0 || approved) return;
+  setBusy(true);
+  try { await api.advanceHost(data.room.id); } catch (e) { show((e as Error).message,'error'); }
+  setBusy(false);
+ };
  const start = async () => {
   if (!me.is_host || busy || !approved) return;
   setBusy(true);
@@ -85,7 +92,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? '✓ EVET' : 'EVET'} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === false ? '✓ HAYIR' : 'HAYIR'} tone="ghost" disabled={busy} onPress={() => vote(false)} /></View>
      </View>
-    ) : <Muted>Oylama süresi doldu. Yeterli çoğunluk sağlanmadıysa oyun akışı devam eder.</Muted>}
+    ) : <View style={{ gap: 8 }}><Muted>Oylama sona erdi; çoğunluk sağlanamadı.</Muted>{me.is_host && <Btn title="Sonraki Oyuna Geç" tone="primary" disabled={busy} onPress={continueAfterVote} />}</View>}
    </Card>
    {myRole && (approved || remaining > 0) && (
     <Card style={{ gap: 10 }}>
