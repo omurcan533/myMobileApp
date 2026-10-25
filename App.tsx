@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Float, Muted, Screen, Text, Title } from './components/ui';
 import { AvatarSelect } from './components/AvatarSelect';
+import { PartyBreak } from './components/PartyBreak';
 import { AVATAR_OPTIONS, AvatarId } from './lib/art';
 import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
@@ -63,16 +64,17 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
   }
   const ctx: Ctx = { data, me, catalog, onLeave, exitRoom };
 
+  const withBreak=(screen:React.ReactNode)=><View style={{flex:1}}>{screen}{data.room.phase!=='lobby'&&data.room.phase!=='results'&&<View pointerEvents="box-none" style={{position:'absolute',bottom:12,right:12,left:12,maxHeight:'70%'}}><PartyBreak roomId={data.room.id} players={data.players} myId={me.id} isHost={me.is_host} canStart={data.room.phase==='minigame'&&data.minigames.some(m=>m.status==='done')} /></View>}</View>;
   switch (data.room.phase) {
     case 'lobby': return <LobbyScreen ctx={ctx} />;
     case 'team_reveal':
       return data.players.every((player) => player.team_side !== null)
         ? <TeamRevealScreen ctx={ctx} />
         : <Loading text="Takımlar belirleniyor…" />;
-    case 'question': return <QuestionScreen ctx={ctx} />;
-    case 'minigame': return <MinigameScreen ctx={ctx} />;
-    case 'building': return <BuildingScreen ctx={ctx} />;
-    case 'voting': return <VotingScreen ctx={ctx} />;
+    case 'question': return withBreak(<QuestionScreen ctx={ctx} />);
+    case 'minigame': return withBreak(<MinigameScreen ctx={ctx} />);
+    case 'building': return withBreak(<BuildingScreen ctx={ctx} />);
+    case 'voting': return withBreak(<VotingScreen ctx={ctx} />);
     case 'results': return <ResultsScreen ctx={ctx} />;
   }
 }
