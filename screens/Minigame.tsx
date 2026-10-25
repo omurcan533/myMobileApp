@@ -132,7 +132,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'pong' ? 'Her takımdan rastgele iki oyuncu seçilir. Yukarı/aşağı butonlarıyla çubuklarını hareket ettir. İlk 5 golü atan takım kazanır; diğer oyuncular canlı izleyip emoji gönderebilir.'
+    mg.kind === 'pong' ? 'Her takımdan rastgele iki kişi seçilir. Takımın TEK çubuğunu birlikte yönetirsiniz: bir oyuncu yalnızca ▲ YUKARI, diğeri yalnızca ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
     : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
@@ -178,7 +178,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
             {me.is_host ? (
               <Btn
-                title={canContinueBriefing ? 'Devam Et' : `Devam Et · ${briefingWaitSeconds} sn`}
+                title={canContinueBriefing ? 'Oyunu Başlat' : `Kuralları Oku · ${briefingWaitSeconds} sn`}
                 icon={canContinueBriefing ? 'play' : 'hourglass'}
                 tone={canContinueBriefing ? 'success' : 'ghost'}
                 size="lg"
@@ -190,7 +190,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             ) : (
               <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <ActivityIndicator size="small" color={mode.color} />
-                <Muted style={{ textAlign: 'center' }}>Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.</Muted>
+                <Muted style={{ textAlign: 'center' }}>Kuralları okuyabilirsin. Oyun yöneticisi Oyunu Başlat dediğinde 3 saniyelik geri sayım başlayacak.</Muted>
               </View>
             )}
           </Card>
@@ -256,13 +256,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         )}
 
         {/* Katılım Durumu */}
-        <View style={s.progressWrap}>
+        {mg.kind !== 'pong' && <View style={s.progressWrap}>
           <View style={s.progressHead}>
             <Eyebrow icon="people" color={colors.muted}>Tamamlayan</Eyebrow>
             <Text display style={s.statusText}>{entries.length} / {total}</Text>
           </View>
           <ProgressBar pct={total ? entries.length / total : 0} colors={gradients.success} height={8} />
-        </View>
+        </View>}
 
         {/* Sonuç Kartı */}
         {!live && (
