@@ -9,6 +9,8 @@ import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold, Outfit_900Blac
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Float, Muted, Screen, Text, Title } from './components/ui';
+import { AvatarSelect } from './components/AvatarSelect';
+import { AVATAR_OPTIONS, AvatarId } from './lib/art';
 import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
@@ -85,6 +87,8 @@ export default function App() {
   const [catalog, setCatalog] = useState<Record<string, Piece>>({});
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [avatarId, setAvatarId] = useState<AvatarId>('fox');
+  const [avatarChosen, setAvatarChosen] = useState(false);
 
   const boot = useCallback(async () => {
     setError(null);
@@ -92,6 +96,8 @@ export default function App() {
       const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime()]);
       const [pieces, saved] = await Promise.all([supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY)]);
       setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((p) => [p.id, p])));
+      const savedAvatar = await AsyncStorage.getItem('avatarId');
+      if (AVATAR_OPTIONS.some((a) => a.id === savedAvatar)) setAvatarId(savedAvatar as AvatarId);
       setUserId(user.id);
       if (saved) setRoomId(saved);
       setReady(true);
@@ -150,7 +156,11 @@ export default function App() {
     }
   }, []);
 
-  const enter = useCallback((id: string) => { AsyncStorage.setItem(ROOM_KEY, id); setRoomId(id); }, []);
+  const enter = useCallback((id: string) => {
+    AsyncStorage.setItem(ROOM_KEY, id);
+    api.setPlayerAvatar(id, avatarId).catch((e) => console.warn('Avatar kaydedilemedi:', e));
+    setRoomId(id);
+  }, [avatarId]);
   const leave = useCallback(() => { AsyncStorage.removeItem(ROOM_KEY); setRoomId(null); }, []);
 
   if (!fontsLoaded) {
@@ -173,6 +183,8 @@ export default function App() {
         <Loading text="Arena hazırlanıyor…" />
       ) : roomId ? (
         <RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} />
+      ) : !avatarChosen ? (
+        <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (
         <HomeScreen onEnter={enter} />
       )}
