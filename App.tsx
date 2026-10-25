@@ -186,7 +186,7 @@ export default function App() {
       ) : !avatarChosen ? (
         <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (
-        <HomeScreen onEnter={enter} />
+        <HomeScreen onEnter={enter} avatarId={avatarId} onAvatarChange={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id).catch(console.warn); }} />
       )}
     </SafeAreaProvider>
   );
