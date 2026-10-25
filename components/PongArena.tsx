@@ -41,6 +41,9 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const velocity=useRef({vx:0.46,vy:0.23});
  const lastScore=useRef('');
  const serverState=useRef<PongFrameState|null>(null);
+ // Local paddle collisions are rendered immediately. Older server frames must not
+ // reverse that bounce while the authoritative simulation catches up.
+ const pendingBounce=useRef<{direction:number;at:number}|null>(null);
  const currentHeld=useRef(held);
  const params=useRef({playing,mySide,allowedDirections});
  useEffect(()=>{
@@ -60,6 +63,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    display.current={x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)};
    velocity.current={vx:num(state.vx,0.46),vy:num(state.vy,0.23)};
    lastScore.current=key;
+   pendingBounce.current=null;
   }else{
    // Correct once per fresh server packet. Never pull every frame toward an old packet.
    const p=display.current;
@@ -74,6 +78,24 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
    const localV=velocity.current;
+   const pending=pendingBounce.current;
+   if(pending){
+    if(Math.sign(vx)===pending.direction){
+     // Server has confirmed the locally predicted paddle hit.
+     pendingBounce.current=null;
+    }else if(serverNow()-pending.at<700){
+     // This frame still describes the ball approaching the paddle. Updating
+     // position or velocity would visibly pin it to the paddle and re-bounce.
+     return;
+    }else{
+     // A prediction was wrong (the paddle missed); trust the server again.
+     pendingBounce.current=null;
+     display.current={...p,x,y};
+     localV.vx=vx;
+     localV.vy=vy;
+     return;
+    }
+   }
    const flippedX=Math.sign(vx)!==Math.sign(localV.vx);
    const flippedY=Math.sign(vy)!==Math.sign(localV.vy);
    if(flippedX){
@@ -116,7 +138,12 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      bDown:cfg.mySide==='B'&&cfg.allowedDirections.includes(1)?pressed.down:valid('holdBDown'),
     };
     const p=display.current;
+    const previousDirection=Math.sign(velocity.current.vx);
     let next=step(p,velocity.current,dt,cfg.playing,controls);
+    if(Math.sign(velocity.current.vx)!==previousDirection &&
+       ((previousDirection<0&&next.x<=0.065)||(previousDirection>0&&next.x>=0.935))){
+     pendingBounce.current={direction:Math.sign(velocity.current.vx),at:serverNow()};
+    }
     // No stale-packet correction inside the animation loop.
     display.current=next;
     ballX.setValue(next.x*width-6);ballY.setValue(next.y*height-6);
