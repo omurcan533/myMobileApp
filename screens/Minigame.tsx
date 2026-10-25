@@ -834,6 +834,25 @@ function MathGuessGame({
         <Muted>Doğru yanıta en yakın tahmini yapan takım bonus kazanır!</Muted>
       </Card>
 
+      {/* Sonuç açıklandığında doğru yanıt tüm oyuncular için en üstte görünür. */}
+      {!live && targetNum !== null && (
+        <Card accent={colors.mint} style={s.correctAnswerCard}>
+          <View style={s.correctAnswerHeading}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.mint} />
+            <Text style={s.correctAnswerLabel}>DOĞRU CEVAP</Text>
+          </View>
+          <Text display adjustsFontSizeToFit numberOfLines={1} style={s.correctAnswerValue}>
+            {targetNum.toLocaleString('tr-TR')}
+          </Text>
+          <Muted style={{ textAlign: 'center' }}>Sorunun gerçek yanıtı</Muted>
+          {mineGuess !== null && (
+            <Text style={s.correctAnswerDifference}>
+              Senin tahminin: {mineGuess.toLocaleString('tr-TR')}  ·  Fark: {Math.abs(mineGuess - targetNum).toLocaleString('tr-TR')}
+            </Text>
+          )}
+        </Card>
+      )}
+
       {/* Kullanıcı Durumu */}
       {done ? (
         <Card accent={colors.mint} style={{ alignItems: 'center', gap: 10, paddingVertical: 22 }}>
@@ -845,7 +864,7 @@ function MathGuessGame({
             {mineGuess}
           </Text>
           <Muted>
-            {live ? 'Diğer oyuncuların tahminleri bekleniyor…' : (targetNum !== null ? `Gerçek Cevap: ${targetNum} (Fark: ${Math.abs(mineGuess - targetNum)})` : 'Tur tamamlandı')}
+            {live ? 'Diğer oyuncuların tahminleri bekleniyor…' : 'Doğru cevap yukarıda gösteriliyor.'}
           </Muted>
         </Card>
       ) : live ? (
@@ -891,11 +910,7 @@ function MathGuessGame({
         <Card accent={colors.gold} style={{ alignItems: 'center', gap: 8 }}>
           <Ionicons name="time" size={28} color={colors.gold} />
           <Title size={20}>Süre Doldu</Title>
-          {targetNum !== null && (
-            <Text display style={{ fontSize: 28, color: colors.gold, fontWeight: '900' }}>
-              Doğru Cevap: {targetNum}
-            </Text>
-          )}
+          <Muted>Doğru cevap yukarıda gösteriliyor.</Muted>
         </Card>
       )}
 
@@ -1128,6 +1143,11 @@ const s = StyleSheet.create({
   resPct: { fontWeight: '900', fontSize: 16 },
 
   // Matematik ve sayı tahmini
+  correctAnswerCard: { alignItems: 'center', gap: 10, paddingVertical: 26, paddingHorizontal: 18, borderWidth: 2, borderColor: colors.mint },
+  correctAnswerHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  correctAnswerLabel: { color: colors.mint, fontSize: 18, fontWeight: '900', letterSpacing: 1.2 },
+  correctAnswerValue: { color: '#FFFFFF', fontSize: 64, lineHeight: 78, fontWeight: '900', textAlign: 'center', width: '100%' },
+  correctAnswerDifference: { color: colors.textSoft, fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: 4 },
   mathDisplay: {
     backgroundColor: colors.inset,
     borderRadius: 18,
