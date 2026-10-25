@@ -231,9 +231,13 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     <Muted>Senin seçimin: {state?.modeVotes?.[me.id]==='solo'?'1 kişi':state?.modeVotes?.[me.id]==='duo'?'2 kişi':'Henüz yok'}</Muted>
    </View>}
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
-   {countdown>0&&<View style={styles.countdown}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>Hazır ol! Maç başlıyor…</Muted></View>}
-   {goal&&<View style={styles.goalBanner}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
-   {mg.starts_at && state ? <PongArena state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/> : !state ? <Muted>Maç hazırlanıyor…</Muted> : null}
+   {mg.starts_at && state ? (
+    <View style={styles.arenaContainer}>
+     <PongArena state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
+     {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>Hazır ol! Maç başlıyor…</Muted></View>}
+     {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
+    </View>
+   ) : !state ? <Muted>Maç hazırlanıyor…</Muted> : null}
    <View style={styles.teams}>
     <View style={{flex:1}}>
      <Text style={styles.teamA}> {state?.modeA==='solo'?'▲▼':'▲'} {playerName(state?.a1)}</Text>
@@ -288,9 +292,10 @@ const styles=StyleSheet.create({
  controlText:{color:'#FFFFFF',fontSize:15,fontWeight:'900'},
  buttonsArea:{gap:8},
  choice:{gap:8,paddingVertical:8},
- countdown:{alignItems:'center',gap:4,padding:10,borderRadius:14,backgroundColor:alpha(colors.cyan,0.15)},
+ arenaContainer:{position:'relative',alignItems:'center',justifyContent:'center'},
+ countdownOverlay:{position:'absolute',top:16,alignSelf:'center',alignItems:'center',gap:4,paddingHorizontal:22,paddingVertical:10,borderRadius:14,backgroundColor:'rgba(7,23,44,0.92)',zIndex:3},
  countdownNumber:{fontSize:54,fontWeight:'900',color:colors.cyan},
- goalBanner:{alignItems:'center',padding:8,borderRadius:12,backgroundColor:alpha(colors.gold,0.2)},
+ goalOverlay:{position:'absolute',top:12,alignSelf:'center',alignItems:'center',paddingHorizontal:16,paddingVertical:9,borderRadius:12,backgroundColor:'rgba(65,48,15,0.94)',zIndex:4},
  results:{alignItems:'center',gap:8,padding:16,borderRadius:14,backgroundColor:alpha(colors.gold,0.12)},
  starText:{color:colors.gold,fontSize:14,fontWeight:'800',textAlign:'center'},
  reactions:{flexDirection:'row',justifyContent:'space-around',gap:5},
