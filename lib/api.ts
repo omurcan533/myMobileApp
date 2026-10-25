@@ -10,7 +10,6 @@ const MESSAGES: Record<string, string> = {
   room_full: 'Oda dolu (en fazla 12 kişi).',
   need_two_players: 'Başlamak için en az 2 kişi gerekli.',
   not_host: 'Bunu sadece oda kurucusu yapabilir.',
-  not_captain: 'Bunu sadece kaptan yapabilir.',
   locked: 'Biraz bekle, yanlış cevap cezan sürüyor.',
   round_closed: 'Tur kapandı.',
   game_paused: 'Oyun duraklatıldı.',
