@@ -165,7 +165,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && !isPreparing && (
           <TimerBar
             left={left}
-            total={mg.kind === 'pong' ? 120 : mg.kind === 'social_guess' ? 40 : 30}
+            total={mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />
