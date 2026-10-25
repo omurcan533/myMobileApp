@@ -66,6 +66,7 @@ export interface Player {
   room_id: string;
   user_id: string;
   nickname: string;
+  avatar_id?: string | null;
   team_side: Side | null;
   is_host: boolean;
   is_captain: boolean;
