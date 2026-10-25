@@ -3,7 +3,7 @@ import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Text, Title, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
 import { avatarFor } from '../lib/art';
@@ -13,12 +13,36 @@ import { GAME_TITLE } from './Home';
 
 const MAX_PLAYERS = 12;
 const MIN_SLOTS = 4;
+const GAME_STYLES = [
+  { id: 'anagram', name: 'Harf Bulmacası', description: 'Kelimeleri çöz, parçaları kazan', icon: 'text' },
+  { id: 'riddle', name: 'Bilmece', description: 'Takımca düşün, doğru cevabı bul', icon: 'bulb' },
+  { id: 'reflex', name: 'Refleks', description: 'En hızlı tepkiyi ver', icon: 'flash' },
+  { id: 'math_guess', name: 'Sayı Tahmini', description: 'Sayılarla yarış', icon: 'calculator' },
+  { id: 'social_guess', name: 'Sosyal Tahmin', description: 'Arkadaşların hakkında tahmin et', icon: 'people' },
+] as const;
+const DEFAULT_GAMES = GAME_STYLES.map((game) => game.id);
+
 
 export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
+  const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
+
+  const selectedGames = room.selected_games ?? DEFAULT_GAMES;
+  const toggleGame = async (gameId: string) => {
+    if (!me.is_host || savingGames || busy) return;
+    const next = selectedGames.includes(gameId) ? selectedGames.filter((id) => id !== gameId) : [...selectedGames, gameId];
+    if (!next.some((id) => id === 'anagram' || id === 'riddle')) {
+      show('En az bir bulmaca türü seçmelisin.', 'error');
+      return;
+    }
+    setSavingGames(true);
+    try { await api.setRoomGames(room.id, next); }
+    catch (e) { show((e as Error).message, 'error'); }
+    finally { setSavingGames(false); }
+  };
 
   const assignTeams = async () => {
     setBusy(true);
@@ -63,6 +87,28 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             </View>
             <Btn title="Arkadaşlarına Gönder" tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
           </View>
+        </Reveal>
+
+        {/* ================= OYUN SEÇİMİ ================= */}
+        <Reveal delay={80}>
+          <Card style={{ gap: 12 }}>
+            <Title size={20}>Oynamak istediğin oyunları seç</Title>
+            <Muted>{me.is_host ? 'Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.' : 'Oyun kurucusunun seçtiği türler aşağıda görünüyor.'}</Muted>
+            {GAME_STYLES.map((game) => {
+              const enabled = selectedGames.includes(game.id);
+              return (
+                <Tap key={game.id} onPress={() => toggleGame(game.id)} style={[s.gameStyleRow, enabled && s.gameStyleSelected]}>
+                  <Ionicons name={game.icon} size={21} color={enabled ? colors.cyan : colors.muted} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text style={s.gameStyleTitle}>{game.name}</Text>
+                    <Muted>{game.description}</Muted>
+                  </View>
+                  <Ionicons name={enabled ? 'checkbox' : 'square-outline'} size={24} color={enabled ? colors.mint : colors.muted} />
+                </Tap>
+              );
+            })}
+            <Muted>{savingGames ? 'Seçimler kaydediliyor…' : me.is_host ? 'Seçimler otomatik kaydedilir. En az bir bulmaca türü gerekli.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
+          </Card>
         </Reveal>
 
         {/* ================= OYUNCULAR ================= */}
@@ -115,7 +161,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Btn
               title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
               icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart}
+              disabled={!canStart || savingGames}
               loading={busy}
               tone="success"
               onPress={assignTeams}
@@ -136,6 +182,9 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
 const s = StyleSheet.create({
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
+  gameStyleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 15 },
+  gameStyleSelected: { borderColor: colors.cyan, backgroundColor: alpha(colors.cyan, 0.08) },
+  gameStyleTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
   codeCard: {
     borderRadius: 28,
     borderWidth: 1,
