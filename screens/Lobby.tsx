@@ -34,6 +34,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
   const [factsReady, setFactsReady] = useState(false);
+  const [factsReviewed, setFactsReviewed] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
 
@@ -91,7 +92,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   };
 
   const assignTeams = async () => {
-    if (!factsReady) { show('Önce herkes kişisel sorularını tamamlamalı.', 'error'); return; }
+    if (!factsReady || !factsReviewed) { show('Önce herkes kişisel sorularını tamamlamalı.', 'error'); return; }
     if (!gamesLocked) {
       show('Önce oyun seçimlerini yapıp kilitlemelisin.', 'error');
       return;
@@ -220,13 +221,15 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
         <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />
 
+        {factsReady && me.is_host && <Btn title={factsReviewed ? 'Cevaplar İncelendi ✓' : 'Herkes Cevapları Okudu, Devam Et'} icon="book" tone="success" onPress={() => setFactsReviewed(true)} disabled={factsReviewed} />}
+
         {/* ================= BAŞLAT / AYRIL ================= */}
         <Reveal delay={180} style={{ gap: 12 }}>
           {me.is_host ? (
             <Btn
               title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
               icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart || savingGames || !gamesLocked || !factsReady}
+              disabled={!canStart || savingGames || !gamesLocked || !factsReady || !factsReviewed}
               loading={busy}
               tone="success"
               onPress={assignTeams}
