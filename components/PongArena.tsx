@@ -23,10 +23,10 @@ function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls
  let ay=clamp(p.ay+0.9*dt*(Number(controls.aDown)-Number(controls.aUp)),0.105,0.895);
  let by=clamp(p.by+0.9*dt*(Number(controls.bDown)-Number(controls.bUp)),0.105,0.895);
  let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
- if(y<0.025){y=0.05-y;v.vy=Math.abs(v.vy);}
- if(y>0.975){y=1.95-y;v.vy=-Math.abs(v.vy);}
- if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){x=0.13-x;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
- if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){x=1.87-x;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
+ if(y<0.025){y=0.025;v.vy=Math.abs(v.vy);}
+ if(y>0.975){y=0.975;v.vy=-Math.abs(v.vy);}
+ if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){x=0.065;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
+ if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){x=0.935;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
  return {x:clamp(x,0,1),y:clamp(y,0.025,0.975),ay,by};
 }
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
@@ -37,7 +37,6 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const ballY=useRef(new Animated.Value(height/2-6)).current;
  const leftY=useRef(new Animated.Value(height/2-paddleHeight/2)).current;
  const rightY=useRef(new Animated.Value(height/2-paddleHeight/2)).current;
- const snapshot=useRef<{s:PongFrameState;at:number}|null>(null);
  const display=useRef<Point>({x:0.5,y:0.5,ay:0.5,by:0.5});
  const velocity=useRef({vx:0.46,vy:0.23});
  const lastScore=useRef('');
@@ -74,13 +73,28 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    const x=synced.x,y=synced.y;
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
-   if(error>0.26){
-    display.current={...p,x,y};
-   }else if(error>0.055){
-    display.current={...p,x:p.x+(x-p.x)*0.22,y:p.y+(y-p.y)*0.22};
-   }
-   if(Math.sign(vx)!==Math.sign(velocity.current.vx)||Math.sign(vy)!==Math.sign(velocity.current.vy)){
-    velocity.current={vx,vy};
+   const localV=velocity.current;
+   const flippedX=Math.sign(vx)!==Math.sign(localV.vx);
+   const flippedY=Math.sign(vy)!==Math.sign(localV.vy);
+   if(flippedX){
+    // A late server bounce must not teleport a ball that already bounced locally.
+    // Correct only when our prediction missed the collision entirely.
+    if((vx>0&&p.x<0.08)||(vx<0&&p.x>0.92)){
+     display.current={...p,x,y};
+    }else if(error>0.20&&p.x>0.12&&p.x<0.88){
+     display.current={...p,x:p.x+(x-p.x)*0.10,y:p.y+(y-p.y)*0.10};
+    }
+    localV.vx=vx;
+    localV.vy=vy;
+   }else{
+    if(error>0.35){
+     // Severe divergence (missed goal or long browser suspension).
+     display.current={...p,x,y};
+    }else if(error>0.065){
+     display.current={...p,x:p.x+(x-p.x)*0.12,y:p.y+(y-p.y)*0.12};
+    }
+    if(flippedY)localV.vy=vy;
+    localV.vx=vx;
    }
   }
  },[state]);
