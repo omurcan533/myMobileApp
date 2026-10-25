@@ -90,7 +90,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                         <Ionicons name="star" size={12} color="#3A2100" />
                       </View>
                     )}
-                    <Avatar source={avatarFor(p.nickname)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
+                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
                     <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
                     <Text style={s.pRole}>{p.is_host ? 'KURUCU' : isMe ? 'SEN' : 'OYUNCU'}</Text>
                   </View>
