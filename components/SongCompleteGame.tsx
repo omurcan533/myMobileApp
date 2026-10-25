@@ -10,27 +10,27 @@ export function SongCompleteGame({ id, prompt, live, canPlay, paused, winner, si
 }) {
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [feedback, setFeedback] = useState('');
   const [correct, setCorrect] = useState(false);
-  useEffect(() => { setAnswer(''); setSubmitted(false); setCorrect(false); }, [id]);
+  useEffect(() => { setAnswer(''); setFeedback(''); setCorrect(false); }, [id]);
   const send = async () => {
-    if (!answer.trim() || busy || submitted || !live || !canPlay || paused) return;
+    if (!answer.trim() || busy || correct || !live || !canPlay || paused) return;
     setBusy(true);
     try {
       const ok = await api.submitSongAnswer(id, answer.trim());
       setCorrect(ok);
-      setSubmitted(true);
+      setFeedback(ok ? 'Doğru cevap!' : 'Yanlış cevap, tekrar dene!');
+      if (!ok) setAnswer('');
     } catch (e) {
       const message = (e as Error).message;
-      if (message.includes('already_answered')) { setSubmitted(true); onError('Bu turdaki cevap hakkını kullandın.'); }
-      else onError(message);
+      onError(message);
     } finally { setBusy(false); }
   };
   const result = !live ? winner === side && !!winner ? 'won' : winner ? 'lost' : 'draw' : null;
   return (
     <Card style={styles.card}>
       <Title size={24} style={{ textAlign: 'center' }}>🎵 Şarkı Tamamlama</Title>
-      <Muted style={{ textAlign: 'center' }}>Sanatçıyı ve eksik şarkı adını incele. Bir cevap hakkın var. İlk doğru yanıt veren takım kazanır!</Muted>
+      <Muted style={{ textAlign: 'center' }}>Sanatçıyı ve eksik şarkı adını incele. Sınırsız deneme hakkın var. İlk doğru yanıt veren takım kazanır!</Muted>
       <View style={styles.question}><Text style={styles.prompt}>{prompt}</Text></View>
       {result ? (
         <View style={[styles.result, { borderColor: result === 'won' ? '#42DDA7' : result === 'lost' ? '#F27889' : '#E3BC70' }]}>
@@ -39,13 +39,14 @@ export function SongCompleteGame({ id, prompt, live, canPlay, paused, winner, si
           </Title>
           <Text style={styles.center}>{result === 'won' ? '+2 puan ve bonus parça takımınızın!' : result === 'lost' ? 'Rakip takım şarkıyı önce tamamladı.' : 'Bu turda kazanan olmadı.'}</Text>
         </View>
-      ) : submitted ? (
+      ) : correct ? (
         <View style={styles.result}>
           <Title size={20} style={{ textAlign: 'center', color: correct ? '#42DDA7' : '#F27889' }}>{correct ? 'DOĞRU! 🎉' : 'YANLIŞ CEVAP'}</Title>
           <Text style={styles.center}>{correct ? 'Takımınız kazandı! Sonuç diğer oyunculara aktarılıyor.' : 'Cevap hakkını kullandın. Diğer oyuncuları bekle.'}</Text>
         </View>
       ) : (
         <>
+          {!!feedback && <Text style={{ color: '#F2BD72', textAlign: 'center', fontWeight: '700' }}>{feedback}</Text>}
           <TextInput
             style={styles.input} value={answer} onChangeText={setAnswer}
             placeholder="Eksik şarkı adını yaz..." placeholderTextColor="#96A7BE"
