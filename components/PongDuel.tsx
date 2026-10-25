@@ -6,7 +6,7 @@ import { colors, alpha } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
 
 type State = {
- a1: string; a2: string; b1: string; b2: string;
+ a1: string; a2: string; b1: string; b2: string; modeA?: 'solo' | 'duo'; modeB?: 'solo' | 'duo'; modeVotes?: Record<string, string>;
  ay: number; by: number;
  x: number; y: number; scoreA: number; scoreB: number; savesA?: number; savesB?: number; goalsByPlayer?: Record<string, number>;
 };
@@ -31,7 +31,20 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  const active = live && !!mg.starts_at && countdown === 0 && !data.room.paused;
  const isHost = me.is_host;
  const mySlot = state ? (['a1','a2','b1','b2'] as const).find((k) => state[k] === me.id) : undefined;
+ const mySide = mySlot?.startsWith('a') ? 'A' : mySlot?.startsWith('b') ? 'B' : null;
+ const mySolo = mySide ? state?.['mode'+mySide] === 'solo' : false;
  const myDirection = mySlot ? (mySlot.endsWith('1') ? -1 : 1) : null;
+ const teamSize = data.players.filter(p => p.team_side === me.team_side).length;
+ const needsModeChoice = live && !mg.starts_at && teamSize === 2 && data.players.length === 3;
+ const [choiceBusy, setChoiceBusy] = useState(false);
+ const chooseMode = async (mode: 'solo' | 'duo') => {
+  if (choiceBusy) return;
+  setChoiceBusy(true);
+  const {data: updated,error} = await supabase.rpc('pong_choose_mode',{p_minigame:mg.id,p_mode:mode});
+  if (updated) setState(updated as State);
+  if (error) console.warn('Pong mode selection:',error.message);
+  setChoiceBusy(false);
+ };
  const players = useMemo(() => data.players, [data.players]);
  const playerName = (id?: string) => players.find((p) => p.id === id)?.nickname ?? 'Oyuncu';
  useEffect(() => {
@@ -66,13 +79,13 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
   return () => { cheerChannel.current = null; void supabase.removeChannel(channel); };
  }, [mg.id]);
  useEffect(() => {
-  if (!live || !mg.starts_at) return;
+  if (!live) return;
   let inFlight = false;
   const poll = setInterval(async () => {
    if (inFlight) return;
    inFlight = true;
    try {
-    if (isHost) {
+    if (isHost && mg.starts_at) {
      const { data: updated } = await supabase.rpc('pong_tick', { p_minigame: mg.id });
      if (updated) setState(updated as State);
     } else {
@@ -89,11 +102,11 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  };
  useEffect(() => release, []);
  const move = (direction: number) => {
-  if (!active || myDirection !== direction) return;
+  if (!active || (!mySolo && myDirection !== direction)) return;
   void supabase.rpc('pong_input', { p_minigame: mg.id, p_direction: direction });
  };
  const hold = (direction: number) => {
-  if (myDirection !== direction) return;
+  if (!mySolo && myDirection !== direction) return;
   release();
   move(direction);
   holding.current = setInterval(() => move(direction), 110);
@@ -110,13 +123,14 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 10 }}>
-    <Eyebrow color={colors.cyan}>2'YE 2 · CANLI PONG DÜELLOSU</Eyebrow>
+    <Eyebrow color={colors.cyan}>CANLI PONG DÜELLOSU</Eyebrow>
     <View style={styles.score}>
      <Text style={styles.teamA}>TAKIM A</Text>
      <Title size={30}>{scoreA} : {scoreB}</Title>
      <Text style={styles.teamB}>TAKIM B</Text>
     </View>
-    <Muted style={{ textAlign: 'center' }}>Tek çubuk, iki oyuncu! Biri yukarı, diğeri aşağı yönlendirir. İlk 5 gol kazanır.</Muted>
+    <Muted style={{ textAlign: 'center' }}>Her takım tek çubuğu yönetir. Tek kişilik takım iki yönü de kontrol eder. İlk 5 gol kazanır.</Muted>
+    {needsModeChoice && <View style={{ gap: 8 }}><Title size={17}>Takımın nasıl oynasın?</Title><Muted>Takımındaki iki oyuncu aynı seçeneği işaretlemeli. Tek kişi seçilirse ilk seçilen oyuncu iki yönü kontrol eder.</Muted><View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Tap onPress={()=>chooseMode('solo')} style={styles.control}><Text style={styles.controlText}>1 KİŞİ</Text></Tap></View><View style={{ flex: 1 }}><Tap onPress={()=>chooseMode('duo')} style={styles.control}><Text style={styles.controlText}>2 KİŞİ</Text></Tap></View></View><Muted>Senin oyun: {state?.modeVotes?.[me.id] === 'solo' ? '1 kişi' : state?.modeVotes?.[me.id] === 'duo' ? '2 kişi' : 'Henüz seçilmedi'} · Takım modu: {state?.['mode'+(me.team_side??'A')] === 'solo' ? 'Tek oyuncu' : 'İki oyuncu'}</Muted></View>}
     {countdown > 0 && <View style={styles.countdown}><Text style={styles.countdownNumber}>{countdown}</Text><Muted style={{ textAlign: 'center' }}>Hazır ol! Maç başlıyor…</Muted></View>}
     {goal && <View style={[styles.goalBanner, { backgroundColor: alpha(goal.side === 'A' ? colors.cyan : colors.gold, 0.22), borderColor: goal.side === 'A' ? colors.cyan : colors.gold }]}><Text style={styles.goalText}>⚽ GOOOL! TAKIM {goal.side} · {goal.score}. GOL 🎉</Text></View>}
     {state ? (
@@ -128,17 +142,17 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
      </View>
     ) : <Muted>Maç hazırlanıyor…</Muted>}
     <View style={styles.teams}>
-     <View style={{ flex: 1 }}><Text style={styles.teamA}>▲ {playerName(state?.a1)}</Text><Text style={styles.teamA}>▼ {playerName(state?.a2)}</Text></View>
-     <View style={{ flex: 1, alignItems: 'flex-end' }}><Text style={styles.teamB}>▲ {playerName(state?.b1)}</Text><Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text></View>
+     <View style={{ flex: 1 }}><Text style={styles.teamA}>{state?.modeA === 'solo' ? '▲▼' : '▲'} {playerName(state?.a1)}</Text>{state?.modeA !== 'solo' && <Text style={styles.teamA}>▼ {playerName(state?.a2)}</Text>}</Text></View>
+     <View style={{ flex: 1, alignItems: 'flex-end' }}><Text style={styles.teamB}>{state?.modeB === 'solo' ? '▲▼' : '▲'} {playerName(state?.b1)}</Text>{state?.modeB !== 'solo' && <Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text>}</Text></View>
     </View>
     {!live && state && <View style={styles.results}><Title size={18}>⚽ Gol Kralı</Title>{topScorers.length ? <Text style={styles.starText}>{topScorers.map(([id])=>playerName(id)).join(' · ')} — {topGoals} gol katkısı</Text> : <Muted>Oyuncu bazında kaydedilmiş gol katkısı yok.</Muted>}<Muted>Gol, golü atan takımın son çubuk temasındaki yönlendirici oyuncuya yazılır; ortak kontrol nedeniyle bu bir katkı istatistiğidir.</Muted><Title size={18}>🏅 Maçın Savunma Yıldızları</Title><Muted>Takım A: {state.savesA ?? 0} kurtarış · Takım B: {state.savesB ?? 0} kurtarış</Muted><Text style={styles.starText}>{(state.savesA ?? 0) === (state.savesB ?? 0) ? 'İki takım da savunmada eşit!' : (state.savesA ?? 0) > (state.savesB ?? 0) ? `Takım A savunma yıldızları: ${playerName(state.a1)} ve ${playerName(state.a2)}` : `Takım B savunma yıldızları: ${playerName(state.b1)} ve ${playerName(state.b2)}`}</Text><Muted>Çubuk ortak kontrol edildiği için kurtarışlar takım bazında sayılır.</Muted></View>}
     {mySlot && active ? (
      <View style={{ gap: 10 }}>
-      <Title size={17} style={{ textAlign: 'center' }}>{myDirection === -1 ? 'Sen YUKARI oyuncususun ▲' : 'Sen AŞAĞI oyuncususun ▼'}</Title>
+      <Title size={17} style={{ textAlign: 'center' }}>{mySolo ? 'İki yön de sende ▲ ▼' : myDirection === -1 ? 'Sen YUKARI oyuncususun ▲' : 'Sen AŞAĞI oyuncususun ▼'}</Title>
       <View style={styles.controls}>
-       <Tap onPressIn={() => hold(myDirection!)} onPressOut={release} onPress={() => move(myDirection!)} style={styles.control}>
-        <Text style={styles.controlText}>{myDirection === -1 ? '▲  YUKARI' : '▼  AŞAĞI'}</Text>
-       </Tap>
+       {(mySolo ? [-1,1] : [myDirection!]).map(direction => <Tap key={direction} onPressIn={() => hold(direction)} onPressOut={release} onPress={() => move(direction)} style={styles.control}>
+        <Text style={styles.controlText}>{direction === -1 ? '▲  YUKARI' : '▼  AŞAĞI'}</Text>
+       </Tap>)}
       </View>
      </View>
     ) : <Muted style={{ textAlign: 'center' }}>{countdown > 0 ? 'Hazırlan! Geri sayım bitince kontroller açılacak.' : live ? 'Seyircisin! Arkadaşlarını destekle.' : 'Maç tamamlandı.'}</Muted>}
