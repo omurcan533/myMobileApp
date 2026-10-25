@@ -24,7 +24,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const { data, me } = ctx;
   const originalMg = latestMinigame(data.minigames);
-  const now = useNow(originalMg?.kind === 'pong' ? 350 : 100);
+  const now = useNow(originalMg?.kind === 'pong' ? 1000 : 100);
   const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
   const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
     ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
