@@ -1,10 +1,11 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,StyleSheet,View,Pressable,TextInput} from 'react-native';
+import {ActivityIndicator,StyleSheet,View,Pressable,TextInput,Animated} from 'react-native';
 import {api} from '../lib/api';
 import {Card,Muted,Title,Text,Btn} from './ui';
 
 type Preview={greens:number[];whiteRow:number;whiteCol:number};
-type Progress={row:number;retry:boolean;failed:boolean;lastCol?:number;lastOutcome?:string};
+type Reveal={row:number;greenCol:number;whiteCol:number;selectedCol:number;outcome:string};
+type Progress={row:number;retry:boolean;failed:boolean;attempt?:number;lastCol?:number;lastOutcome?:string;reveal?:Reveal};
 export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state,onError}:{
  id:string;startsAt:string|null;live:boolean;paused:boolean;isCaptain:boolean;side:'A'|'B'|null;
  state?:Record<string,Progress>|null;onError?:(message:string)=>void;
@@ -13,6 +14,13 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  const [clock,setClock]=useState(Date.now());
  const [busy,setBusy]=useState(false);
  const [feedback,setFeedback]=useState('');
+ const [localProgress,setLocalProgress]=useState<Progress|null>(null);
+ const [flipped,setFlipped]=useState<Reveal|null>(null);
+ const [animationBusy,setAnimationBusy]=useState(false);
+ const flipScale=React.useRef(new Animated.Value(1)).current;
+ const flash=React.useRef(new Animated.Value(0)).current;
+ const animationRef=React.useRef<ReturnType<typeof setTimeout>|null>(null);
+ useEffect(()=>()=>{if(animationRef.current)clearTimeout(animationRef.current)},[]);
  const [messages,setMessages]=useState<{id:number;nickname:string;body:string}[]>([]);
  const [draft,setDraft]=useState('');
  const [sending,setSending]=useState(false);
@@ -37,38 +45,54 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   api.survivorPreview(id).then(p=>{if(mounted&&p)setPreview(p)}).catch(e=>onError?.(e.message));
   return()=>{mounted=false};
  },[id,previewing]);
- const own=side?state?.[side]:undefined;
+ const own=localProgress && (localProgress.attempt??0)>=(side?state?.[side]?.attempt??0)?localProgress:(side?state?.[side]:undefined);
  const opponent=side?state?.[side==='A'?'B':'A']:undefined;
  const choose=async(col:number)=>{
-  if(!live||paused||previewing||!isCaptain||busy||own?.failed||(own?.row??0)>=7)return;
+  if(!live||paused||previewing||!isCaptain||busy||animationBusy||(own?.row??0)>=7)return;
   setBusy(true);
   try{
    const result=await api.survivorChoose(id,col);
-   setFeedback(result.lastOutcome==='green'?'Doğru fayans!':result.lastOutcome==='white'?'Beyaz fayans! Ek deneme hakkı.':result.failed?'Kırmızı fayans! Parkur sona erdi.':'Kırmızı fayans! Ek hakkın kullanıldı.');
+   setLocalProgress(result);
+   const reveal=result.reveal;
+   if(reveal){
+    setAnimationBusy(true);
+    setFlipped(reveal);
+    flipScale.setValue(0.8);
+    Animated.spring(flipScale,{toValue:1,useNativeDriver:true,friction:5}).start();
+    if(reveal.outcome!=='green'){
+     flash.setValue(0);
+     Animated.sequence([
+      Animated.timing(flash,{toValue:1,duration:130,useNativeDriver:false}),
+      Animated.timing(flash,{toValue:0,duration:450,useNativeDriver:false}),
+     ]).start();
+    }
+    setFeedback(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! İlk sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!');
+    if(animationRef.current)clearTimeout(animationRef.current);
+    animationRef.current=setTimeout(()=>{setFlipped(null);setAnimationBusy(false)},1100);
+   }
   }catch(e){onError?.((e as Error).message)}finally{setBusy(false)}
  };
  return <Card style={{gap:12}}>
   <Title size={23}>Survivor Hafıza Parkuru</Title>
-  <Muted>7 sıra · Her sırada 1 yeşil. Beyaz fayans ek deneme hakkı verir. Önce renkleri ezberle, sonra sadece kaptan fayans seçebilir.</Muted>
+  <Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Yanlış fayansa basarsan hangi sırada olursan ol en başa dönersin. Yalnızca kaptan seçim yapar.</Muted>
   {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!startsAt?'Başlaması bekleniyor':isCaptain?'Sıra sende, kaptan!':'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
-  <View style={styles.grid}>
+  <Animated.View style={[styles.grid,{transform:[{scale:flipScale}],backgroundColor:flash.interpolate({inputRange:[0,1],outputRange:['transparent','#A82D41']})}]}>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
     const visible=previewing&&preview;
-    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
+    const revealRow=flipped?.row===row;
+    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):revealRow?(flipped?.greenCol===col?'#36C88A':flipped?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
     const cleared=(own?.row??0)>row;
-    return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||!live||paused||!!own?.failed}
+    return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||animationBusy||!live||paused}
       onPress={()=>choose(col)}
-      style={[styles.tile,{backgroundColor:color,borderColor:current&&!previewing?'#9BE7FF':'#4B6382',opacity:!previewing&&cleared?0.4:1}]}>
-      {!previewing&&cleared?<Text style={styles.symbol}>✓</Text>:null}
+      style={[styles.tile,{backgroundColor:color,borderColor:current&&!previewing?'#9BE7FF':'#4B6382',opacity:!previewing&&cleared&&!revealRow?0.4:1}]}>
+      {revealRow&&flipped?.selectedCol===col?<Text style={[styles.symbol,{color:flipped?.outcome==='white'?'#15233B':'#fff'}]}>{flipped?.outcome==='green'?'✓':'✕'}</Text>:!previewing&&cleared?<Text style={styles.symbol}>✓</Text>:null}
       {previewing&&preview?.whiteRow===row&&preview.whiteCol===col?<Text style={{color:'#102039',fontWeight:'bold'}}>★</Text>:null}
     </Pressable>
    }))}
-  </View>
+  </Animated.View>
   <Text style={styles.notice}>Takımın: {Math.min(7,own?.row??0)}/7 · Rakip: {Math.min(7,opponent?.row??0)}/7</Text>
-  {own?.retry?<Muted>Ek deneme hakkın var.</Muted>:null}
-  {own?.failed?<Muted>Takımının denemesi bitti. Rakibin sonucu bekleniyor.</Muted>:null}
-  {feedback?<Muted>{feedback}</Muted>:null}
+  {feedback?<Text style={[styles.notice,{color:flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{feedback}</Text>:null}
   {busy?<ActivityIndicator/>:null}
   <Title size={18}>Takım Sohbeti</Title>
   <Muted>Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!</Muted>
