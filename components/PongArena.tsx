@@ -25,8 +25,8 @@ function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls
  let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
  if(y<0.025){y=0.025;v.vy=Math.abs(v.vy);}
  if(y>0.975){y=0.975;v.vy=-Math.abs(v.vy);}
- if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){x=0.065;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
- if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){x=0.935;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
+ if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<=0.125){x=0.065;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
+ if(x>=0.935&&v.vx>0&&Math.abs(y-by)<=0.125){x=0.935;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
  return {x:clamp(x,0,1),y:clamp(y,0.025,0.975),ay,by};
 }
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
@@ -78,6 +78,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
    const localV=velocity.current;
+   // Score changes always override local predictions; a goal is server-authoritative.
    const pending=pendingBounce.current;
    if(pending){
     if(Math.sign(vx)===pending.direction){
