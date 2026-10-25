@@ -66,6 +66,7 @@ interface ItemProps {
   onSelect: (id: string) => void;
   onChange: (id: string, p: Partial<TF>) => void;
   onCommit: (id: string) => void;
+  onDraggingChange?: (dragging: boolean) => void;
 }
 
 function ItemView(props: ItemProps) {
@@ -83,6 +84,7 @@ function ItemView(props: ItemProps) {
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         const p = P.current;
+        p.onDraggingChange?.(true);
         p.onSelect(p.item.id);
         g.current = { base: { ...p.item.tf }, n: 1, dx0: 0, dy0: 0, pinch: null };
       },
@@ -111,8 +113,8 @@ function ItemView(props: ItemProps) {
           scale, rotation,
         });
       },
-      onPanResponderRelease: () => P.current.onCommit(P.current.item.id),
-      onPanResponderTerminate: () => P.current.onCommit(P.current.item.id),
+      onPanResponderRelease: () => { P.current.onDraggingChange?.(false); P.current.onCommit(P.current.item.id); },
+      onPanResponderTerminate: () => { P.current.onDraggingChange?.(false); P.current.onCommit(P.current.item.id); },
     }),
   );
 
@@ -123,7 +125,7 @@ function ItemView(props: ItemProps) {
   return (
     <View
       {...pr.panHandlers}
-      style={{ position: 'absolute', left: tf.x * size - outer / 2, top: tf.y * size - outer / 2, width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }}
+      style={{ touchAction: 'none', position: 'absolute', left: tf.x * size - outer / 2, top: tf.y * size - outer / 2, width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }}
     >
       <View
         style={{
@@ -163,10 +165,10 @@ function FloatingEmoji({ f, size, onDone }: { f: Floating; size: number; onDone:
 }
 
 function Board({
-  side, size, items, editable, selected, onSelect, onChange, onCommit, floating, onFloatDone, speech,
+  side, size, items, editable, selected, onSelect, onChange, onCommit, onDraggingChange, floating, onFloatDone, speech,
 }: {
   side: Side; size: number; items: BoardItem[]; editable: boolean; selected?: string | null;
-  onSelect?: (id: string | null) => void; onChange?: (id: string, p: Partial<TF>) => void; onCommit?: (id: string) => void;
+  onSelect?: (id: string | null) => void; onChange?: (id: string, p: Partial<TF>) => void; onCommit?: (id: string) => void; onDraggingChange?: (dragging: boolean) => void;
   floating?: Floating[]; onFloatDone?: (id: number) => void;
   speech?: { sender: string; text: string } | null;
 }) {
@@ -195,6 +197,7 @@ function Board({
           onSelect={(id) => onSelect?.(id)}
           onChange={(id, p) => onChange?.(id, p)}
           onCommit={(id) => onCommit?.(id)}
+          onDraggingChange={onDraggingChange}
         />
       ))}
       {floating?.map((f) => <FloatingEmoji key={f.id} f={f} size={size} onDone={onFloatDone ?? (() => undefined)} />)}
@@ -230,7 +233,7 @@ export function CanvasBoard({ ctx, side, size }: { ctx: Ctx; side: Side; size: n
 
 // ---------------------------------------------------------------- Mimar stüdyosu (inşa fazı)
 
-export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
+export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: number; onDraggingChange?: (dragging: boolean) => void }) {
   const { data, me, catalog } = ctx;
   const side = me.team_side as Side;
   const editable = me.is_architect && data.room.phase === 'building';
@@ -248,6 +251,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
   const channel = useRef<RealtimeChannel | null>(null);
   const send = useRef<{ last: number; timer: ReturnType<typeof setTimeout> | null; pending: { id: string; tf: TF } | null }>({ last: 0, timer: null, pending: null });
   const counter = useRef(0);
+  const adding = useRef(new Set<string>());
   const { toast, show } = useToast();
 
   const items: BoardItem[] = useMemo(
@@ -374,17 +378,27 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
   }, [data.room.id, side]);
 
   const add = async (tp: TeamPiece) => {
+    if (adding.current.has(tp.id) || rows.some((row) => row.team_piece_id === tp.id)) return;
+    adding.current.add(tp.id);
     soundFx.pop();
     haptic.medium();
     const z = Math.max(0, ...zs) + 1;
     const j = () => 0.5 + (Math.random() - 0.5) * 0.2;
-    const { data: row, error } = await supabase
-      .from('canvas_items')
-      .insert({ room_id: data.room.id, side, team_piece_id: tp.id, x: j(), y: j(), z_index: z })
-      .select('id')
-      .single();
-    if (error) show(error.message, 'error');
-    else if (row) setSelected(row.id as string);
+    try {
+      const { data: row, error } = await supabase
+        .from('canvas_items')
+        .insert({ room_id: data.room.id, side, team_piece_id: tp.id, x: j(), y: j(), z_index: z })
+        .select('id')
+        .single();
+      if (error?.code === '23505') {
+        // Another request already placed this piece; don't overwrite its position.
+        const existing = await supabase.from('canvas_items').select('id').eq('team_piece_id', tp.id).maybeSingle();
+        if (existing.data) setSelected(existing.data.id);
+      } else if (error) show(error.message, 'error');
+      else if (row) setSelected(row.id as string);
+    } finally {
+      adding.current.delete(tp.id);
+    }
   };
   const remove = async () => {
     if (!selected) return;
@@ -418,7 +432,7 @@ export function CanvasStudio({ ctx, size }: { ctx: Ctx; size: number }) {
     <View style={{ gap: 10, alignItems: 'center' }}>
       <Board
         side={side} size={size} items={items} editable={editable}
-        selected={selected} onSelect={setSelected} onChange={onChange} onCommit={onCommit}
+        selected={selected} onSelect={setSelected} onChange={onChange} onCommit={onCommit} onDraggingChange={onDraggingChange}
         floating={floating} onFloatDone={dropFloating}
         speech={speech}
       />
