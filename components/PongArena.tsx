@@ -23,22 +23,10 @@ function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls
  let ay=clamp(p.ay+0.9*dt*(Number(controls.aDown)-Number(controls.aUp)),0.105,0.895);
  let by=clamp(p.by+0.9*dt*(Number(controls.bDown)-Number(controls.bUp)),0.105,0.895);
  let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
- if(y<0.025){y=0.05-y;v.vy=Math.abs(v.vy);}
- if(y>0.975){y=1.95-y;v.vy=-Math.abs(v.vy);}
- if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){
-  x=0.065;
-  const speed=Math.min(1.35,Math.hypot(v.vx,v.vy)*1.045);
-  const offset=clamp((y-ay)/0.115,-1,1);
-  v.vy=speed*0.82*offset;
-  v.vx=Math.sqrt(Math.max(0,speed*speed-v.vy*v.vy));
- }
- if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){
-  x=0.935;
-  const speed=Math.min(1.35,Math.hypot(v.vx,v.vy)*1.045);
-  const offset=clamp((y-by)/0.115,-1,1);
-  v.vy=speed*0.82*offset;
-  v.vx=-Math.sqrt(Math.max(0,speed*speed-v.vy*v.vy));
- }
+ if(y<0.025){y=0.025;v.vy=Math.abs(v.vy);}
+ if(y>0.975){y=0.975;v.vy=-Math.abs(v.vy);}
+ if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){x=0.065;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
+ if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){x=0.935;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
  return {x:clamp(x,0,1),y:clamp(y,0.025,0.975),ay,by};
 }
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
@@ -128,10 +116,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      display.current={...p,x:p.x+(x-p.x)*0.12,y:p.y+(y-p.y)*0.12};
     }
     if(flippedY)localV.vy=vy;
-    // Keep the local flight speed aligned after a paddle hit; otherwise the
-    // local ball gradually outruns the authoritative simulation.
     localV.vx=vx;
-    if(!flippedY && Math.abs(vy-localV.vy)>0.04)localV.vy=vy;
    }
   }
  },[state]);
