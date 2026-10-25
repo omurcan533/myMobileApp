@@ -37,8 +37,8 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
   // Synchronize with the server only outside editing mode. Taps never send requests.
   useEffect(() => {
-    if (!editingGames && !savingGames) setDraftGames([...selectedGames]);
-  }, [room.selected_games, editingGames, savingGames]);
+    if (gamesLocked && !editingGames && !savingGames) setDraftGames([...selectedGames]);
+  }, [room.selected_games, gamesLocked, editingGames, savingGames]);
 
   const toggleGame = (gameId: string) => {
     if (!me.is_host || gamesLocked && !editingGames || savingGames || busy) return;
