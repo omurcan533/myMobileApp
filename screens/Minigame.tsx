@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
@@ -29,6 +29,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
     ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
   const [pongHolding, setPongHolding] = useState(false);
+  const pongWebStyle = Platform.OS === 'web' && originalMg?.kind === 'pong'
+    ? ({ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as any)
+    : undefined;
   const scrollRef = useRef<ScrollView>(null);
   // Do not programmatically scroll during Pong: score and goal changes must
   // never shift the user's viewport while they are controlling a paddle.
@@ -151,7 +154,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
-      <ScrollView ref={scrollRef} scrollEnabled={!pongHolding} style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} scrollEnabled={!pongHolding} style={[{ flex: 1 }, pongWebStyle]} contentContainerStyle={[s.scroll, pongWebStyle]} showsVerticalScrollIndicator={false}>
         <Scoreboard ctx={ctx} />
 
       <View style={s.headerRow}>
