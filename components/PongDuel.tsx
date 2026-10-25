@@ -250,17 +250,17 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    </View>
    {mySlot&&active?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
     <Title size={16} style={{textAlign:'center'}}>{solo?'İki yön de sende ▲ ▼':directions[0]===-1?'YUKARI yönü sende ▲':'AŞAĞI yönü sende ▼'}</Title>
-    <View style={styles.controls}>
+    <View style={styles.paddleControls}>
      {directions.map(direction=><Pressable
       key={direction}
       onPressIn={()=>startHold(direction)}
       onPressOut={()=>stopHold(direction)}
-      hitSlop={8}
+      hitSlop={4}
       pressRetentionOffset={160}
       onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
-      style={[styles.control,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
+      style={[styles.paddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
-     ><Text selectable={false} style={styles.controlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
+     ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
     </View>
     <Muted style={{textAlign:'center'}}>Hareket ettirmek için tuşa basılı tut.</Muted>
     {controlError&&<Muted style={styles.error}>Kontrol hatası: {controlError}</Muted>}
@@ -287,6 +287,9 @@ const styles=StyleSheet.create({
  teamB:{color:colors.gold,fontSize:13,fontWeight:'800'},
  teams:{flexDirection:'row',justifyContent:'space-between',gap:12,paddingHorizontal:4},
  controls:{flexDirection:'row',gap:10},
+ paddleControls:{flexDirection:'column',gap:12,width:'100%'},
+ paddleControl:{width:'100%',minHeight:112,backgroundColor:'#17395C',borderColor:colors.cyan,borderWidth:2,borderRadius:18,alignItems:'center',justifyContent:'center',paddingHorizontal:12},
+ paddleControlText:{color:'#FFFFFF',fontSize:23,fontWeight:'900'},
  control:{flex:1,backgroundColor:'#17395C',borderColor:colors.cyan,borderWidth:1.5,borderRadius:14,alignItems:'center',justifyContent:'center',minHeight:72,paddingHorizontal:8},
  controlHeld:{backgroundColor:alpha(colors.cyan,0.28),borderColor:colors.mint},
  controlText:{color:'#FFFFFF',fontSize:15,fontWeight:'900'},
