@@ -22,6 +22,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   const now = useNow();
   const left = secondsLeft(data.room.phase_ends_at, now);
   const [open, setOpen] = useState(false);
+  const [draggingPiece, setDraggingPiece] = useState(false);
   const [name, setName] = useState('');
   const [title, setTitle] = useState('');
   const { toast, show } = useToast();
@@ -47,7 +48,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} scrollEnabled={!draggingPiece}>
       {/* ================= ÜST BAŞLIK & BİLGİ ALANI ================= */}
       <View style={s.header}>
         <View style={s.headerLeft}>
@@ -139,7 +140,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
 
       {/* ================= TUVAL / STÜDYO ALANI ================= */}
       <View style={s.canvasContainer}>
-        <CanvasStudio ctx={ctx} size={size} />
+        <CanvasStudio ctx={ctx} size={size} onDraggingChange={setDraggingPiece} />
       </View>
 
       </ScrollView>
