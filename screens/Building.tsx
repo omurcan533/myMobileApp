@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasStudio } from '../components/Canvas';
 import {
@@ -29,7 +29,9 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   const mates = data.players.filter((p) => p.team_side === me.team_side);
   const architect = mates.find((p) => p.is_architect);
   const myTeam = data.teams.find((t) => t.side === me.team_side);
-  const size = Math.max(220, Math.min(width - 40, height - 460));
+  // Board size follows the available width, not the remaining viewport height.
+  // The entire building screen scrolls, so the board never overlaps the timer or controls.
+  const size = Math.max(180, Math.min(width - 52, 420));
 
   const tColor = teamColor(me.team_side);
   const secs = Math.ceil(Math.max(0, left));
@@ -44,6 +46,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       {/* ================= ÜST BAŞLIK & BİLGİ ALANI ================= */}
       <View style={s.header}>
         <View style={s.headerLeft}>
@@ -52,7 +55,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
           <View style={s.badgesRow}>
             <Chip color={tColor} icon="shield" label={teamName(me.team_side)} />
             <View style={s.architectChip}>
-              <Avatar source={avatarFor(architect?.nickname)} size={22} ring={colors.magenta} glow={false} />
+              <Avatar source={avatarFor(architect?.nickname, architect?.avatar_id)} size={22} ring={colors.magenta} glow={false} />
               <Text style={s.architectLabel}>
                 Mimar:{' '}
                 <Text style={s.architectValue}>{architect?.nickname ?? '—'}</Text>
@@ -137,6 +140,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       <View style={s.canvasContainer}>
         <CanvasStudio ctx={ctx} size={size} />
       </View>
+
+      </ScrollView>
 
       {/* ================= TAKIM AYARLARI ================= */}
       <Sheet visible={open} onClose={() => setOpen(false)}>
@@ -224,7 +229,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
                     style={[s.memberRow, isArch ? s.memberRowActive : s.memberRowInactive]}
                   >
                     <View style={s.memberInfo}>
-                      <Avatar source={avatarFor(p.nickname)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
+                      <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
                       <Text style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}</Text>
                     </View>
                     <Chip
@@ -248,6 +253,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
 }
 
 const s = StyleSheet.create({
+  scroll: { flex: 1, minHeight: 0 },
+  scrollContent: { paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, paddingTop: 4 },
   headerLeft: { flex: 1, paddingRight: 14, gap: 4 },
   badgesRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 8 },
@@ -275,7 +282,7 @@ const s = StyleSheet.create({
   timeValue: { fontSize: 26, fontWeight: '900', lineHeight: 28 },
   timeUnit: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 
-  canvasContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  canvasContainer: { alignItems: 'center', paddingTop: 4 },
 
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   creatureNameDisplay: { color: colors.yellow, fontSize: 20, fontWeight: '800', paddingVertical: 2 },
