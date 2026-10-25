@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,StyleSheet,View,Pressable} from 'react-native';
+import {ActivityIndicator,StyleSheet,View,Pressable,TextInput} from 'react-native';
 import {api} from '../lib/api';
 import {Card,Muted,Title,Text,Btn} from './ui';
 
@@ -13,6 +13,22 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  const [clock,setClock]=useState(Date.now());
  const [busy,setBusy]=useState(false);
  const [feedback,setFeedback]=useState('');
+ const [messages,setMessages]=useState<{id:number;nickname:string;body:string}[]>([]);
+ const [draft,setDraft]=useState('');
+ const [sending,setSending]=useState(false);
+ useEffect(()=>{
+  if(!side)return;
+  let active=true;
+  const refresh=()=>api.survivorReadMessages(id).then(rows=>{if(active)setMessages(rows)}).catch(()=>{});
+  refresh();const timer=setInterval(refresh,1500);
+  return()=>{active=false;clearInterval(timer)};
+ },[id,side]);
+ const send=async()=>{
+  if(!draft.trim()||sending)return;
+  setSending(true);
+  try{await api.survivorSendMessage(id,draft.trim());setDraft('');setMessages(await api.survivorReadMessages(id))}
+  catch(e){onError?.((e as Error).message)}finally{setSending(false)}
+ };
  useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),200);return()=>clearInterval(t)},[]);
  const previewing=!!startsAt&&clock<Date.parse(startsAt)&&live;
  useEffect(()=>{
@@ -54,11 +70,22 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   {own?.failed?<Muted>Takımının denemesi bitti. Rakibin sonucu bekleniyor.</Muted>:null}
   {feedback?<Muted>{feedback}</Muted>:null}
   {busy?<ActivityIndicator/>:null}
+  <Title size={18}>Takım Sohbeti</Title>
+  <Muted>Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!</Muted>
+  <View style={styles.messages}>{messages.slice(-8).map(m=><Text key={m.id} style={styles.message}><Text style={styles.nickname}>{m.nickname}: </Text>{m.body}</Text>)}</View>
+  <View style={styles.compose}>
+   <TextInput value={draft} onChangeText={setDraft} placeholder="Takımına yaz..." placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
+   <Btn title="Gönder" size="sm" disabled={!live||!draft.trim()||sending} onPress={send}/>
+  </View>
  </Card>;
 }
 const styles=StyleSheet.create({
  notice:{color:'#BCEEFF',fontWeight:'700',textAlign:'center'},
  grid:{flexDirection:'row',flexWrap:'wrap',gap:6,alignSelf:'center',width:'100%',maxWidth:360,justifyContent:'center'},
  tile:{width:'18%',aspectRatio:1,borderRadius:9,borderWidth:2,alignItems:'center',justifyContent:'center'},
- symbol:{fontSize:20,color:'#fff',fontWeight:'800'}
+ symbol:{fontSize:20,color:'#fff',fontWeight:'800'},
+ messages:{gap:6,maxHeight:160,overflow:'hidden'},
+ message:{color:'#E5ECF8',fontSize:13},nickname:{color:'#74D9FF',fontWeight:'700'},
+ compose:{flexDirection:'row',gap:8,alignItems:'center'},
+ input:{flex:1,minHeight:42,borderWidth:1,borderColor:'#4B6382',borderRadius:9,paddingHorizontal:10,color:'#fff'}
 });
