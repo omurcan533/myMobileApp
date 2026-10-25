@@ -121,6 +121,13 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       failures=0;
       if(updated?.pong_state)setState(updated.pong_state as State);
       if(updated?.status==='done')stopped.current=true;
+      // Sunucu yöneticinin sekmesi uykuya girerse, başka bir oda üyesi fiziği sürdürür.
+      const lastTick=updated?.pong_state?.tick?Date.parse(updated.pong_state.tick):NaN;
+      if(mg.starts_at&&!data.room.paused&&updated?.status==='live'&&Number.isFinite(lastTick)&&serverNow()-lastTick>950){
+       const {data:recovered,error:failoverError}=await supabase.rpc('pong_tick',{p_minigame:mg.id});
+       if(recovered&&mounted)setState(recovered as State);
+       if(failoverError)console.warn('Pong host failover:',failoverError.message);
+      }
      }
     }
    }catch(e){
@@ -130,7 +137,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   void poll();
   const timer=setInterval(poll,me.is_host&&mg.starts_at?150:340);
   return ()=>{mounted=false;clearInterval(timer);};
- },[live,me.is_host,mg.id,mg.starts_at]);
+ },[live,me.is_host,mg.id,mg.starts_at,data.room.paused]);
 
  // İstek sırası aynı düğme için korunur: basma ardından bırakma sunucuya ters sırada gitmez.
  const sendHeld=(direction:number,pressed:boolean)=>{
