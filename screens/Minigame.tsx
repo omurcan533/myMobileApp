@@ -215,7 +215,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />
           </View>
         ) : mg.kind === 'line_connect' ? (
-          <LineConnectGame key={mg.id} disabled={!live || !go || data.room.paused} onWin={async (paths) => {
+          <LineConnectGame key={mg.id} board={mg.line_connect_state as any} disabled={!live || !go || data.room.paused} onWin={async (paths) => {
             try { await api.submitLineConnect(mg.id, paths); soundFx.correct(); haptic.success(); }
             catch (error) { show((error as Error).message, 'error'); }
           }} />
