@@ -7,7 +7,7 @@ import type { Ctx, Minigame } from '../lib/types';
 
 type State = {
  a1: string; a2: string; b1: string; b2: string;
- ay1: number; ay2: number; by1: number; by2: number;
+ ay: number; by: number;
  x: number; y: number; scoreA: number; scoreB: number;
 };
 const MAX_W = 320;
@@ -24,11 +24,10 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  const holding = useRef<ReturnType<typeof setInterval> | null>(null);
  const reactionId = useRef(0);
  const cheerChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
- const stateRef = useRef(state);
- stateRef.current = state;
  const active = live && !!mg.starts_at && !data.room.paused;
  const isHost = me.is_host;
  const mySlot = state ? (['a1','a2','b1','b2'] as const).find((k) => state[k] === me.id) : undefined;
+ const myDirection = mySlot ? (mySlot.endsWith('1') ? -1 : 1) : null;
  const players = useMemo(() => data.players, [data.players]);
  const playerName = (id?: string) => players.find((p) => p.id === id)?.nickname ?? 'Oyuncu';
  useEffect(() => {
@@ -67,10 +66,11 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  };
  useEffect(() => release, []);
  const move = (direction: number) => {
-  if (!active || !mySlot) return;
+  if (!active || myDirection !== direction) return;
   void supabase.rpc('pong_input', { p_minigame: mg.id, p_direction: direction });
  };
  const hold = (direction: number) => {
+  if (myDirection !== direction) return;
   release();
   move(direction);
   holding.current = setInterval(() => move(direction), 110);
@@ -90,30 +90,26 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
      <Title size={30}>{scoreA} : {scoreB}</Title>
      <Text style={styles.teamB}>TAKIM B</Text>
     </View>
-    <Muted style={{ textAlign: 'center' }}>İlk 5 gole ulaşan kazanır!</Muted>
+    <Muted style={{ textAlign: 'center' }}>Tek çubuk, iki oyuncu! Biri yukarı, diğeri aşağı yönlendirir. İlk 5 gol kazanır.</Muted>
     {state ? (
      <View style={[styles.board, { width: W }]}>
       <View style={[styles.middle, { left: W / 2 }]} />
-      <View style={[styles.paddle, styles.left, { top: state.ay1 * H - PAD / 2, backgroundColor: colors.cyan }]} />
-      <View style={[styles.paddle, styles.left, { top: state.ay2 * H - PAD / 2, backgroundColor: colors.cyan }]} />
-      <View style={[styles.paddle, styles.right, { top: state.by1 * H - PAD / 2, backgroundColor: colors.gold }]} />
-      <View style={[styles.paddle, styles.right, { top: state.by2 * H - PAD / 2, backgroundColor: colors.gold }]} />
+      <View style={[styles.paddle, styles.left, { top: state.ay * H - PAD / 2, backgroundColor: colors.cyan }]} />
+      <View style={[styles.paddle, styles.right, { top: state.by * H - PAD / 2, backgroundColor: colors.gold }]} />
       <View style={[styles.ball, { left: state.x * W - 6, top: state.y * H - 6 }]} />
      </View>
     ) : <Muted>Maç hazırlanıyor…</Muted>}
     <View style={styles.teams}>
-     <View style={{ flex: 1 }}><Text style={styles.teamA}>{playerName(state?.a1)}</Text><Text style={styles.teamA}>{playerName(state?.a2)}</Text></View>
-     <View style={{ flex: 1, alignItems: 'flex-end' }}><Text style={styles.teamB}>{playerName(state?.b1)}</Text><Text style={styles.teamB}>{playerName(state?.b2)}</Text></View>
+     <View style={{ flex: 1 }}><Text style={styles.teamA}>▲ {playerName(state?.a1)}</Text><Text style={styles.teamA}>▼ {playerName(state?.a2)}</Text></View>
+     <View style={{ flex: 1, alignItems: 'flex-end' }}><Text style={styles.teamB}>▲ {playerName(state?.b1)}</Text><Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text></View>
     </View>
     {mySlot && active ? (
      <View style={{ gap: 10 }}>
-      <Title size={17} style={{ textAlign: 'center' }}>Sen oynuyorsun! Çubuğunu hareket ettir.</Title>
+      <Title size={17} style={{ textAlign: 'center' }}>{myDirection === -1 ? 'Sen YUKARI oyuncususun ▲' : 'Sen AŞAĞI oyuncususun ▼'}</Title>
       <View style={styles.controls}>
-       {([-1, 1] as const).map((direction) => (
-        <Tap key={direction} onPressIn={() => hold(direction)} onPressOut={release} onPress={() => move(direction)} style={styles.control}>
-         <Text style={styles.controlText}>{direction < 0 ? '▲  YUKARI' : '▼  AŞAĞI'}</Text>
-        </Tap>
-       ))}
+       <Tap onPressIn={() => hold(myDirection!)} onPressOut={release} onPress={() => move(myDirection!)} style={styles.control}>
+        <Text style={styles.controlText}>{myDirection === -1 ? '▲  YUKARI' : '▼  AŞAĞI'}</Text>
+       </Tap>
       </View>
      </View>
     ) : <Muted style={{ textAlign: 'center' }}>{live ? 'Seyircisin! Arkadaşlarını destekle.' : 'Maç tamamlandı.'}</Muted>}
