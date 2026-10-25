@@ -22,9 +22,35 @@ function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls
  if(!playing)return p;
  let ay=clamp(p.ay+0.9*dt*(Number(controls.aDown)-Number(controls.aUp)),0.105,0.895);
  let by=clamp(p.by+0.9*dt*(Number(controls.bDown)-Number(controls.bUp)),0.105,0.895);
- let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
+ const oldX=p.x,oldY=p.y;
+ let x=oldX+v.vx*dt,y=oldY+v.vy*dt;
  if(y<0.025){y=0.025;v.vy=Math.abs(v.vy);}
  if(y>0.975){y=0.975;v.vy=-Math.abs(v.vy);}
+ // Match the server's swept collision: intersect at the paddle plane,
+ // then advance through the unused part of this frame after reflection.
+ if(v.vx<0&&oldX>0.065&&x<=0.065){
+  const hitTime=clamp((0.065-oldX)/v.vx,0,dt);
+  const hitY=clamp(oldY+v.vy*hitTime,0.025,0.975);
+  const paddleAtHit=clamp(p.ay+0.9*hitTime*(Number(controls.aDown)-Number(controls.aUp)),0.105,0.895);
+  if(Math.abs(hitY-paddleAtHit)<=0.125){
+   const outgoing=Math.abs(v.vx)*1.045;
+   v.vy+=(hitY-paddleAtHit)*0.3;
+   v.vx=outgoing;
+   x=0.065+outgoing*(dt-hitTime);
+   y=hitY+v.vy*(dt-hitTime);
+  }
+ }else if(v.vx>0&&oldX<0.935&&x>=0.935){
+  const hitTime=clamp((0.935-oldX)/v.vx,0,dt);
+  const hitY=clamp(oldY+v.vy*hitTime,0.025,0.975);
+  const paddleAtHit=clamp(p.by+0.9*hitTime*(Number(controls.bDown)-Number(controls.bUp)),0.105,0.895);
+  if(Math.abs(hitY-paddleAtHit)<=0.125){
+   const outgoing=Math.abs(v.vx)*1.045;
+   v.vy+=(hitY-paddleAtHit)*0.3;
+   v.vx=-outgoing;
+   x=0.935-outgoing*(dt-hitTime);
+   y=hitY+v.vy*(dt-hitTime);
+  }
+ }
  return {x:clamp(x,-0.08,1.08),y:clamp(y,0.025,0.975),ay,by};
 }
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
@@ -39,6 +65,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const velocity=useRef({vx:0.46,vy:0.23});
  const lastScore=useRef('');
  const serverState=useRef<PongFrameState|null>(null);
+ const predictedHit=useRef<{direction:number;at:number}|null>(null);
  const currentHeld=useRef(held);
  const params=useRef({playing,mySide,allowedDirections});
  useEffect(()=>{
@@ -58,6 +85,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    display.current={x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)};
    velocity.current={vx:num(state.vx,0.46),vy:num(state.vy,0.23)};
    lastScore.current=key;
+   predictedHit.current=null;
   }else{
    // Correct once per fresh server packet. Never pull every frame toward an old packet.
    const p=display.current;
@@ -72,13 +100,22 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
    const localV=velocity.current;
-   // The server owns every paddle collision and goal decision.
-   // Reconcile its confirmed direction immediately; never invent a rebound.
-   const directionChanged=Math.sign(vx)!==Math.sign(localV.vx);
-   if(directionChanged || error>0.22){
+   const predicted=predictedHit.current;
+   if(predicted&&Math.sign(vx)!==predicted.direction){
+    if(serverNow()-predicted.at<420){
+     // Incoming packets may predate a locally predicted hit.
+     // Do not rewind the ball into the paddle while confirmation is in flight.
+     return;
+    }
+    predictedHit.current=null;
     display.current={...p,x,y};
-   }else if(error>0.04){
-    display.current={...p,x:p.x+(x-p.x)*0.18,y:p.y+(y-p.y)*0.18};
+   }else{
+    if(predicted)predictedHit.current=null;
+    if(Math.sign(vx)!==Math.sign(localV.vx)||error>0.24){
+     display.current={...p,x,y};
+    }else if(error>0.055){
+     display.current={...p,x:p.x+(x-p.x)*0.15,y:p.y+(y-p.y)*0.15};
+    }
    }
    localV.vx=vx;
    localV.vy=vy;
@@ -102,9 +139,11 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      bDown:cfg.mySide==='B'&&cfg.allowedDirections.includes(1)?pressed.down:valid('holdBDown'),
     };
     const p=display.current;
-    // Continue toward the goal line until the server confirms a hit or goal.
-    // Do not pin the ball at the paddle while awaiting a network update.
+    const inbound=Math.sign(velocity.current.vx);
     const next=step(p,velocity.current,dt,cfg.playing,controls);
+    if(inbound!==Math.sign(velocity.current.vx)){
+     predictedHit.current={direction:Math.sign(velocity.current.vx),at:serverNow()};
+    }
     // No stale-packet correction inside the animation loop.
     display.current=next;
     ballX.setValue(next.x*width-6);ballY.setValue(next.y*height-6);
