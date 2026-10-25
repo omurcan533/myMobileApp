@@ -71,7 +71,7 @@ export function useRoom(roomId: string) {
     load();
 
     const ch = supabase.channel(`room-${roomId}`);
-    for (const table of ['players', 'room_teams', 'room_rounds', 'round_answers', 'team_pieces', 'room_minigames', 'canvas_items', 'votes', 'round_reveals']) {
+    for (const table of ['players', 'room_teams', 'room_rounds', 'round_answers', 'team_pieces', 'canvas_items', 'votes', 'round_reveals']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `room_id=eq.${roomId}` }, schedule);
     }
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, schedule);
