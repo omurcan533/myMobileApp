@@ -32,6 +32,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   // Board size follows the available width, not the remaining viewport height.
   // The entire building screen scrolls, so the board never overlaps the timer or controls.
   const size = Math.max(180, Math.min(width - 52, 420));
+  const isArchitect = me.is_architect || (mates.length === 1 && architect?.id === me.id);
 
   const tColor = teamColor(me.team_side);
   const secs = Math.ceil(Math.max(0, left));
@@ -91,8 +92,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       </Card>
 
       {/* ================= HAZIRLIK BUTONU (Yalnızca Mimar) ================= */}
-      <View style={{ marginBottom: 10 }}>
-        {me.is_architect ? (
+      <View style={s.readySection}>
+        {isArchitect ? (
           <Btn
             title={
               isMyTeamReady
@@ -282,7 +283,8 @@ const s = StyleSheet.create({
   timeValue: { fontSize: 26, fontWeight: '900', lineHeight: 28 },
   timeUnit: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 
-  canvasContainer: { alignItems: 'center', paddingTop: 4 },
+  readySection: { marginBottom: 20, minHeight: 66, zIndex: 1 },
+  canvasContainer: { alignItems: 'center', paddingTop: 12, zIndex: 0 },
 
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   creatureNameDisplay: { color: colors.yellow, fontSize: 20, fontWeight: '800', paddingVertical: 2 },
