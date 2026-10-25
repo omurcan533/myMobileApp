@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import Svg, { Circle, Polyline } from 'react-native-svg';
 import { Card, Muted, Title, Btn } from './ui';
 
 type Point=[number,number];
@@ -146,10 +146,6 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   <Muted>6 renkli nokta çiftini boş alanda birleştir. Çizgiler birbirini kesemez ve başka renkteki noktalardan geçemez. Parmağını sürükle; gerekirse bir renge yeniden başla.</Muted>
   <View {...pan.panHandlers} onLayout={e=>setBoardWidth(e.nativeEvent.layout.width)} style={styles.board}>
    <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 1000 1000">
-    {Array.from({length:11},(_,i)=><React.Fragment key={i}>
-     <Line x1={i*100} y1="0" x2={i*100} y2="1000" stroke="#ffffff" strokeOpacity={0.035}/>
-     <Line x1="0" y1={i*100} x2="1000" y2={i*100} stroke="#ffffff" strokeOpacity={0.035}/>
-    </React.Fragment>)}
     {paths.map((path,i)=>path.length>1?<Polyline key={i} points={path.map(p=>p.join(',')).join(' ')} fill="none" stroke={COLORS[i]} strokeWidth={24} strokeLinecap="round" strokeLinejoin="round"/>:null)}
     {board.pairs.map((pair,i)=>pair.map((p,j)=><React.Fragment key={i+'-'+j}>
      <Circle cx={p[0]} cy={p[1]} r={42} fill={COLORS[i]} fillOpacity={0.15}/>
