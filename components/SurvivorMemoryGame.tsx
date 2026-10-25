@@ -66,7 +66,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
       Animated.timing(flash,{toValue:0,duration:450,useNativeDriver:false}),
      ]).start();
     }
-    setFeedback(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! İlk sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!');
+    setFeedback(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! Bir önceki sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!');
     if(animationRef.current)clearTimeout(animationRef.current);
     animationRef.current=setTimeout(()=>{setFlipped(null);setAnimationBusy(false)},1100);
    }
@@ -74,7 +74,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  };
  return <Card style={{gap:12}}>
   <Title size={23}>Survivor Hafıza Parkuru</Title>
-  <Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Yanlış fayansa basarsan hangi sırada olursan ol en başa dönersin. Yalnızca kaptan seçim yapar.</Muted>
+  <Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.</Muted>
   {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!startsAt?'Başlaması bekleniyor':isCaptain?'Sıra sende, kaptan!':'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
   <Animated.View style={[styles.grid,{transform:[{scale:flipScale}],backgroundColor:flash.interpolate({inputRange:[0,1],outputRange:['transparent','#A82D41']})}]}>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
