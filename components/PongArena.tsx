@@ -1,6 +1,7 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { alpha, colors } from '../lib/theme';
+import { serverNow } from '../lib/serverTime';
 
 export type PongFrameState = {
  x:number; y:number; vx:number; vy:number; ay:number; by:number;
@@ -79,7 +80,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    if(snap){
     const cfg=params.current;
     const secs=cfg.playing?clamp((now-snap.at)/1000,0,0.42):0;
-    const target=predict(snap.s,secs,cfg.playing,cfg.mySide,cfg.allowedDirections,currentHeld.current,pressedAt.current,now);
+    const target=predict(snap.s,secs,cfg.playing,cfg.mySide,cfg.allowedDirections,currentHeld.current,pressedAt.current,serverNow());
     const factor=1-Math.exp(-22*delta),old=display.current;
     const next:Point={x:old.x+(target.x-old.x)*factor,y:old.y+(target.y-old.y)*factor,ay:old.ay+(target.ay-old.ay)*factor,by:old.by+(target.by-old.by)*factor};
     display.current=next;
