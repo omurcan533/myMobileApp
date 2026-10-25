@@ -13,6 +13,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
  const [votes, setVotes] = useState<Vote[]>([]);
  const [state, setState] = useState<PongState>((mg as Minigame & { pong_state?: PongState }).pong_state ?? {});
  const [busy, setBusy] = useState(false);
+ const [approved, setApproved] = useState(false);
  const [now, setNow] = useState(Date.now());
  const { toast, show } = useToast();
  const deadline = mg.resolved_at ? Date.parse(mg.resolved_at) + 30000 : 0;
@@ -30,11 +31,12 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   const refresh = async () => {
    const [v, m] = await Promise.all([
     supabase.from('pong_rematch_votes').select('player_id,yes').eq('minigame_id',mg.id),
-    supabase.from('room_minigames').select('pong_state').eq('id',mg.id).single(),
+    supabase.from('room_minigames').select('pong_state,rematch_approved_at').eq('id',mg.id).single(),
    ]);
    if (!alive) return;
    if (v.data) setVotes(v.data as Vote[]);
    if (m.data?.pong_state) setState(m.data.pong_state as PongState);
+   if (m.data) setApproved(!!m.data.rematch_approved_at);
    setNow(Date.now());
   };
   void refresh();
@@ -42,7 +44,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   return () => { alive = false; clearInterval(timer); };
  }, [mg.id]);
  const vote = async (value: boolean) => {
-  if (busy || remaining === 0) return;
+  if (busy || remaining === 0 || approved) return;
   setBusy(true);
   const { error } = await supabase.rpc('pong_vote_rematch',{ p_minigame: mg.id,p_yes:value });
   if (error) show(error.message,'error');
@@ -52,7 +54,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   setBusy(false);
  };
  const transfer = async (target: string) => {
-  if (busy || !myRole || remaining === 0) return;
+  if (busy || !myRole || (!approved && remaining === 0)) return;
   setBusy(true);
   const { error } = await supabase.rpc('pong_transfer_role',{p_minigame:mg.id,p_target:target});
   if (error) show(error.message,'error');
@@ -60,6 +62,13 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
    setState(old => ({...old,['rematch_'+myRole]:target}));
    show('Rövanş rolün takım arkadaşına devredildi.','success');
   }
+  setBusy(false);
+ };
+ const start = async () => {
+  if (!me.is_host || busy || !approved) return;
+  setBusy(true);
+  const { error } = await supabase.rpc('pong_start_rematch',{p_minigame:mg.id});
+  if (error) show(error.message,'error');
   setBusy(false);
  };
  if (!isOriginal) return null;
@@ -71,14 +80,14 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
     <Muted>Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.</Muted>
     <Text style={{ color: colors.text, fontWeight: '800' }}>Evet: {yes} / {needed} gerekli · {votes.length}/{data.players.length} oy</Text>
     <Muted>Oylama için kalan süre: {remaining} sn</Muted>
-    {remaining > 0 ? (
+    {approved ? <View style={{ gap: 8 }}><Title size={18}>🎉 Rövanş kabul edildi!</Title><Muted>Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.</Muted>{me.is_host && <Btn title="Rövanşı Hazırla" tone="success" disabled={busy} onPress={start} />}</View> : remaining > 0 ? (
      <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? '✓ EVET' : 'EVET'} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === false ? '✓ HAYIR' : 'HAYIR'} tone="ghost" disabled={busy} onPress={() => vote(false)} /></View>
      </View>
     ) : <Muted>Oylama süresi doldu. Yeterli çoğunluk sağlanmadıysa oyun akışı devam eder.</Muted>}
    </Card>
-   {myRole && remaining > 0 && (
+   {myRole && (approved || remaining > 0) && (
     <Card style={{ gap: 10 }}>
      <Title size={18}>Rolü Devret</Title>
      <Muted>Rövanşta kendi {myRole.endsWith('1') ? '▲ YUKARI' : '▼ AŞAĞI'} rolünü aynı takımdan başka bir oyuncuya devredebilirsin. Bu seçim yalnızca rövanş için geçerlidir.</Muted>
