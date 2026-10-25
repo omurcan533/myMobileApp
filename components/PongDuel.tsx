@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { Btn, Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
+import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { colors, alpha } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
 
@@ -10,7 +10,7 @@ type State = {
  ay1: number; ay2: number; by1: number; by2: number;
  x: number; y: number; scoreA: number; scoreB: number;
 };
-const W = 320;
+const W = 280;
 const H = 220;
 const PAD = 44;
 const emojiList = ['👏', '🔥', '😂', '😱', '❤️'];
@@ -21,6 +21,7 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  const [reaction, setReaction] = useState<{ emoji: string; id: number } | null>(null);
  const holding = useRef<ReturnType<typeof setInterval> | null>(null);
  const reactionId = useRef(0);
+ const cheerChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
  const stateRef = useRef(state);
  stateRef.current = state;
  const active = live && !!mg.starts_at && !data.room.paused;
@@ -36,8 +37,9 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
   channel.on('broadcast', { event: 'cheer' }, ({ payload }) => {
    setReaction({ emoji: String(payload?.emoji ?? '👏'), id: ++reactionId.current });
   });
+  cheerChannel.current = channel;
   channel.subscribe();
-  return () => { void supabase.removeChannel(channel); };
+  return () => { cheerChannel.current = null; void supabase.removeChannel(channel); };
  }, [mg.id]);
  useEffect(() => {
   if (!active) return;
@@ -73,7 +75,7 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  };
  const cheer = (emoji: string) => {
   setReaction({ emoji, id: ++reactionId.current });
-  void supabase.channel('pong-' + mg.id).send({ type: 'broadcast', event: 'cheer', payload: { emoji } });
+  void cheerChannel.current?.send({ type: 'broadcast', event: 'cheer', payload: { emoji } });
  };
  const scoreA = state?.scoreA ?? 0;
  const scoreB = state?.scoreB ?? 0;
