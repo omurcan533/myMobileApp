@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
 
+const canVibrateOnWeb = () =>
+  typeof navigator !== 'undefined' &&
+  typeof navigator.vibrate === 'function' &&
+  (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive !== false;
+
 /**
  * Universal Haptics Manager:
  * Hem Expo mobil cihazlarda (expo-haptics) hem de mobil web/tarayıcılarda (navigator.vibrate)
@@ -8,7 +13,7 @@ import { Platform } from 'react-native';
 export const haptic = {
   light: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate(12);
         return;
       }
@@ -19,7 +24,7 @@ export const haptic = {
 
   medium: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate(28);
         return;
       }
@@ -30,7 +35,7 @@ export const haptic = {
 
   heavy: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate(50);
         return;
       }
@@ -41,7 +46,7 @@ export const haptic = {
 
   success: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate([15, 30, 20]);
         return;
       }
@@ -52,7 +57,7 @@ export const haptic = {
 
   error: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate([40, 40, 40]);
         return;
       }
@@ -63,7 +68,7 @@ export const haptic = {
 
   selection: async () => {
     try {
-      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (Platform.OS === 'web' && canVibrateOnWeb()) {
         navigator.vibrate(8);
         return;
       }
