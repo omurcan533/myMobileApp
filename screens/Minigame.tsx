@@ -9,6 +9,7 @@ import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
 import { LineConnectGame } from '../components/LineConnectGame';
 import { SongCompleteGame } from '../components/SongCompleteGame';
 import { FriendMemoryQuiz } from '../components/FriendMemoryQuiz';
+import { PartyBreak } from '../components/PartyBreak';
 import { PongRematch } from '../components/PongRematch';
 import { Scoreboard } from '../components/Scoreboard';
 import {
@@ -185,6 +186,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           onPress={togglePause}
         />
       </View>}
+
+        <PartyBreak roomId={data.room.id} players={data.players} myId={me.id} isHost={me.is_host} canStart={!live && mg.kind !== 'pong'} />
 
         {mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
 
