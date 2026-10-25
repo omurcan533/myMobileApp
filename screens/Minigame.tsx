@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { PongDuel } from '../components/PongDuel';
+import { PongRematch } from '../components/PongRematch';
 import { Scoreboard } from '../components/Scoreboard';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, TimerBar, Title, Text, useToast,
@@ -255,6 +256,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           />
         )}
 
+        {!live && mg.kind === 'pong' && <PongRematch ctx={ctx} mg={mg} />}
+
         {/* Katılım Durumu */}
         {mg.kind !== 'pong' && <View style={s.progressWrap}>
           <View style={s.progressHead}>
@@ -286,7 +289,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           />
         )}
 
-        {!live && (
+        {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>Mini oyun sonuçları</Eyebrow>
             {me.is_host ? (
