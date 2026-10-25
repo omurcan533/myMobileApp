@@ -91,6 +91,7 @@ export const api = {
   partyEventStart: (room:string,kind:string,prompt:string)=>rpc<string>('party_event_start',{p_room:room,p_kind:kind,p_prompt:prompt}),
   partyEventVote: (event:string,target:string|null,answer:string|null=null)=>rpc<void>('party_event_vote',{p_event:event,p_target:target,p_answer:answer}),
   partyEventFinish: (event:string)=>rpc<void>('party_event_finish',{p_event:event}),
+  partyLastAgeEvent: (room:string)=>rpc<string|null>('party_last_age_event',{p_room:room}),
   partyAgeResults: (event:string)=>rpc<{player_id:string;correct:number;total:number}[]>('party_age_results',{p_event:event}),
   saveFriendFacts: (room: string, facts: Record<string,string>) => rpc<void>('save_friend_facts',{p_room:room,p_facts:facts}),
   friendFactProgress: (room: string) => rpc<{player_id:string;count:number}[]>('friend_fact_progress',{p_room:room}),
