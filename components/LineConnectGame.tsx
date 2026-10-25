@@ -1,135 +1,164 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { Card, Muted, Title, Btn } from './ui';
 
-type Cell = [number, number];
-type Pair = { color: string; start: Cell; end: Cell };
-const SIZE = 6;
-const PAIRS: Pair[] = [
- { color: '#FF6B6B', start: [0,0], end: [5,4] },
- { color: '#65D6FF', start: [0,3], end: [4,5] },
- { color: '#FFD166', start: [2,0], end: [5,3] },
- { color: '#9AE66E', start: [1,2], end: [3,4] },
-];
-const key = ([r,c]: Cell) => r*SIZE+c;
-const endpoints = new Map<number,number>();
-PAIRS.forEach((p,i)=>{endpoints.set(key(p.start),i);endpoints.set(key(p.end),i);});
-const adjacent=(a:number,b:number)=>Math.abs(Math.floor(a/SIZE)-Math.floor(b/SIZE))+Math.abs(a%SIZE-b%SIZE)===1;
-const isComplete=(paths:number[][])=>paths.every((p,i)=>p.length>1&&
- (p[0]===key(PAIRS[i].start)&&p[p.length-1]===key(PAIRS[i].end)||
-  p[0]===key(PAIRS[i].end)&&p[p.length-1]===key(PAIRS[i].start)));
+type Point=[number,number];
+export type LineBoard={version:number;level:number;pairs:Point[][]};
+const COLORS=['#FF6B6B','#65D6FF','#FFD166','#9AE66E','#D6A2FF','#FF9B60'];
+const DEMO:LineBoard={version:2,level:1,pairs:[
+ [[305,838],[838,695]],[[500,890],[695,838]],[[890,500],[162,695]],
+ [[838,305],[110,500]],[[695,162],[500,110]]
+]};
+const dist=(a:Point,b:Point)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+const cross=(a:Point,b:Point,c:Point)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+const intersects=(a:Point,b:Point,c:Point,d:Point)=>{
+ const ab1=cross(a,b,c),ab2=cross(a,b,d),cd1=cross(c,d,a),cd2=cross(c,d,b);
+ return ab1*ab2<=0&&cd1*cd2<=0&&
+ Math.max(Math.min(a[0],b[0]),Math.min(c[0],d[0]))<=Math.min(Math.max(a[0],b[0]),Math.max(c[0],d[0]))&&
+ Math.max(Math.min(a[1],b[1]),Math.min(c[1],d[1]))<=Math.min(Math.max(a[1],b[1]),Math.max(c[1],d[1]));
+};
+const segmentDistance=(p:Point,a:Point,b:Point)=>{
+ const dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1)));
+ return dist(p,[a[0]+dx*t,a[1]+dy*t]);
+};
+const complete=(paths:Point[][][],board:LineBoard)=>paths.every((p,i)=>p.length>=2&&
+ (dist(p[0],board.pairs[i][0])<1&&dist(p[p.length-1],board.pairs[i][1])<1||
+ dist(p[0],board.pairs[i][1])<1&&dist(p[p.length-1],board.pairs[i][0])<1));
 
-export function LineConnectGame({ onWin, disabled=false }: { onWin?:(paths:number[][])=>void; disabled?:boolean }) {
- const [paths,setPaths]=useState<number[][]>(()=>PAIRS.map(()=>[]));
+export function LineConnectGame({onWin,disabled=false,board:given}:{
+ onWin?:(paths:Point[][])=>void|Promise<void>;disabled?:boolean;board?:LineBoard|null;
+}) {
+ const board=given?.version===2&&given.pairs?.length===6?given:DEMO;
+ const [paths,setPaths]=useState<Point[][][]>(()=>board.pairs.map(()=>[]));
  const [active,setActive]=useState<number|null>(null);
  const [completed,setCompleted]=useState(false);
  const [boardWidth,setBoardWidth]=useState(0);
- const pathsRef=useRef<number[][]>(PAIRS.map(()=>[]));
+ const pathsRef=useRef<Point[][][]>(board.pairs.map(()=>[]));
  const activeRef=useRef<number|null>(null);
  const completedRef=useRef(false);
- const disabledRef=useRef(disabled);
- const winRef=useRef(onWin);
  const widthRef=useRef(0);
- const lastPoint=useRef<{x:number;y:number}|null>(null);
- disabledRef.current=disabled;winRef.current=onWin;widthRef.current=boardWidth;
+ const disabledRef=useRef(disabled);
+ const boardRef=useRef(board);
+ const winRef=useRef(onWin);
+ const lastTouch=useRef<Point|null>(null);
+ const moved=useRef(false);
+ widthRef.current=boardWidth;disabledRef.current=disabled;boardRef.current=board;winRef.current=onWin;
 
- const commit=useCallback((next:number[][])=>{
-  pathsRef.current=next;
-  setPaths(next);
-  if(!completedRef.current&&isComplete(next)){
-   completedRef.current=true;
-   setCompleted(true);
-   activeRef.current=null;
-   setActive(null);
-   winRef.current?.(next);
+ const commit=useCallback((next:Point[][][])=>{
+  pathsRef.current=next;setPaths(next);
+  if(!completedRef.current&&complete(next,boardRef.current)){
+   completedRef.current=true;setCompleted(true);
+   activeRef.current=null;setActive(null);
+   winRef.current?.(next.map(path=>path.map(p=>[Math.round(p[0]),Math.round(p[1])] as Point)));
   }
  },[]);
- const choose=useCallback((cell:number)=>{
-  if(disabledRef.current||completedRef.current)return;
-  const end=endpoints.get(cell);
-  const current=activeRef.current;
-  if(end!==undefined){
-   if(current===end){
-    const path=pathsRef.current[end];
-    if(path.length&&path[0]!==cell&&adjacent(path[path.length-1],cell)){
-     commit(pathsRef.current.map((p,i)=>i===end?[...p,cell]:p));
-     activeRef.current=null;setActive(null);
-     return;
-    }
+ const endpointAt=useCallback((p:Point)=>{
+  for(let i=0;i<boardRef.current.pairs.length;i++)
+   for(let j=0;j<2;j++)if(dist(p,boardRef.current.pairs[i][j])<=46)return {color:i,point:boardRef.current.pairs[i][j]};
+  return null;
+ },[]);
+ const canAdd=useCallback((color:number,p:Point)=>{
+  const all=pathsRef.current, path=all[color],prev=path[path.length-1];
+  if(!prev||dist(prev,p)<1)return false;
+  const segmentA=prev,segmentB=p;
+  for(let i=0;i<all.length;i++){
+   const points=all[i];
+   for(let j=1;j<points.length;j++){
+    if(i===color&&j===points.length-1)continue;
+    if(intersects(segmentA,segmentB,points[j-1],points[j]))return false;
    }
-   // Only start or restart at an endpoint; don't steal another color's endpoint.
-   const next=pathsRef.current.map((p,i)=>i===end?[cell]:p);
-   activeRef.current=end;setActive(end);commit(next);
-   return;
   }
-  if(current===null)return;
-  const path=pathsRef.current[current];
-  if(!path.length)return;
-  const last=path[path.length-1];
-  if(path.length>1&&cell===path[path.length-2]){
-   commit(pathsRef.current.map((p,i)=>i===current?p.slice(0,-1):p));
-   return;
-  }
-  if(!adjacent(last,cell))return;
-  if(endpoints.has(cell))return;
-  if(pathsRef.current.some((p,i)=>i!==current&&p.includes(cell)))return;
-  if(path.includes(cell))return;
-  commit(pathsRef.current.map((p,i)=>i===current?[...p,cell]:p));
- },[commit]);
- const pointToCell=useCallback((x:number,y:number)=>{
-  const width=widthRef.current;
-  if(width<=0||x<0||y<0||x>=width||y>=width)return null;
-  const row=Math.min(SIZE-1,Math.floor(y/width*SIZE));
-  const col=Math.min(SIZE-1,Math.floor(x/width*SIZE));
-  return row*SIZE+col;
+  for(let i=0;i<boardRef.current.pairs.length;i++)if(i!==color)
+   for(const dot of boardRef.current.pairs[i])
+    if(segmentDistance(dot,segmentA,segmentB)<35)return false;
+  return true;
  },[]);
- const trace=useCallback((x:number,y:number)=>{
-  const previous=lastPoint.current;
-  const steps=previous?Math.max(1,Math.ceil(Math.hypot(x-previous.x,y-previous.y)/Math.max(1,widthRef.current/18))):1;
-  for(let i=previous?1:0;i<=steps;i++){
-   const t=i/steps;
-   const cell=pointToCell(previous?previous.x+(x-previous.x)*t:x,previous?previous.y+(y-previous.y)*t:y);
-   if(cell!==null)choose(cell);
+ const advance=useCallback((point:Point)=>{
+  if(disabledRef.current||completedRef.current)return;
+  const color=activeRef.current;
+  if(color===null)return;
+  const path=pathsRef.current[color],last=path[path.length-1];
+  if(!last)return;
+  const end=boardRef.current.pairs[color].find(dot=>dist(dot,path[0])>1);
+  if(!end)return;
+  if(dist(point,end)<=44){
+   if(canAdd(color,end)){
+    commit(pathsRef.current.map((p,i)=>i===color?[...p,end]:p));
+    activeRef.current=null;setActive(null);
+   }
+   return;
   }
-  lastPoint.current={x,y};
- },[choose,pointToCell]);
- const startRef=useRef<(x:number,y:number)=>void>(()=>{});
- const moveRef=useRef<(x:number,y:number)=>void>(()=>{});
- const endRef=useRef<()=>void>(()=>{});
- startRef.current=(x,y)=>{lastPoint.current=null;trace(x,y);};
- moveRef.current=(x,y)=>trace(x,y);
- endRef.current=()=>{lastPoint.current=null;};
+  // Pulling backwards erases the last portion of the line.
+  if(path.length>2&&dist(point,path[path.length-2])<19){
+   commit(pathsRef.current.map((p,i)=>i===color?p.slice(0,-1):p));
+   return;
+  }
+  if(dist(last,point)<14||path.length>=238)return;
+  if(canAdd(color,point))commit(pathsRef.current.map((p,i)=>i===color?[...p,point]:p));
+ },[canAdd,commit]);
+ const begin=useCallback((point:Point)=>{
+  if(disabledRef.current||completedRef.current)return;
+  const end=endpointAt(point);
+  if(end){
+   const color=end.color;
+   if(activeRef.current===color&&pathsRef.current[color].length&&dist(pathsRef.current[color][0],end.point)>1){
+    advance(end.point);return;
+   }
+   activeRef.current=color;setActive(color);
+   commit(pathsRef.current.map((p,i)=>i===color?[end.point]:p));
+  }else advance(point);
+ },[advance,commit,endpointAt]);
+ const coords=useCallback((x:number,y:number):Point|null=>{
+  const width=widthRef.current;
+  if(!width||x<0||y<0||x>width||y>width)return null;
+  return [x/width*1000,y/width*1000];
+ },[]);
+ const start=useCallback((x:number,y:number)=>{
+  const p=coords(x,y);lastTouch.current=p;moved.current=false;
+  if(p)begin(p);
+ },[begin,coords]);
+ const move=useCallback((x:number,y:number)=>{
+  const p=coords(x,y),previous=lastTouch.current;
+  if(!p)return;
+  if(previous&&dist(p,previous)>5)moved.current=true;
+  const steps=previous?Math.min(32,Math.max(1,Math.ceil(dist(p,previous)/16))):1;
+  for(let i=1;i<=steps;i++){
+   const t=i/steps;
+   advance(previous?[previous[0]+(p[0]-previous[0])*t,previous[1]+(p[1]-previous[1])*t]:p);
+  }
+  lastTouch.current=p;
+ },[advance,coords]);
+ const startRef=useRef(start),moveRef=useRef(move);
+ startRef.current=start;moveRef.current=move;
  const pan=useRef(PanResponder.create({
   onStartShouldSetPanResponder:()=>true,
   onMoveShouldSetPanResponder:()=>true,
   onPanResponderGrant:e=>startRef.current(e.nativeEvent.locationX,e.nativeEvent.locationY),
   onPanResponderMove:e=>moveRef.current(e.nativeEvent.locationX,e.nativeEvent.locationY),
-  onPanResponderRelease:()=>endRef.current(),
-  onPanResponderTerminate:()=>endRef.current(),
+  onPanResponderRelease:()=>{lastTouch.current=null;},
+  onPanResponderTerminate:()=>{lastTouch.current=null;},
   onPanResponderTerminationRequest:()=>false,
  })).current;
- const reset=()=>{const fresh=PAIRS.map(()=>[] as number[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastPoint.current=null;};
+ const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastTouch.current=null;};
  return <Card style={{gap:12}}>
-  <Title size={22}>Çizgi Birleştirme</Title>
-  <Muted>Renkli noktaya basılı tutup diğer aynı renkli noktaya sürükle. Parmağını geri çekerek çizgiyi silebilirsin. İstersen karelere tek tek de dokunabilirsin.</Muted>
+  <Title size={22}>Çizgi Birleştirme · Bölüm {board.level}</Title>
+  <Muted>6 renkli nokta çiftini boş alanda birleştir. Çizgiler birbirini kesemez ve başka renkteki noktalardan geçemez. Parmağını sürükle; gerekirse bir renge yeniden başla.</Muted>
   <View {...pan.panHandlers} onLayout={e=>setBoardWidth(e.nativeEvent.layout.width)} style={styles.board}>
-   {Array.from({length:SIZE*SIZE},(_,cell)=>{
-    const owner=paths.findIndex(path=>path.includes(cell));
-    const endpoint=endpoints.get(cell);
-    const colorIndex=owner>=0?owner:endpoint;
-    const color=colorIndex===undefined?undefined:PAIRS[colorIndex].color;
-    return <View key={cell} pointerEvents="none" style={[styles.cell,{width:boardWidth? (boardWidth-10)/SIZE:'16%',height:boardWidth?(boardWidth-10)/SIZE:45,backgroundColor:color?color+'55':'#15233B',borderColor:color??'#36415A'}]}>
-     {endpoint!==undefined?<View style={[styles.dot,{backgroundColor:PAIRS[endpoint].color}]}/>:owner>=0?<View style={[styles.line,{backgroundColor:PAIRS[owner].color}]}/>:null}
-    </View>;
-   })}
+   <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 1000 1000">
+    {Array.from({length:11},(_,i)=><React.Fragment key={i}>
+     <Line x1={i*100} y1="0" x2={i*100} y2="1000" stroke="#ffffff" strokeOpacity={0.035}/>
+     <Line x1="0" y1={i*100} x2="1000" y2={i*100} stroke="#ffffff" strokeOpacity={0.035}/>
+    </React.Fragment>)}
+    {paths.map((path,i)=>path.length>1?<Polyline key={i} points={path.map(p=>p.join(',')).join(' ')} fill="none" stroke={COLORS[i]} strokeWidth={24} strokeLinecap="round" strokeLinejoin="round"/>:null)}
+    {board.pairs.map((pair,i)=>pair.map((p,j)=><React.Fragment key={i+'-'+j}>
+     <Circle cx={p[0]} cy={p[1]} r={42} fill={COLORS[i]} fillOpacity={0.15}/>
+     <Circle cx={p[0]} cy={p[1]} r={28} fill={COLORS[i]} stroke="#fff" strokeOpacity={0.5} strokeWidth={3}/>
+    </React.Fragment>))}
+   </Svg>
   </View>
-  <Muted>{completed?'Bulmaca tamamlandı!':active===null?'Bir renkli noktadan başlayıp sürükle.':'Çizgiyi ilerlet veya parmağını geri çek.'}</Muted>
+  <Muted>{completed?'Tebrikler, tüm renkler birleşti!':active===null?'Bir renkli noktaya dokunup sürükle.':'Çizgiyi sürükleyerek tamamla. Başka bir renge dokunarak değiştirebilirsin.'}</Muted>
   <Btn title="Sıfırla" tone="ghost" icon="refresh" onPress={reset}/>
  </Card>;
 }
-const styles=StyleSheet.create({
- board:{width:'100%',maxWidth:390,aspectRatio:1,flexDirection:'row',flexWrap:'wrap',alignSelf:'center',gap:2,touchAction:'none' as any},
- cell:{borderWidth:1,borderRadius:7,alignItems:'center',justifyContent:'center'},
- dot:{width:'62%',height:'62%',borderRadius:99},
- line:{width:'55%',height:'55%',borderRadius:6},
-});
+const styles=StyleSheet.create({board:{width:'100%',maxWidth:390,aspectRatio:1,alignSelf:'center',borderRadius:16,overflow:'hidden',backgroundColor:'#0C1930',borderWidth:1,borderColor:'#36415A',touchAction:'none' as any}});
