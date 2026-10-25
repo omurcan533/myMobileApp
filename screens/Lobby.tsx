@@ -6,7 +6,6 @@ import {
   Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
-import { LineConnectGame } from '../components/LineConnectGame';
 import { avatarFor } from '../lib/art';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { Ctx } from '../lib/types';
@@ -31,7 +30,6 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
-  const [showLineDemo, setShowLineDemo] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
 
@@ -162,13 +160,6 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
           </Card>
         </Reveal>
-
-        <Card style={{ gap: 10 }}>
-          <Title size={19}>Yeni oyun: Çizgi Birleştirme</Title>
-          <Muted>İlk oynanabilir taslağı burada deneyebilirsin. Henüz takım yarışına veya parça ödülüne bağlı değil.</Muted>
-          <Btn title={showLineDemo ? 'Denemeyi Kapat' : 'Bulmacayı Dene'} icon="git-merge" tone="ghost" onPress={() => setShowLineDemo(v => !v)} />
-          {showLineDemo && <LineConnectGame />}
-        </Card>
 
         {/* ================= OYUNCULAR ================= */}
         <Reveal delay={100}>
