@@ -8,7 +8,7 @@ type Pair = { color: string; start: Cell; end: Cell };
 const SIZE = 6;
 // A deliberately challenging fixed board. Each path must avoid other paths.
 const PAIRS: Pair[] = [
-  { color: '#FF6B6B', start: [0,0], end: [5,1] },
+  { color: '#FF6B6B', start: [0,0], end: [5,4] },
   { color: '#65D6FF', start: [0,3], end: [4,5] },
   { color: '#FFD166', start: [2,0], end: [5,3] },
   { color: '#9AE66E', start: [1,2], end: [3,4] },
