@@ -133,7 +133,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'pong' ? 'Her takımdan rastgele iki kişi seçilir. Takımın TEK çubuğunu birlikte yönetirsiniz: bir oyuncu yalnızca ▲ YUKARI, diğeri yalnızca ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
+    mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
     : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
@@ -177,6 +177,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Eyebrow live color={mode.color} dot={mode.color}>Oyun Açıklaması</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
+            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} />}
             {me.is_host ? (
               <Btn
                 title={canContinueBriefing ? 'Oyunu Başlat' : `Kuralları Oku · ${briefingWaitSeconds} sn`}
