@@ -78,7 +78,7 @@ export const api = {
     if (title) params.p_title = title;
     return rpc<void>('set_creature_name', params);
   },
-  submitLineConnect: (mg: string, paths: number[][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
+  submitLineConnect: (mg: string, paths: number[][][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
   minigameEntry: (mg: string, target?: string, guess?: number) => {
     const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null, p_guess: guess ?? null };
     return rpc<void>('submit_minigame_entry', params);
