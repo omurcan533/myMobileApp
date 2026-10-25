@@ -30,13 +30,18 @@ const MESSAGES: Record<string, string> = {
   not_your_turn: 'Sıra sende değil!',
   duel_finished: 'Zar düellosu tamamlandı.',
   captain_duel_in_progress: 'Önce kaptanlık zar düellosu tamamlanmalı.',
+  game_not_live: 'Parkur henüz başlamadı veya süresi doldu.',
+  not_captain: 'Fayansları yalnızca takım kaptanı seçebilir.',
+  run_finished: 'Parkur zaten tamamlandı.',
+  missing_survivor_board: 'Parkur verisi bulunamadı. Yeni oyun başlat.',
+  invalid_survivor_path: 'Parkur verisi hatalı. Yeni oyun başlat.',
 };
 
 export class GameError extends Error {
   code: string;
   constructor(raw: string) {
     const code = Object.keys(MESSAGES).find((k) => raw.includes(k)) ?? 'unknown';
-    super(MESSAGES[code] ?? 'Bir şeyler ters gitti.');
+    super(MESSAGES[code] ?? raw);
     this.code = code;
   }
 }
