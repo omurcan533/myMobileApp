@@ -78,6 +78,8 @@ export const api = {
     if (title) params.p_title = title;
     return rpc<void>('set_creature_name', params);
   },
+  survivorPreview: (mg: string) => rpc<{greens:number[];whiteRow:number;whiteCol:number}|null>('survivor_preview', {p_minigame:mg}),
+  survivorChoose: (mg: string,col: number) => rpc<{row:number;retry:boolean;failed:boolean;lastOutcome:string}>('survivor_choose',{p_minigame:mg,p_col:col}),
   submitLineConnect: (mg: string, paths: number[][][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
   minigameEntry: (mg: string, target?: string, guess?: number) => {
     const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null, p_guess: guess ?? null };
