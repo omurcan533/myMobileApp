@@ -46,6 +46,32 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
  */
 const KB_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
+/** Shared, in-flow wall clock header for every Screen. */
+function ScreenClock() {
+  const [time, setTime] = useState(() => new Date());
+  useEffect(() => {
+    const tick = () => setTime(new Date());
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const value = [time.getHours(), time.getMinutes(), time.getSeconds()]
+    .map((part) => String(part).padStart(2, '0')).join(':');
+  return (
+    <View pointerEvents="none" style={screenClockStyles.row}>
+      <View style={screenClockStyles.badge}>
+        <Ionicons name="time-outline" size={13} color={colors.cyan} />
+        <Text style={screenClockStyles.text}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+const screenClockStyles = StyleSheet.create({
+  row: { height: 38, flexShrink: 0, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 8 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10, 20, 39, 0.92)', borderWidth: 1, borderColor: 'rgba(100, 210, 255, 0.35)' },
+  text: { color: '#FFFFFF', fontSize: 12, fontVariant: ['tabular-nums'], fontFamily: 'Sora_600SemiBold' },
+});
+
 export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const insets = useSafeAreaInsets();
   const [outerH, setOuterH] = useState(0);
@@ -114,6 +140,7 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
           style,
         ]}
       >
+        <ScreenClock />
         {children}
       </SafeAreaView>
     </View>
