@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
 import { Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold, Outfit_900Black } from '@expo-google-fonts/outfit';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Float, Muted, Screen, Text, Title } from './components/ui';
 import { useGameDriver } from './hooks/useGameDriver';
@@ -27,32 +27,6 @@ import { VotingScreen } from './screens/Voting';
 import { TeamRevealScreen } from './screens/TeamReveal';
 
 const ROOM_KEY = 'roomId';
-
-/** Device-local wall clock, independent of the game's server-based timers. */
-function LiveClock() {
-  const insets = useSafeAreaInsets();
-  const [time, setTime] = useState(() => new Date());
-
-  useEffect(() => {
-    const update = () => setTime(new Date());
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const value = [time.getHours(), time.getMinutes(), time.getSeconds()]
-    .map((part) => String(part).padStart(2, '0'))
-    .join(':');
-
-  return (
-    <View pointerEvents="none" style={[s.clockWrap, { top: Math.max(insets.top, Platform.OS === 'web' ? 16 : 8) + 2 }]}>
-      <View style={s.clockBadge}>
-        <Ionicons name="time-outline" size={13} color={colors.cyan} />
-        <Text style={s.clockText}>{value}</Text>
-      </View>
-    </View>
-  );
-}
 
 /** Yükleme / bağlanma ekranı: süzülen maskot + parlayan halka. */
 function Loading({ text }: { text: string }) {
@@ -202,15 +176,11 @@ export default function App() {
       ) : (
         <HomeScreen onEnter={enter} />
       )}
-      <LiveClock />
     </SafeAreaProvider>
   );
 }
 
 const s = StyleSheet.create({
-  clockWrap: { position: 'absolute', right: 12, zIndex: 100, elevation: 20 },
-  clockBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 14, backgroundColor: 'rgba(10, 20, 39, 0.92)', borderWidth: 1, borderColor: 'rgba(100, 210, 255, 0.35)' },
-  clockText: { color: '#FFFFFF', fontSize: 12, fontVariant: ['tabular-nums'], fontFamily: 'Sora_600SemiBold' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
   load: { color: colors.muted, fontWeight: '600', fontSize: 13, letterSpacing: 0.4, marginTop: 6 },
   mascotRing: {
