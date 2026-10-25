@@ -8,6 +8,7 @@ import { PongDuel } from '../components/PongDuel';
 import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
 import { LineConnectGame } from '../components/LineConnectGame';
 import { SongCompleteGame } from '../components/SongCompleteGame';
+import { FriendMemoryQuiz } from '../components/FriendMemoryQuiz';
 import { PongRematch } from '../components/PongRematch';
 import { Scoreboard } from '../components/Scoreboard';
 import {
@@ -291,6 +292,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             busy={busy}
           />
         )}
+
+        {mg.kind === 'social_guess' && !isPreparing && <FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused} />}
 
         {!live && mg.kind === 'pong' && <PongRematch ctx={ctx} mg={mg} />}
 
