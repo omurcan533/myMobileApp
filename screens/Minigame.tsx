@@ -30,25 +30,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
   const [pongHolding, setPongHolding] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const pongOffset = useRef(0);
-  const focusedPong = useRef<string | null>(null);
-  useEffect(() => {
-    if (!originalMg || originalMg.kind !== 'pong' || originalMg.starts_at) return;
-    let alive = true;
-    const readStart = async () => {
-      const { data: record } = await supabase.from('room_minigames').select('starts_at').eq('id', originalMg.id).single();
-      if (alive && record?.starts_at) setPongStarts({ id: originalMg.id, starts_at: record.starts_at });
-    };
-    void readStart();
-    const interval = setInterval(readStart, 600);
-    return () => { alive = false; clearInterval(interval); };
-  }, [originalMg?.id, originalMg?.kind, originalMg?.starts_at]);
-  useEffect(() => {
-    if (!mg || mg.kind !== 'pong' || !mg.starts_at || focusedPong.current === mg.id) return;
-    focusedPong.current = mg.id;
-    const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, pongOffset.current - 16), animated: true }), 1600);
-    return () => clearTimeout(timer);
-  }, [mg?.id, mg?.starts_at, mg?.kind]);
+  // Do not programmatically scroll during Pong: score and goal changes must
+  // never shift the user's viewport while they are controlling a paddle.
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
 
@@ -222,7 +205,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             )}
           </Card>
         ) : mg.kind === 'pong' ? (
-          <View onLayout={(e) => { pongOffset.current = e.nativeEvent.layout.y; }}>
+          <View>
             <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />
           </View>
         ) : mg.kind === 'math_guess' ? (
