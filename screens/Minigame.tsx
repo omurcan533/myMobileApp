@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { supabase } from '../lib/supabase';
 import { PongDuel } from '../components/PongDuel';
+import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
 import { LineConnectGame } from '../components/LineConnectGame';
 import { PongRematch } from '../components/PongRematch';
 import { Scoreboard } from '../components/Scoreboard';
@@ -138,7 +139,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
-    mg.kind === 'line_connect' ? { icon: 'git-merge', label: 'Çizgi Birleştirme', color: colors.mint }
+    mg.kind === 'survivor_memory' ? { icon: 'grid', label: 'Survivor Hafıza Parkuru', color: colors.mint }
+    : mg.kind === 'line_connect' ? { icon: 'git-merge', label: 'Çizgi Birleştirme', color: colors.mint }
     : mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu', color: colors.cyan }
     : mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
     : mg.kind === 'math_guess' ? { icon: 'calculator', label: 'Hızlı Matematik & Tahmin', color: colors.cyan }
@@ -146,7 +148,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'line_connect' ? 'İki takım aynı 6×6 bulmacayı çözer. Aynı renkli noktaları birbirine bağla, çizgiler kesişemez ve diğer renklerin noktalarından geçemez. İlk hatasız bitiren takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
+    mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
+    : mg.kind === 'line_connect' ? 'İki takım aynı 6×6 bulmacayı çözer. Aynı renkli noktaları birbirine bağla, çizgiler kesişemez ve diğer renklerin noktalarından geçemez. İlk hatasız bitiren takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
     : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
@@ -180,7 +183,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && !isPreparing && mg.kind !== 'pong' && (
           <TimerBar
             left={left}
-            total={mg.kind === 'line_connect' ? 150 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
+            total={mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />
@@ -214,6 +217,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           <View>
             <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />
           </View>
+        ) : mg.kind === 'survivor_memory' ? (
+          <SurvivorMemoryGame key={mg.id} id={mg.id} startsAt={mg.starts_at} live={live} paused={data.room.paused} isCaptain={me.is_captain} side={me.team_side} state={mg.survivor_state as any} onError={message=>show(message,'error')} />
         ) : mg.kind === 'line_connect' ? (
           <LineConnectGame key={mg.id} board={mg.line_connect_state as any} disabled={!live || !go || data.room.paused} onWin={async (paths) => {
             try { await api.submitLineConnect(mg.id, paths); soundFx.correct(); haptic.success(); }
