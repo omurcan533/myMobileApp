@@ -45,7 +45,10 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   api.survivorPreview(id).then(p=>{if(mounted&&p)setPreview(p)}).catch(e=>onError?.(e.message));
   return()=>{mounted=false};
  },[id,previewing]);
- const own=localProgress && (localProgress.attempt??0)>=(side?state?.[side]?.attempt??0)?localProgress:(side?state?.[side]:undefined);
+ const serverProgress = side ? state?.[side] : undefined;
+ const own = localProgress && (localProgress.attempt ?? 0) >= (serverProgress?.attempt ?? 0)
+  ? localProgress
+  : serverProgress;
  const opponent=side?state?.[side==='A'?'B':'A']:undefined;
  const choose=async(col:number)=>{
   if(!live||paused||previewing||!isCaptain||busy||animationBusy||(own?.row??0)>=7)return;
