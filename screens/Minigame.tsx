@@ -156,6 +156,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
     : variant === 'balance' ? 'Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.'
     : 'Sinyalin yeşile dönmesini bekle. Yeşil olduğunda olabildiğince hızlı dokun; erken dokunma.';
+  const lineResult = mg.kind === 'line_connect' && !live
+    ? mg.winner_side === me.team_side ? 'won' : mg.winner_side ? 'lost' : 'draw'
+    : null;
+  const lineResultColor = lineResult === 'won' ? colors.mint : lineResult === 'lost' ? '#FF718A' : colors.yellow;
   const briefingSeconds = Math.max(1, Math.ceil((goAt - now) / 1000));
 
   return (
@@ -284,6 +288,31 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         )}
 
         {!live && mg.kind === 'pong' && <PongRematch ctx={ctx} mg={mg} />}
+
+        {mg.kind === 'line_connect' && lineResult && (
+          <View style={[s.lineResultOverlay, { borderColor: lineResultColor }]}>
+            <LinearGradient
+              colors={lineResult === 'won' ? ['#123D38', '#0B2532'] : lineResult === 'lost' ? ['#451D34', '#171C34'] : ['#42351D', '#192338']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[s.lineResultIcon, { borderColor: lineResultColor }]}>
+              <Ionicons name={lineResult === 'won' ? 'trophy' : lineResult === 'lost' ? 'close-circle' : 'time'} size={46} color={lineResultColor} />
+            </View>
+            <Title size={30} color={lineResultColor} style={{ textAlign: 'center' }}>
+              {lineResult === 'won' ? 'TEBRİKLER, KAZANDINIZ!' : lineResult === 'lost' ? 'BU TURU KAYBETTİNİZ' : 'SÜRE DOLDU!'}
+            </Title>
+            <Text style={s.lineResultText}>
+              {lineResult === 'won'
+                ? 'Takımınız 6 rengi başarıyla birleştirdi! Bonus parça ve +2 puan kazandınız.'
+                : lineResult === 'lost'
+                ? 'Rakip takım bulmacayı sizden önce tamamladı ve bonus parçayı kazandı.'
+                : 'Bu turda kazanan çıkmadı. Bonus parça verilmedi.'}
+            </Text>
+            <Text style={[s.lineResultTeam, { color: lineResultColor }]}>
+              {mg.winner_side ? `Kazanan: ${teamName(mg.winner_side)}` : 'Berabere'}
+            </Text>
+          </View>
+        )}
 
         {/* Katılım Durumu */}
         {mg.kind !== 'pong' && <View style={s.progressWrap}>
@@ -1008,6 +1037,11 @@ function MathGuessGame({
 }
 
 const s = StyleSheet.create({
+  lineResultOverlay: { marginTop: 14, borderWidth: 2, borderRadius: 24, paddingVertical: 30, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', gap: 14, overflow: 'hidden', minHeight: 280 },
+  lineResultIcon: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0A1727' },
+  lineResultText: { color: '#F1F5FF', fontSize: 17, lineHeight: 25, fontWeight: '700', textAlign: 'center' },
+  lineResultTeam: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
+
   scroll: { gap: 14, paddingBottom: 36, paddingTop: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   header: { gap: 4, marginTop: 2 },
@@ -1231,3 +1265,4 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
 });
+
