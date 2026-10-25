@@ -20,6 +20,7 @@ const GAME_STYLES = [
   { id: 'reflex', name: 'Refleks', description: 'En hızlı tepkiyi ver', icon: 'flash' },
   { id: 'math_guess', name: 'Sayı Tahmini', description: 'Sayılarla yarış', icon: 'calculator' },
   { id: 'social_guess', name: 'Sosyal Tahmin', description: 'Arkadaşların hakkında tahmin et', icon: 'people' },
+  { id: 'line_connect', name: 'Çizgi Birleştirme', description: 'Aynı renkleri kesişmeden birleştir, ilk bitiren takım kazanır', icon: 'git-merge' },
   { id: 'pong', name: 'Pong Düellosu (2v2)', description: 'Her takımdan iki oyuncu canlı maç yapar, diğerleri izler', icon: 'game-controller' },
 ] as const;
 const DEFAULT_GAMES = GAME_STYLES.map((game) => game.id);
