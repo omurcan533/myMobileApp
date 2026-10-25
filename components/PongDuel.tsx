@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { colors, alpha } from '../lib/theme';
@@ -10,13 +10,15 @@ type State = {
  ay1: number; ay2: number; by1: number; by2: number;
  x: number; y: number; scoreA: number; scoreB: number;
 };
-const W = 280;
+const MAX_W = 320;
 const H = 220;
 const PAD = 44;
 const emojiList = ['👏', '🔥', '😂', '😱', '❤️'];
 
 export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: boolean }) {
  const { data, me } = ctx;
+ const { width: screenWidth } = useWindowDimensions();
+ const W = Math.min(MAX_W, Math.max(220, screenWidth - 94));
  const [state, setState] = useState<State | null>((mg as Minigame & { pong_state?: State }).pong_state ?? null);
  const [reaction, setReaction] = useState<{ emoji: string; id: number } | null>(null);
  const holding = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -90,8 +92,8 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
     </View>
     <Muted style={{ textAlign: 'center' }}>İlk 5 gole ulaşan kazanır!</Muted>
     {state ? (
-     <View style={styles.board}>
-      <View style={styles.middle} />
+     <View style={[styles.board, { width: W }]}>
+      <View style={[styles.middle, { left: W / 2 }]} />
       <View style={[styles.paddle, styles.left, { top: state.ay1 * H - PAD / 2, backgroundColor: colors.cyan }]} />
       <View style={[styles.paddle, styles.left, { top: state.ay2 * H - PAD / 2, backgroundColor: colors.cyan }]} />
       <View style={[styles.paddle, styles.right, { top: state.by1 * H - PAD / 2, backgroundColor: colors.gold }]} />
@@ -129,8 +131,8 @@ const styles = StyleSheet.create({
  score: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
  teamA: { color: colors.cyan, fontWeight: '800', fontSize: 13 },
  teamB: { color: colors.gold, fontWeight: '800', fontSize: 13 },
- board: { width: W, height: H, alignSelf: 'center', backgroundColor: '#081729', borderWidth: 2, borderColor: '#52647D', borderRadius: 10, overflow: 'hidden' },
- middle: { position: 'absolute', left: W / 2, height: H, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: alpha('#FFFFFF', 0.3) },
+ board: { height: H, alignSelf: 'center', backgroundColor: '#081729', borderWidth: 2, borderColor: '#52647D', borderRadius: 10, overflow: 'hidden' },
+ middle: { position: 'absolute', height: H, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: alpha('#FFFFFF', 0.3) },
  paddle: { position: 'absolute', width: 9, height: PAD, borderRadius: 5 },
  left: { left: 8 }, right: { right: 8 },
  ball: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFFFFF' },
