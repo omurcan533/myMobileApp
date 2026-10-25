@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
+import { PongDuel } from '../components/PongDuel';
 import { Scoreboard } from '../components/Scoreboard';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, TimerBar, Title, Text, useToast,
@@ -124,13 +125,15 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
-    mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
+    mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu 2v2', color: colors.cyan }
+    : mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
     : mg.kind === 'math_guess' ? { icon: 'calculator', label: 'Hızlı Matematik & Tahmin', color: colors.cyan }
     : variant === 'memory' ? { icon: 'bulb', label: 'Hızlı eşleştirme', color: colors.cyan }
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
+    mg.kind === 'pong' ? 'Her takımdan rastgele iki oyuncu seçilir. Yukarı/aşağı butonlarıyla çubuklarını hareket ettir. İlk 5 golü atan takım kazanır; diğer oyuncular canlı izleyip emoji gönderebilir.'
+    : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
     : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
     : variant === 'balance' ? 'Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.'
@@ -162,7 +165,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && !isPreparing && (
           <TimerBar
             left={left}
-            total={mg.kind === 'social_guess' ? 40 : 30}
+            total={mg.kind === 'pong' ? 120 : mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />
@@ -191,6 +194,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               </View>
             )}
           </Card>
+        ) : mg.kind === 'pong' ? (
+          <PongDuel ctx={ctx} mg={mg} live={live} />
         ) : mg.kind === 'math_guess' ? (
           <MathGuessGame
             ctx={ctx}
