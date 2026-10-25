@@ -22,7 +22,7 @@ const segmentDistance=(p:Point,a:Point,b:Point)=>{
  const dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1)));
  return dist(p,[a[0]+dx*t,a[1]+dy*t]);
 };
-const complete=(paths:Point[][][],board:LineBoard)=>paths.every((p,i)=>p.length>=2&&
+const complete=(paths:Point[][],board:LineBoard)=>paths.every((p,i)=>p.length>=2&&
  (dist(p[0],board.pairs[i][0])<1&&dist(p[p.length-1],board.pairs[i][1])<1||
  dist(p[0],board.pairs[i][1])<1&&dist(p[p.length-1],board.pairs[i][0])<1));
 
@@ -30,11 +30,11 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
  onWin?:(paths:Point[][])=>void|Promise<void>;disabled?:boolean;board?:LineBoard|null;
 }) {
  const board=given?.version===2&&given.pairs?.length===6?given:DEMO;
- const [paths,setPaths]=useState<Point[][][]>(()=>board.pairs.map(()=>[]));
+ const [paths,setPaths]=useState<Point[][]>(()=>board.pairs.map(()=>[]));
  const [active,setActive]=useState<number|null>(null);
  const [completed,setCompleted]=useState(false);
  const [boardWidth,setBoardWidth]=useState(0);
- const pathsRef=useRef<Point[][][]>(board.pairs.map(()=>[]));
+ const pathsRef=useRef<Point[][]>(board.pairs.map(()=>[]));
  const activeRef=useRef<number|null>(null);
  const completedRef=useRef(false);
  const widthRef=useRef(0);
@@ -42,10 +42,10 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
  const boardRef=useRef(board);
  const winRef=useRef(onWin);
  const lastTouch=useRef<Point|null>(null);
- const moved=useRef(false);
+ 
  widthRef.current=boardWidth;disabledRef.current=disabled;boardRef.current=board;winRef.current=onWin;
 
- const commit=useCallback((next:Point[][][])=>{
+ const commit=useCallback((next:Point[][])=>{
   pathsRef.current=next;setPaths(next);
   if(!completedRef.current&&complete(next,boardRef.current)){
    completedRef.current=true;setCompleted(true);
@@ -115,13 +115,12 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   return [x/width*1000,y/width*1000];
  },[]);
  const start=useCallback((x:number,y:number)=>{
-  const p=coords(x,y);lastTouch.current=p;moved.current=false;
+  const p=coords(x,y);lastTouch.current=p;
   if(p)begin(p);
  },[begin,coords]);
  const move=useCallback((x:number,y:number)=>{
   const p=coords(x,y),previous=lastTouch.current;
   if(!p)return;
-  if(previous&&dist(p,previous)>5)moved.current=true;
   const steps=previous?Math.min(32,Math.max(1,Math.ceil(dist(p,previous)/16))):1;
   for(let i=1;i<=steps;i++){
    const t=i/steps;
