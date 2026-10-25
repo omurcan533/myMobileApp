@@ -52,6 +52,7 @@ export const api = {
     rpc<{ room_id: string; code: string }>('create_room', { p_nickname: nick, p_mode: mode }),
   joinRoom: (code: string, nick: string) =>
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
+  setPlayerAvatar: (room: string, avatar: string) => rpc<void>('set_player_avatar', { p_room: room, p_avatar: avatar }),
   assignTeams: (room: string) => rpc<void>('assign_teams', { p_room: room }),
   shuffleTeams: (room: string) => rpc<void>('shuffle_teams', { p_room: room }),
   startCaptainDuel: (room: string) => rpc<any>('start_captain_duel', { p_room: room }),
