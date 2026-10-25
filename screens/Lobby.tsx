@@ -50,7 +50,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
   const lockGames = async () => {
     if (!me.is_host || savingGames || busy) return;
-    if (!draftGames.some((id) => id === 'anagram' || id === 'riddle')) {
+    if (draftGames.length === 0) {
       show('En az bir bulmaca türü seçmelisin.', 'error');
       return;
     }
@@ -152,10 +152,10 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               gamesLocked && !editingGames ? (
                 <Btn title="Yeniden Belirle" icon="create-outline" tone="ghost" disabled={savingGames || busy} onPress={reopenGames} />
               ) : (
-                <Btn title="Seçimleri Yap ve Kilitle" icon="lock-closed" tone="success" loading={savingGames} disabled={busy || !draftGames.some((id) => id === 'anagram' || id === 'riddle')} onPress={lockGames} />
+                <Btn title="Seçimleri Yap ve Kilitle" icon="lock-closed" tone="success" loading={savingGames} disabled={busy || draftGames.length === 0} onPress={lockGames} />
               )
             ) : null}
-            <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. En az bir bulmaca türü gerekli.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
+            <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
           </Card>
         </Reveal>
 
