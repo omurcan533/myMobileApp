@@ -18,7 +18,7 @@ const endpoints = new Map<number,number>();
 PAIRS.forEach((p,i)=>{endpoints.set(key(p.start),i);endpoints.set(key(p.end),i);});
 const adjacent = (a:number,b:number) => Math.abs(Math.floor(a/SIZE)-Math.floor(b/SIZE))+Math.abs(a%SIZE-b%SIZE)===1;
 
-export function LineConnectGame({ onWin, disabled = false }: { onWin?: () => void; disabled?: boolean }) {
+export function LineConnectGame({ onWin, disabled = false }: { onWin?: (paths: number[][]) => void; disabled?: boolean }) {
  const [paths,setPaths]=useState<number[][]>(()=>PAIRS.map(()=>[]));
  const [active,setActive]=useState<number|null>(null);
  const [completed,setCompleted]=useState(false);
@@ -50,7 +50,7 @@ export function LineConnectGame({ onWin, disabled = false }: { onWin?: () => voi
   setPaths(next);setActive(null);
   const allConnected=next.every((p,i)=>p.length>1&&key(PAIRS[i].start)!==p[p.length-1]&&
    (p[0]===key(PAIRS[i].start)?p[p.length-1]===key(PAIRS[i].end):p[p.length-1]===key(PAIRS[i].start)));
-  if(allConnected){setCompleted(true);onWin?.();}
+  if(allConnected){setCompleted(true);onWin?.(next);}
  };
  const press=(cell:number)=>{
   const e=endpoints.get(cell);
