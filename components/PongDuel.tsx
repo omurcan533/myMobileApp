@@ -89,6 +89,14 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  useEffect(()=>{
   const channel=supabase.channel('pong-'+mg.id);
   channel.on('broadcast',{event:'cheer'},({payload})=>setReaction(String(payload?.emoji??'👏')));
+  channel.on('broadcast',{event:'pong_frame'},({payload})=>{
+   const frame=payload?.state as State|undefined;
+   if(!frame||typeof frame.x!=='number'||typeof frame.tick!=='string')return;
+   setState(previous=>{
+    if(previous&&Date.parse(frame.tick!)<=Date.parse(previous.tick??''))return previous;
+    return frame;
+   });
+  });
   cheerChannel.current=channel;
   channel.subscribe();
   return ()=>{cheerChannel.current=null;void supabase.removeChannel(channel);};
@@ -118,7 +126,10 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       if(failures>=3){stopped.current=true;setGameError('Oyun senkronizasyonu durdu: '+error.message);}
      }else{
       failures=0;
-      if(updated)applySnapshot(updated as State);
+      if(updated){
+       applySnapshot(updated as State);
+       void cheerChannel.current?.send({type:'broadcast',event:'pong_frame',payload:{state:updated}});
+      }
       else {stopped.current=true;setServerFinished(true);}
      }
     }else{
@@ -143,7 +154,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    }finally{inFlight=false;}
   };
   void poll();
-  const timer=setInterval(poll,me.is_host&&mg.starts_at?240:450);
+  const timer=setInterval(poll,me.is_host&&mg.starts_at?125:1000);
   return ()=>{mounted=false;clearInterval(timer);};
  },[live,me.is_host,mg.id,mg.starts_at,data.room.paused]);
 
@@ -233,7 +244,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      {state?.modeB!=='solo'&&<Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text>}
     </View>
    </View>
-   {mySlot&&active?<View style={styles.buttonsArea}>
+   {mySlot&&active?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
     <Title size={16} style={{textAlign:'center'}}>{solo?'İki yön de sende ▲ ▼':directions[0]===-1?'YUKARI yönü sende ▲':'AŞAĞI yönü sende ▼'}</Title>
     <View style={styles.controls}>
      {directions.map(direction=><Pressable
@@ -241,8 +252,9 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       onPressIn={()=>startHold(direction)}
       onPressOut={()=>stopHold(direction)}
       hitSlop={8}
-      pressRetentionOffset={80}
-      style={[styles.control,Platform.OS==='web'?({touchAction:'none',userSelect:'none'} as any):null,
+      pressRetentionOffset={160}
+      onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
+      style={[styles.control,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
      ><Text selectable={false} style={styles.controlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
     </View>
