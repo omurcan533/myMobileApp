@@ -25,9 +25,7 @@ function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls
  let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
  if(y<0.025){y=0.025;v.vy=Math.abs(v.vy);}
  if(y>0.975){y=0.975;v.vy=-Math.abs(v.vy);}
- if(x<=0.065&&v.vx<0){x=0.065;}
- if(x>=0.935&&v.vx>0){x=0.935;}
- return {x:clamp(x,0,1),y:clamp(y,0.025,0.975),ay,by};
+ return {x:clamp(x,-0.08,1.08),y:clamp(y,0.025,0.975),ay,by};
 }
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
 // Animated.Value updates bypass React re-renders, allowing native/web frame-rate rendering.
@@ -41,9 +39,6 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const velocity=useRef({vx:0.46,vy:0.23});
  const lastScore=useRef('');
  const serverState=useRef<PongFrameState|null>(null);
- // Local paddle collisions are rendered immediately. Older server frames must not
- // reverse that bounce while the authoritative simulation catches up.
- const pendingBounce=useRef<{direction:number;at:number}|null>(null);
  const currentHeld=useRef(held);
  const params=useRef({playing,mySide,allowedDirections});
  useEffect(()=>{
@@ -63,7 +58,6 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    display.current={x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)};
    velocity.current={vx:num(state.vx,0.46),vy:num(state.vy,0.23)};
    lastScore.current=key;
-   pendingBounce.current=null;
   }else{
    // Correct once per fresh server packet. Never pull every frame toward an old packet.
    const p=display.current;
@@ -78,47 +72,16 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    const error=Math.hypot(x-p.x,y-p.y);
    const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
    const localV=velocity.current;
-   // Score changes always override local predictions; a goal is server-authoritative.
-   const pending=pendingBounce.current;
-   if(pending){
-    if(Math.sign(vx)===pending.direction){
-     // Server has confirmed the locally predicted paddle hit.
-     pendingBounce.current=null;
-    }else if(serverNow()-pending.at<700){
-     // This frame still describes the ball approaching the paddle. Updating
-     // position or velocity would visibly pin it to the paddle and re-bounce.
-     return;
-    }else{
-     // A prediction was wrong (the paddle missed); trust the server again.
-     pendingBounce.current=null;
-     display.current={...p,x,y};
-     localV.vx=vx;
-     localV.vy=vy;
-     return;
-    }
+   // The server owns every paddle collision and goal decision.
+   // Reconcile its confirmed direction immediately; never invent a rebound.
+   const directionChanged=Math.sign(vx)!==Math.sign(localV.vx);
+   if(directionChanged || error>0.22){
+    display.current={...p,x,y};
+   }else if(error>0.04){
+    display.current={...p,x:p.x+(x-p.x)*0.18,y:p.y+(y-p.y)*0.18};
    }
-   const flippedX=Math.sign(vx)!==Math.sign(localV.vx);
-   const flippedY=Math.sign(vy)!==Math.sign(localV.vy);
-   if(flippedX){
-    // A late server bounce must not teleport a ball that already bounced locally.
-    // Correct only when our prediction missed the collision entirely.
-    if((vx>0&&p.x<0.08)||(vx<0&&p.x>0.92)){
-     display.current={...p,x,y};
-    }else if(error>0.20&&p.x>0.12&&p.x<0.88){
-     display.current={...p,x:p.x+(x-p.x)*0.10,y:p.y+(y-p.y)*0.10};
-    }
-    localV.vx=vx;
-    localV.vy=vy;
-   }else{
-    if(error>0.35){
-     // Severe divergence (missed goal or long browser suspension).
-     display.current={...p,x,y};
-    }else if(error>0.065){
-     display.current={...p,x:p.x+(x-p.x)*0.12,y:p.y+(y-p.y)*0.12};
-    }
-    if(flippedY)localV.vy=vy;
-    localV.vx=vx;
-   }
+   localV.vx=vx;
+   localV.vy=vy;
   }
  },[state]);
  useEffect(()=>{
@@ -139,12 +102,9 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      bDown:cfg.mySide==='B'&&cfg.allowedDirections.includes(1)?pressed.down:valid('holdBDown'),
     };
     const p=display.current;
-    const previousDirection=Math.sign(velocity.current.vx);
-    let next=step(p,velocity.current,dt,cfg.playing,controls);
-    if(Math.sign(velocity.current.vx)!==previousDirection &&
-       ((previousDirection<0&&next.x<=0.065)||(previousDirection>0&&next.x>=0.935))){
-     pendingBounce.current={direction:Math.sign(velocity.current.vx),at:serverNow()};
-    }
+    // Continue toward the goal line until the server confirms a hit or goal.
+    // Do not pin the ball at the paddle while awaiting a network update.
+    const next=step(p,velocity.current,dt,cfg.playing,controls);
     // No stale-packet correction inside the animation loop.
     display.current=next;
     ballX.setValue(next.x*width-6);ballY.setValue(next.y*height-6);
