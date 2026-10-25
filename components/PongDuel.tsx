@@ -8,7 +8,7 @@ import type { Ctx, Minigame } from '../lib/types';
 type State = {
  a1: string; a2: string; b1: string; b2: string;
  ay: number; by: number;
- x: number; y: number; scoreA: number; scoreB: number; savesA?: number; savesB?: number;
+ x: number; y: number; scoreA: number; scoreB: number; savesA?: number; savesB?: number; goalsByPlayer?: Record<string, number>;
 };
 const MAX_W = 320;
 const H = 220;
@@ -104,6 +104,9 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  };
  const scoreA = state?.scoreA ?? 0;
  const scoreB = state?.scoreB ?? 0;
+ const goalLeaders = Object.entries(state?.goalsByPlayer ?? {}).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
+ const topGoals = goalLeaders[0]?.[1] ?? 0;
+ const topScorers = goalLeaders.filter(([,n])=>n===topGoals);
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 10 }}>
@@ -128,7 +131,7 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
      <View style={{ flex: 1 }}><Text style={styles.teamA}>▲ {playerName(state?.a1)}</Text><Text style={styles.teamA}>▼ {playerName(state?.a2)}</Text></View>
      <View style={{ flex: 1, alignItems: 'flex-end' }}><Text style={styles.teamB}>▲ {playerName(state?.b1)}</Text><Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text></View>
     </View>
-    {!live && state && <View style={styles.results}><Title size={18}>🏅 Maçın Savunma Yıldızları</Title><Muted>Takım A: {state.savesA ?? 0} kurtarış · Takım B: {state.savesB ?? 0} kurtarış</Muted><Text style={styles.starText}>{(state.savesA ?? 0) === (state.savesB ?? 0) ? 'İki takım da savunmada eşit!' : (state.savesA ?? 0) > (state.savesB ?? 0) ? `Takım A savunma yıldızları: ${playerName(state.a1)} ve ${playerName(state.a2)}` : `Takım B savunma yıldızları: ${playerName(state.b1)} ve ${playerName(state.b2)}`}</Text><Muted>Çubuk ortak kontrol edildiği için kurtarışlar takım bazında sayılır.</Muted></View>}
+    {!live && state && <View style={styles.results}><Title size={18}>⚽ Gol Kralı</Title>{topScorers.length ? <Text style={styles.starText}>{topScorers.map(([id])=>playerName(id)).join(' · ')} — {topGoals} gol katkısı</Text> : <Muted>Oyuncu bazında kaydedilmiş gol katkısı yok.</Muted>}<Muted>Gol, golü atan takımın son çubuk temasındaki yönlendirici oyuncuya yazılır; ortak kontrol nedeniyle bu bir katkı istatistiğidir.</Muted><Title size={18}>🏅 Maçın Savunma Yıldızları</Title><Muted>Takım A: {state.savesA ?? 0} kurtarış · Takım B: {state.savesB ?? 0} kurtarış</Muted><Text style={styles.starText}>{(state.savesA ?? 0) === (state.savesB ?? 0) ? 'İki takım da savunmada eşit!' : (state.savesA ?? 0) > (state.savesB ?? 0) ? `Takım A savunma yıldızları: ${playerName(state.a1)} ve ${playerName(state.a2)}` : `Takım B savunma yıldızları: ${playerName(state.b1)} ve ${playerName(state.b2)}`}</Text><Muted>Çubuk ortak kontrol edildiği için kurtarışlar takım bazında sayılır.</Muted></View>}
     {mySlot && active ? (
      <View style={{ gap: 10 }}>
       <Title size={17} style={{ textAlign: 'center' }}>{myDirection === -1 ? 'Sen YUKARI oyuncususun ▲' : 'Sen AŞAĞI oyuncususun ▼'}</Title>
