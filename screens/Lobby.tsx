@@ -21,7 +21,8 @@ const GAME_STYLES = [
   { id: 'social_guess', name: 'Sosyal Tahmin', description: 'Arkadaşların hakkında tahmin et', icon: 'people' },
   { id: 'survivor_memory', name: 'Survivor Hafıza Parkuru', description: 'Yeşil fayansları ezberle; kaptan sırayla güvenli yolu bulsun', icon: 'grid' },
   { id: 'line_connect', name: 'Çizgi Birleştirme', description: 'Aynı renkleri kesişmeden birleştir, ilk bitiren takım kazanır', icon: 'git-merge' },
-  { id: 'song_complete', name: 'Şarkı Tamamlama', description: 'Şarkı adının eksik kısmını bul', icon: 'musical-notes' },
+  // Şarkı Tamamlama şimdilik kapalı. İleride nakarat tamamlama olarak yeniden açılabilir.
+  // { id: 'song_complete', name: 'Şarkı Tamamlama', description: 'Şarkı adının eksik kısmını bul', icon: 'musical-notes' },
   { id: 'pong', name: 'Pong Düellosu (2v2)', description: 'Her takımdan iki oyuncu canlı maç yapar, diğerleri izler', icon: 'game-controller' },
 ] as const;
 const DEFAULT_GAMES = GAME_STYLES.map((game) => game.id);
