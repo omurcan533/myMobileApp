@@ -86,6 +86,7 @@ export const api = {
   survivorSendMessage: (mg:string,body:string) => rpc<void>('survivor_send_message',{p_minigame:mg,p_body:body}),
   survivorPreview: (mg: string) => rpc<{greens:number[];whiteRow:number;whiteCol:number}|null>('survivor_preview', {p_minigame:mg}),
   survivorChoose: (mg: string,col: number) => rpc<{row:number;retry:boolean;failed:boolean;lastOutcome:string}>('survivor_choose',{p_minigame:mg,p_col:col}),
+  submitSongAnswer: (mg: string, answer: string) => rpc<boolean>('submit_song_answer', { p_minigame: mg, p_answer: answer }),
   submitLineConnect: (mg: string, paths: number[][][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
   minigameEntry: (mg: string, target?: string, guess?: number) => {
     const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null, p_guess: guess ?? null };
