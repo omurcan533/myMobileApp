@@ -34,6 +34,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { toast, show } = useToast();
 
   const selectedGames = room.selected_games ?? DEFAULT_GAMES;
+  const canEditGames = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
   const [draftGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
@@ -49,6 +50,9 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
       ? current.filter((id) => id !== gameId)
       : [...current, gameId]);
   };
+
+  const selectAllGames = () => { if (canEditGames) setDraftGames([...DEFAULT_GAMES]); };
+  const clearAllGames = () => { if (canEditGames) setDraftGames([]); };
 
   const lockGames = async () => {
     if (!me.is_host || savingGames || busy) return;
@@ -136,20 +140,24 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           <Card style={{ gap: 12 }}>
             <Title size={20}>Oynamak istediğin oyunları seç</Title>
             <Muted>{me.is_host ? 'Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.' : 'Oyun kurucusunun seçtiği türler aşağıda görünüyor.'}</Muted>
-            {GAME_STYLES.map((game) => {
-              const enabled = (me.is_host && (!gamesLocked || editingGames) ? draftGames : selectedGames).includes(game.id);
-              const canEdit = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
-              return (
-                <Tap key={game.id} onPress={() => { if (canEdit) toggleGame(game.id); }} style={[s.gameStyleRow, enabled && s.gameStyleSelected, !canEdit && s.gameStyleDisabled]}>
-                  <Ionicons name={game.icon} size={21} color={enabled ? colors.cyan : colors.muted} />
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={s.gameStyleTitle}>{game.name}</Text>
-                    <Muted>{game.description}</Muted>
-                  </View>
-                  <Ionicons name={enabled ? 'checkbox' : 'square-outline'} size={24} color={enabled ? colors.mint : colors.muted} />
-                </Tap>
-              );
-            })}
+            {me.is_host && (
+              <View style={s.gameActions}>
+                <Btn title="Tümünü Seç" icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || draftGames.length === GAME_STYLES.length} onPress={selectAllGames} style={{ flex: 1 }} />
+                <Btn title="Tümünü Kaldır" icon="close-circle-outline" size="sm" tone="ghost" disabled={!canEditGames || draftGames.length === 0} onPress={clearAllGames} style={{ flex: 1 }} />
+              </View>
+            )}
+            <View style={s.gameGrid}>
+              {GAME_STYLES.map((game) => {
+                const enabled = (canEditGames ? draftGames : selectedGames).includes(game.id);
+                return (
+                  <Tap key={game.id} onPress={() => { if (canEditGames) toggleGame(game.id); }} style={[s.gameStyleRow, enabled && s.gameStyleSelected, !canEditGames && s.gameStyleDisabled]}>
+                    <Ionicons name={game.icon} size={18} color={enabled ? colors.cyan : colors.muted} />
+                    <Text style={s.gameStyleTitle} numberOfLines={2}>{game.name}</Text>
+                    <Ionicons name={enabled ? 'checkbox' : 'square-outline'} size={20} color={enabled ? colors.mint : colors.muted} />
+                  </Tap>
+                );
+              })}
+            </View>
             {me.is_host ? (
               gamesLocked && !editingGames ? (
                 <Btn title="Yeniden Belirle" icon="create-outline" tone="ghost" disabled={savingGames || busy} onPress={reopenGames} />
@@ -232,10 +240,12 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
 const s = StyleSheet.create({
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
-  gameStyleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 15 },
+  gameActions: { flexDirection: 'row', gap: 8 },
+  gameGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9 },
+  gameStyleRow: { width: '48.5%', minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 9, borderWidth: 1, borderColor: colors.border, borderRadius: 13 },
   gameStyleSelected: { borderColor: colors.cyan, backgroundColor: alpha(colors.cyan, 0.08) },
   gameStyleDisabled: { opacity: 0.65 },
-  gameStyleTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
+  gameStyleTitle: { color: colors.text, fontWeight: '700', fontSize: 12, flex: 1 },
   codeCard: {
     borderRadius: 28,
     borderWidth: 1,
