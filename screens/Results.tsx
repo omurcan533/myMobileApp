@@ -19,6 +19,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
+  const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
+  const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
   const { toast, show } = useToast();
 
   const leave = async () => {
@@ -37,6 +39,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
       recordGame(data.room.id, !!r.official_winner && r.official_winner === me.team_side);
     }).catch(() => undefined);
   }, [data.room.id, me.team_side]);
+
+  useEffect(()=>{api.friendMemoryLeaderboard(data.room.id).then(setFriendScores).catch(()=>{});api.partyLastAgeEvent(data.room.id).then(id=>id?api.partyAgeResults(id).then(setAgeScores):undefined).catch(()=>{});},[data.room.id]);
 
   if (!res) {
     return (
@@ -73,6 +77,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           </View>
           <RoomExitButton onExit={exitRoom} />
         </View>
+
+        <Card style={{gap:9}}><Title size={22}>🏅 Dostluk Madalyaları</Title><Muted>Dostluk Hafızası doğru cevap sıralaması</Muted>{[...friendScores].sort((a,b)=>Number(b.correct)-Number(a.correct)).map((p,i)=><Text key={p.player_id}>{i+1}. {p.nickname} — {p.correct}/{p.attempts} doğru {i===0&&Number(p.correct)>0?'🥇':''}</Text>)}{ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname} (Tüm yaşlar doğru!)</Text>)}{ageScores.length>0&&ageScores.every(x=>Number(x.correct)!==Number(x.total))&&<Muted>Bu turda tüm yaşları doğru bilen olmadı.</Muted>}</Card>
 
         {/* ================= RESMİ ŞAMPİYON ================= */}
         <Reveal>
