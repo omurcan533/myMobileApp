@@ -19,7 +19,6 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
  const { toast, show } = useToast();
  const deadline = mg.resolved_at ? Date.parse(mg.resolved_at) + 30000 : 0;
  const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
- const isOriginal = !(mg as Minigame & { rematch_of?: string | null }).rematch_of;
  const myVote = votes.find(v => v.player_id === me.id);
  const yes = votes.filter(v => v.yes).length;
  const needed = Math.floor(data.players.length / 2) + 1;
@@ -78,12 +77,12 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   if (error) show(error.message,'error');
   setBusy(false);
  };
- if (!isOriginal) return null;
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 12 }}>
     <Eyebrow color={colors.cyan}>RÖVANŞ OYLAMASI</Eyebrow>
     <Title size={22}>Bir maç daha?</Title>
+    <Muted>Rövanş sayısında sınır yok! Her maçın ardından yeniden oylama yapılır; çoğunluk EVET derse tekrar oynarsınız.</Muted>
     <Muted>Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.</Muted>
     <Text style={{ color: colors.text, fontWeight: '800' }}>Evet: {yes} / {needed} gerekli · {votes.length}/{data.players.length} oy</Text>
     <Muted>Oylama için kalan süre: {remaining} sn</Muted>
