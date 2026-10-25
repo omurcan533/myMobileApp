@@ -61,6 +61,20 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    display.current={x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)};
    velocity.current={vx:num(state.vx,0.46),vy:num(state.vy,0.23)};
    lastScore.current=key;
+  }else{
+   // Correct once per fresh server packet. Never pull every frame toward an old packet.
+   const p=display.current;
+   const x=num(state.x,0.5),y=num(state.y,0.5);
+   const error=Math.hypot(x-p.x,y-p.y);
+   const vx=num(state.vx,0.46),vy=num(state.vy,0.23);
+   if(error>0.26){
+    display.current={...p,x,y};
+   }else if(error>0.055){
+    display.current={...p,x:p.x+(x-p.x)*0.22,y:p.y+(y-p.y)*0.22};
+   }
+   if(Math.sign(vx)!==Math.sign(velocity.current.vx)||Math.sign(vy)!==Math.sign(velocity.current.vy)){
+    velocity.current={vx,vy};
+   }
   }
  },[state]);
  useEffect(()=>{
@@ -82,26 +96,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
     };
     const p=display.current;
     let next=step(p,velocity.current,dt,cfg.playing,controls);
-    // Server remains authoritative, but corrections are gradual rather than a
-    // stop-and-go reset on every 150–350 ms HTTP response.
-    const target={x:num(s.x,0.5),y:num(s.y,0.5),ay:num(s.ay,0.5),by:num(s.by,0.5)};
-    const dx=target.x-next.x,dy=target.y-next.y;
-    const distance=Math.hypot(dx,dy);
-    if(distance>0.28){
-     // Large divergence: goal / paddle bounce. Snap once, not every packet.
-     next.x=target.x;next.y=target.y;
-     velocity.current={vx:num(s.vx,0.46),vy:num(s.vy,0.23)};
-    }else{
-     // Only correct if server disagrees significantly, avoid dragging toward stale snapshots.
-     if(distance>0.07){
-      const k=1-Math.exp(-3*dt);
-      next.x+=dx*k;next.y+=dy*k;
-     }
-    }
-    // Local player's paddle must never wait for an HTTP request to complete.
-    const k=1-Math.exp(-4*dt);
-    if(cfg.mySide!=='A')next.ay+=(target.ay-next.ay)*k;
-    if(cfg.mySide!=='B')next.by+=(target.by-next.by)*k;
+    // No stale-packet correction inside the animation loop.
     display.current=next;
     ballX.setValue(next.x*width-6);ballY.setValue(next.y*height-6);
     leftY.setValue(next.ay*height-paddleHeight/2);rightY.setValue(next.by*height-paddleHeight/2);
