@@ -27,6 +27,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const [goal,setGoal]=useState<{side:'A'|'B';score:number}|null>(null);
  const [controlError,setControlError]=useState<string|null>(null);
  const [gameError,setGameError]=useState<string|null>(null);
+ const [serverFinished,setServerFinished]=useState(false);
  const [held,setHeld]=useState({up:false,down:false});
  const [choiceBusy,setChoiceBusy]=useState(false);
  const [clock,setClock]=useState(serverNow());
@@ -41,7 +42,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
 
  const goAt=mg.starts_at?Date.parse(mg.starts_at):0;
  const countdown=live&&goAt?Math.max(0,Math.ceil((goAt-clock)/1000)):0;
- const active=live&&goAt>0&&countdown===0&&!data.room.paused;
+ const active=live&&!serverFinished&&goAt>0&&countdown===0&&!data.room.paused;
  const myIds=players.filter(p=>p.user_id===me.user_id).map(p=>p.id);
  if(!myIds.includes(me.id))myIds.push(me.id);
  const mySlot=state?(['a1','a2','b1','b2'] as const).find(k=>myIds.includes(state[k])):undefined;
@@ -52,7 +53,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const needsModeChoice=live&&!mg.starts_at&&teamSize===2&&players.length===3;
 
  useEffect(()=>{
-  stopped.current=false;previousScores.current=null;setGameError(null);setGoal(null);
+  stopped.current=false;previousScores.current=null;setGameError(null);setGoal(null);setServerFinished(false);
   setState((mg.pong_state as State|null)??null);
  },[mg.id]);
  useEffect(()=>{
@@ -111,7 +112,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      }else{
       failures=0;
       if(updated)setState(updated as State);
-      else stopped.current=true;
+      else {stopped.current=true;setServerFinished(true);}
      }
     }else{
      const {data:updated,error}=await supabase.from('room_minigames').select('pong_state,status').eq('id',mg.id).single();
@@ -120,7 +121,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      else{
       failures=0;
       if(updated?.pong_state)setState(updated.pong_state as State);
-      if(updated?.status==='done')stopped.current=true;
+      if(updated?.status==='done'){stopped.current=true;setServerFinished(true);}
       // Sunucu yöneticinin sekmesi uykuya girerse, başka bir oda üyesi fiziği sürdürür.
       const lastTick=updated?.pong_state?.tick?Date.parse(updated.pong_state.tick):NaN;
       if(mg.starts_at&&!data.room.paused&&updated?.status==='live'&&Number.isFinite(lastTick)&&serverNow()-lastTick>950){
@@ -232,14 +233,16 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       key={direction}
       onPressIn={()=>startHold(direction)}
       onPressOut={()=>stopHold(direction)}
-      style={[styles.control,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none'} as any):null,
+      hitSlop={8}
+      pressRetentionOffset={80}
+      style={[styles.control,Platform.OS==='web'?({touchAction:'none',userSelect:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
      ><Text selectable={false} style={styles.controlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
     </View>
     <Muted style={{textAlign:'center'}}>Hareket ettirmek için tuşa basılı tut.</Muted>
     {controlError&&<Muted style={styles.error}>Kontrol hatası: {controlError}</Muted>}
    </View>:<Muted style={{textAlign:'center'}}>{countdown>0?'Geri sayım bitince kontroller açılır.':live&&!mg.starts_at?'Kuralları oku; yönetici oyunu başlatacak.':live&&mySlot?'Kontroller hazırlanıyor…':live?'Seyircisin! Arkadaşlarını destekle.':'Maç tamamlandı.'}</Muted>}
-   {!live&&state&&<View style={styles.results}>
+   {(!live||serverFinished)&&state&&<View style={styles.results}>
     <Title size={18}>⚽ Gol Kralı</Title>
     {top.length?<Text style={styles.starText}>{top.map(([id])=>playerName(id)).join(' · ')} — {high} gol katkısı</Text>:<Muted>Oyuncu bazında gol katkısı kaydı yok.</Muted>}
     <Muted>Gol katkısı son çubuk temasındaki yönlendiriciye yazılır.</Muted>
