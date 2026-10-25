@@ -16,6 +16,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  const [feedback,setFeedback]=useState('');
  const [localProgress,setLocalProgress]=useState<Progress|null>(null);
  const [flipped,setFlipped]=useState<Reveal|null>(null);
+ const [revealedRows,setRevealedRows]=useState<Record<number,Reveal>>({});
  const [animationBusy,setAnimationBusy]=useState(false);
  const flipScale=React.useRef(new Animated.Value(1)).current;
  const flash=React.useRef(new Animated.Value(0)).current;
@@ -50,6 +51,12 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   ? localProgress
   : serverProgress;
  const opponent=side?state?.[side==='A'?'B':'A']:undefined;
+ useEffect(()=>{
+  if(own?.reveal){
+   const reveal=own.reveal;
+   setRevealedRows(prev=>prev[reveal.row]?.selectedCol===reveal.selectedCol && prev[reveal.row]?.outcome===reveal.outcome?prev:{...prev,[reveal.row]:reveal});
+  }
+ },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
  const choose=async(col:number)=>{
   if(!live||paused||previewing||!isCaptain||busy||animationBusy||(own?.row??0)>=7)return;
   setBusy(true);
@@ -58,6 +65,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    setLocalProgress(result);
    const reveal=result.reveal;
    if(reveal){
+    setRevealedRows(prev=>({...prev,[reveal.row]:reveal}));
     setAnimationBusy(true);
     setFlipped(reveal);
     flipScale.setValue(0.8);
@@ -82,14 +90,14 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   <Animated.View style={[styles.grid,{transform:[{scale:flipScale}],backgroundColor:flash.interpolate({inputRange:[0,1],outputRange:['transparent','#A82D41']})}]}>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
     const visible=previewing&&preview;
-    const revealRow=flipped?.row===row;
-    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):revealRow?(flipped?.greenCol===col?'#36C88A':flipped?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
+    const rowReveal=flipped?.row===row?flipped:revealedRows[row];
+    const revealRow=!!rowReveal;
+    const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
-    const cleared=(own?.row??0)>row;
     return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||animationBusy||!live||paused}
       onPress={()=>choose(col)}
-      style={[styles.tile,{backgroundColor:color,borderColor:current&&!previewing?'#9BE7FF':'#4B6382',opacity:!previewing&&cleared&&!revealRow?0.4:1}]}>
-      {revealRow&&flipped?.selectedCol===col?<Text style={[styles.symbol,{color:flipped?.outcome==='white'?'#15233B':'#fff'}]}>{flipped?.outcome==='green'?'✓':'✕'}</Text>:!previewing&&cleared?<Text style={styles.symbol}>✓</Text>:null}
+      style={[styles.tile,{backgroundColor:color,borderColor:current&&!previewing?'#9BE7FF':'#4B6382',opacity:1}]}>
+      {revealRow&&rowReveal?.selectedCol===col?<Text style={[styles.symbol,{color:rowReveal?.outcome==='white'?'#15233B':'#fff'}]}>{rowReveal?.outcome==='green'?'✓':'✕'}</Text>:null}
       {previewing&&preview?.whiteRow===row&&preview.whiteCol===col?<Text style={{color:'#102039',fontWeight:'bold'}}>★</Text>:null}
     </Pressable>
    }))}
