@@ -96,7 +96,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     const current=(own?.row??0)===row;
     return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||animationBusy||!live||paused}
       onPress={()=>choose(col)}
-      style={[styles.tile,{backgroundColor:color,borderColor:current&&!previewing?'#9BE7FF':'#4B6382',opacity:1}]}>
+      style={[styles.tile,{backgroundColor:color,borderColor:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?'#B9FF68':current&&!previewing?'#9BE7FF':'#4B6382',borderWidth:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?4:2,opacity:1}]}>
       {revealRow&&rowReveal?.selectedCol===col?<Text style={[styles.symbol,{color:rowReveal?.outcome==='white'?'#15233B':'#fff'}]}>{rowReveal?.outcome==='green'?'✓':'✕'}</Text>:null}
       {previewing&&preview?.whiteRow===row&&preview.whiteCol===col?<Text style={{color:'#102039',fontWeight:'bold'}}>★</Text>:null}
     </Pressable>
