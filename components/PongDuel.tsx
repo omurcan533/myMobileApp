@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Pressable } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { colors, alpha } from '../lib/theme';
@@ -25,6 +25,10 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  const lastScores = useRef<{ a: number; b: number } | null>(null);
  const [clock, setClock] = useState(Date.now());
  const holding = useRef<ReturnType<typeof setInterval> | null>(null);
+ const [controlError, setControlError] = useState<string | null>(null);
+ const [gameError, setGameError] = useState<string | null>(null);
+ const tickStopped = useRef(false);
+ const inputInFlight = useRef(false);
  const reactionId = useRef(0);
  const cheerChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
  const countdown = live && mg.starts_at ? Math.max(0, Math.ceil((Date.parse(mg.starts_at) - clock) / 1000)) : 0;
@@ -54,7 +58,7 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
   const timer = setInterval(() => setClock(Date.now()), 150);
   return () => clearInterval(timer);
  }, []);
- useEffect(() => { lastScores.current = null; setGoal(null); }, [mg.id]);
+ useEffect(() => { lastScores.current = null; setGoal(null); tickStopped.current = false; setGameError(null); }, [mg.id]);
  useEffect(() => {
   if (!state) return;
   const previous = lastScores.current;
@@ -81,19 +85,27 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  useEffect(() => {
   if (!live) return;
   let inFlight = false;
+  let failures = 0;
   const poll = setInterval(async () => {
-   if (inFlight) return;
+   if (inFlight || tickStopped.current) return;
    inFlight = true;
    try {
     if (isHost && mg.starts_at) {
-     const { data: updated } = await supabase.rpc('pong_tick', { p_minigame: mg.id });
-     if (updated) setState(updated as State);
+     const { data: updated, error } = await supabase.rpc('pong_tick', { p_minigame: mg.id });
+     if (error) {
+      failures++;
+      if (failures >= 3) { tickStopped.current = true; setGameError('Maç senkronizasyonu durdu: ' + error.message); }
+     } else {
+      failures = 0;
+      if (updated) setState(updated as State);
+      else tickStopped.current = true;
+     }
     } else {
      const { data: updated } = await supabase.from('room_minigames').select('pong_state').eq('id', mg.id).single();
      if (updated?.pong_state) setState(updated.pong_state as State);
     }
    } finally { inFlight = false; }
-  }, isHost ? 120 : 220);
+  }, isHost ? 180 : 260);
   return () => clearInterval(poll);
  }, [live, !!mg.starts_at, isHost, mg.id]);
  const release = () => {
@@ -102,14 +114,23 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
  };
  useEffect(() => release, []);
  const move = (direction: number) => {
-  if (!active || (!mySolo && myDirection !== direction)) return;
-  void supabase.rpc('pong_input', { p_minigame: mg.id, p_direction: direction });
+  if (!active || !mySlot || (!mySolo && myDirection !== direction) || inputInFlight.current) return;
+  inputInFlight.current = true;
+  setState(old => {
+   if (!old) return old;
+   const key = mySide === 'A' ? 'ay' : 'by';
+   return {...old,[key]:Math.max(0.105,Math.min(0.895,old[key]+direction*0.052))};
+  });
+  void supabase.rpc('pong_input', { p_minigame: mg.id, p_direction: direction }).then(({error})=>{
+   if (error) { setControlError(error.message); console.warn('Pong control:',error.message); }
+   else setControlError(null);
+  }).finally(()=>{inputInFlight.current=false;});
  };
  const hold = (direction: number) => {
   if (!mySolo && myDirection !== direction) return;
   release();
   move(direction);
-  holding.current = setInterval(() => move(direction), 110);
+  holding.current = setInterval(() => move(direction), 130);
  };
  const cheer = (emoji: string) => {
   setReaction({ emoji, id: ++reactionId.current });
@@ -131,6 +152,7 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
     </View>
     <Muted style={{ textAlign: 'center' }}>Her takım tek çubuğu yönetir. Tek kişilik takım iki yönü de kontrol eder. İlk 5 gol kazanır.</Muted>
     {needsModeChoice && <View style={{ gap: 8 }}><Title size={17}>Takımın nasıl oynasın?</Title><Muted>Takımındaki iki oyuncu aynı seçeneği işaretlemeli. Tek kişi seçilirse ilk seçilen oyuncu iki yönü kontrol eder.</Muted><View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><Tap onPress={()=>chooseMode('solo')} style={styles.control}><Text style={styles.controlText}>1 KİŞİ</Text></Tap></View><View style={{ flex: 1 }}><Tap onPress={()=>chooseMode('duo')} style={styles.control}><Text style={styles.controlText}>2 KİŞİ</Text></Tap></View></View><Muted>Senin oyun: {state?.modeVotes?.[me.id] === 'solo' ? '1 kişi' : state?.modeVotes?.[me.id] === 'duo' ? '2 kişi' : 'Henüz seçilmedi'} · Takım modu: {state?.['mode'+(me.team_side??'A')] === 'solo' ? 'Tek oyuncu' : 'İki oyuncu'}</Muted></View>}
+    {gameError && <Muted style={{ color: colors.gold, textAlign: 'center' }}>{gameError}</Muted>}
     {countdown > 0 && <View style={styles.countdown}><Text style={styles.countdownNumber}>{countdown}</Text><Muted style={{ textAlign: 'center' }}>Hazır ol! Maç başlıyor…</Muted></View>}
     {goal && <View style={[styles.goalBanner, { backgroundColor: alpha(goal.side === 'A' ? colors.cyan : colors.gold, 0.22), borderColor: goal.side === 'A' ? colors.cyan : colors.gold }]}><Text style={styles.goalText}>⚽ GOOOL! TAKIM {goal.side} · {goal.score}. GOL 🎉</Text></View>}
     {state ? (
@@ -150,12 +172,13 @@ export function PongDuel({ ctx, mg, live }: { ctx: Ctx; mg: Minigame; live: bool
      <View style={{ gap: 10 }}>
       <Title size={17} style={{ textAlign: 'center' }}>{mySolo ? 'İki yön de sende ▲ ▼' : myDirection === -1 ? 'Sen YUKARI oyuncususun ▲' : 'Sen AŞAĞI oyuncususun ▼'}</Title>
       <View style={styles.controls}>
-       {(mySolo ? [-1,1] : [myDirection!]).map(direction => <Tap key={direction} onPressIn={() => hold(direction)} onPressOut={release} onPress={() => move(direction)} style={styles.control}>
+       {(mySolo ? [-1,1] : [myDirection!]).map(direction => <Pressable key={direction} onPressIn={() => hold(direction)} onPressOut={release} onPress={() => move(direction)} style={styles.control}>
         <Text style={styles.controlText}>{direction === -1 ? '▲  YUKARI' : '▼  AŞAĞI'}</Text>
-       </Tap>)}
+       </Pressable>)}
       </View>
+      {controlError && <Muted style={{ color: colors.gold, textAlign: 'center' }}>Kontrol hatası: {controlError}</Muted>}
      </View>
-    ) : <Muted style={{ textAlign: 'center' }}>{countdown > 0 ? 'Hazırlan! Geri sayım bitince kontroller açılacak.' : live ? 'Seyircisin! Arkadaşlarını destekle.' : 'Maç tamamlandı.'}</Muted>}
+    ) : <Muted style={{ textAlign: 'center' }}>{countdown > 0 ? 'Hazırlan! Geri sayım bitince kontroller açılacak.' : live && mySlot ? 'Kontroller hazırlanıyor…' : live ? 'Seyircisin! Arkadaşlarını destekle.' : 'Maç tamamlandı.'}</Muted>}
    </Card>
    <Card style={{ gap: 10 }}>
     <Title size={17}>Canlı Tepkiler {reaction?.emoji ?? ''}</Title>
