@@ -78,6 +78,8 @@ export const api = {
     if (title) params.p_title = title;
     return rpc<void>('set_creature_name', params);
   },
+  survivorReadMessages: (mg:string) => rpc<{id:number;nickname:string;body:string}[]>('survivor_read_messages',{p_minigame:mg}),
+  survivorSendMessage: (mg:string,body:string) => rpc<void>('survivor_send_message',{p_minigame:mg,p_body:body}),
   survivorPreview: (mg: string) => rpc<{greens:number[];whiteRow:number;whiteCol:number}|null>('survivor_preview', {p_minigame:mg}),
   survivorChoose: (mg: string,col: number) => rpc<{row:number;retry:boolean;failed:boolean;lastOutcome:string}>('survivor_choose',{p_minigame:mg,p_col:col}),
   submitLineConnect: (mg: string, paths: number[][][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
