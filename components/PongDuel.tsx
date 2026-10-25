@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { PongArena, PongFrameState } from './PongArena';
+import { serverNow } from '../lib/serverTime';
 import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { alpha, colors } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
@@ -28,7 +29,8 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const [gameError,setGameError]=useState<string|null>(null);
  const [held,setHeld]=useState({up:false,down:false});
  const [choiceBusy,setChoiceBusy]=useState(false);
- const [clock,setClock]=useState(Date.now());
+ const [clock,setClock]=useState(serverNow());
+ const cheerChannel=useRef<ReturnType<typeof supabase.channel>|null>(null);
  const previousScores=useRef<{a:number;b:number}|null>(null);
  const activeDirections=useRef(new Set<number>());
  const heartbeats=useRef<Record<number,ReturnType<typeof setInterval>>>({});
@@ -65,8 +67,8 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   });
  },[mg.pong_state]);
  useEffect(()=>{
-  if(!live||!goAt||Date.now()>=goAt){setClock(Date.now());return;}
-  const interval=setInterval(()=>setClock(Date.now()),120);
+  if(!live||!goAt||serverNow()>=goAt){setClock(serverNow());return;}
+  const interval=setInterval(()=>setClock(serverNow()),120);
   return ()=>clearInterval(interval);
  },[live,goAt]);
  useEffect(()=>{
@@ -86,8 +88,9 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  useEffect(()=>{
   const channel=supabase.channel('pong-'+mg.id);
   channel.on('broadcast',{event:'cheer'},({payload})=>setReaction(String(payload?.emoji??'👏')));
+  cheerChannel.current=channel;
   channel.subscribe();
-  return ()=>{void supabase.removeChannel(channel);};
+  return ()=>{cheerChannel.current=null;void supabase.removeChannel(channel);};
  },[mg.id]);
 
  // Ağ güncellemeleri yalnızca oyun durumunu sabitler; 60 FPS çizim PongArena içinde yapılır.
@@ -179,7 +182,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  };
  const cheer=(emoji:string)=>{
   setReaction(emoji);
-  void supabase.channel('pong-'+mg.id).send({type:'broadcast',event:'cheer',payload:{emoji}});
+  void cheerChannel.current?.send({type:'broadcast',event:'cheer',payload:{emoji}});
  };
  const goals=Object.entries(state?.goalsByPlayer??{}).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
  const high=goals[0]?.[1]??0;
@@ -204,7 +207,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {countdown>0&&<View style={styles.countdown}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>Hazır ol! Maç başlıyor…</Muted></View>}
    {goal&&<View style={styles.goalBanner}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
-   {state?<PongArena state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>:<Muted>Maç hazırlanıyor…</Muted>}
+   {mg.starts_at && state ? <PongArena state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/> : !state ? <Muted>Maç hazırlanıyor…</Muted> : null}
    <View style={styles.teams}>
     <View style={{flex:1}}>
      <Text style={styles.teamA}> {state?.modeA==='solo'?'▲▼':'▲'} {playerName(state?.a1)}</Text>
