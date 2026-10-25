@@ -9,6 +9,7 @@ export interface Room {
   code: string;
   host_user_id: string;
   mode: GameMode;
+  selected_games?: string[];
   phase: Phase;
   jokers_per_team: number;
   paused: boolean;
