@@ -17,32 +17,18 @@ const freshHeld=(s:PongFrameState,key:'holdAUp'|'holdADown'|'holdBUp'|'holdBDown
  s[key]===true && typeof s[(key+'At') as keyof PongFrameState]==='string'
  && now-Date.parse(String(s[(key+'At') as keyof PongFrameState]))<2500;
 
-function predict(s:PongFrameState,sec:number,playing:boolean,side:Props['mySide'],directions:number[],held:Props['held'],pressedAt:{up:number;down:number},now:number):Point {
- let aUp=playing&&freshHeld(s,'holdAUp',now), aDown=playing&&freshHeld(s,'holdADown',now);
- let bUp=playing&&freshHeld(s,'holdBUp',now), bDown=playing&&freshHeld(s,'holdBDown',now);
- if(side==='A'){if(directions.includes(-1))aUp=playing&&held.up;if(directions.includes(1))aDown=playing&&held.down;}
- if(side==='B'){if(directions.includes(-1))bUp=playing&&held.up;if(directions.includes(1))bDown=playing&&held.down;}
- const localSec=(dir:'up'|'down')=>pressedAt[dir]?clamp((now-pressedAt[dir])/1000,0,sec):sec;
- const upA=side==='A'&&directions.includes(-1)?localSec('up'):sec;
- const downA=side==='A'&&directions.includes(1)?localSec('down'):sec;
- const upB=side==='B'&&directions.includes(-1)?localSec('up'):sec;
- const downB=side==='B'&&directions.includes(1)?localSec('down'):sec;
- const ay=clamp(num(s.ay,0.5)+0.9*((aDown?downA:0)-(aUp?upA:0)),0.105,0.895);
- const by=clamp(num(s.by,0.5)+0.9*((bDown?downB:0)-(bUp?upB:0)),0.105,0.895);
- let x=num(s.x,0.5),y=num(s.y,0.5),vx=num(s.vx,0.46),vy=num(s.vy,0.23);
- if(!playing) return {x,y,ay,by};
- const parts=Math.ceil(sec/0.012),dt=parts?sec/parts:0;
- for(let i=0;i<parts;i++){
-  x+=vx*dt;y+=vy*dt;
-  if(y<0.025){y=0.05-y;vy=Math.abs(vy);}
-  if(y>0.975){y=1.95-y;vy=-Math.abs(vy);}
-  if(x<=0.065&&vx<0&&Math.abs(y-ay)<0.115){x=0.13-x;vx=Math.abs(vx)*1.045;vy+=(y-ay)*0.3;}
-  if(x>=0.935&&vx>0&&Math.abs(y-by)<0.115){x=1.87-x;vx=-Math.abs(vx)*1.045;vy+=(y-by)*0.3;}
-  if(x<0||x>1){x=clamp(x,0,1);break;}
- }
- return {x,y,ay,by};
+// Run the simulation forward on every rendered frame, not once per network packet.
+function step(p:Point,v:{vx:number;vy:number},dt:number,playing:boolean,controls:{aUp:boolean;aDown:boolean;bUp:boolean;bDown:boolean}):Point {
+ if(!playing)return p;
+ let ay=clamp(p.ay+0.9*dt*(Number(controls.aDown)-Number(controls.aUp)),0.105,0.895);
+ let by=clamp(p.by+0.9*dt*(Number(controls.bDown)-Number(controls.bUp)),0.105,0.895);
+ let x=p.x+v.vx*dt,y=p.y+v.vy*dt;
+ if(y<0.025){y=0.05-y;v.vy=Math.abs(v.vy);}
+ if(y>0.975){y=1.95-y;v.vy=-Math.abs(v.vy);}
+ if(x<=0.065&&v.vx<0&&Math.abs(y-ay)<0.115){x=0.13-x;v.vx=Math.abs(v.vx)*1.045;v.vy+=(y-ay)*0.3;}
+ if(x>=0.935&&v.vx>0&&Math.abs(y-by)<0.115){x=1.87-x;v.vx=-Math.abs(v.vx)*1.045;v.vy+=(y-by)*0.3;}
+ return {x:clamp(x,0,1),y:clamp(y,0.025,0.975),ay,by};
 }
-
 // The authoritative simulation runs in PostgreSQL; only the drawing is predicted locally.
 // Animated.Value updates bypass React re-renders, allowing native/web frame-rate rendering.
 export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held}:Props){
@@ -53,36 +39,69 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const rightY=useRef(new Animated.Value(height/2-paddleHeight/2)).current;
  const snapshot=useRef<{s:PongFrameState;at:number}|null>(null);
  const display=useRef<Point>({x:0.5,y:0.5,ay:0.5,by:0.5});
- const pressedAt=useRef({up:0,down:0});
+ const velocity=useRef({vx:0.46,vy:0.23});
+ const lastScore=useRef('');
+ const serverState=useRef<PongFrameState|null>(null);
  const currentHeld=useRef(held);
  const params=useRef({playing,mySide,allowedDirections});
  useEffect(()=>{
-  if(held.up&&!currentHeld.current.up)pressedAt.current.up=Date.now();
-  if(held.down&&!currentHeld.current.down)pressedAt.current.down=Date.now();
   currentHeld.current=held;
  },[held]);
  useEffect(()=>{params.current={playing,mySide,allowedDirections};},[playing,mySide,allowedDirections]);
  useEffect(()=>{
   if(!state)return;
-  const old=snapshot.current?.s;
-  snapshot.current={s:state,at:Date.now()};
-  if(!old||old.scoreA!==state.scoreA||old.scoreB!==state.scoreB){
+  const old=serverState.current;
+  const nextTick=Date.parse(state.tick??'');
+  const prevTick=Date.parse(old?.tick??'');
+  // Ignore old network replies, which otherwise rewind the ball.
+  if(old&&Number.isFinite(nextTick)&&Number.isFinite(prevTick)&&nextTick<prevTick)return;
+  serverState.current=state;
+  const key=state.scoreA+':'+state.scoreB;
+  if(!old||key!==lastScore.current){
    display.current={x:num(state.x,0.5),y:num(state.y,0.5),ay:num(state.ay,0.5),by:num(state.by,0.5)};
+   velocity.current={vx:num(state.vx,0.46),vy:num(state.vy,0.23)};
+   lastScore.current=key;
   }
  },[state]);
  useEffect(()=>{
   let frame=0,running=true,last=Date.now();
   const draw=()=>{
    if(!running)return;
-   const now=Date.now(),delta=clamp((now-last)/1000,0,0.05);
+   const now=Date.now();
+   const dt=clamp((now-last)/1000,0,0.05);
    last=now;
-   const snap=snapshot.current;
-   if(snap){
-    const cfg=params.current;
-    const secs=cfg.playing?clamp((now-snap.at)/1000,0,0.42):0;
-    const target=predict(snap.s,secs,cfg.playing,cfg.mySide,cfg.allowedDirections,currentHeld.current,pressedAt.current,serverNow());
-    const factor=1-Math.exp(-22*delta),old=display.current;
-    const next:Point={x:old.x+(target.x-old.x)*factor,y:old.y+(target.y-old.y)*factor,ay:old.ay+(target.ay-old.ay)*factor,by:old.by+(target.by-old.by)*factor};
+   const s=serverState.current;
+   if(s){
+    const cfg=params.current,pressed=currentHeld.current;
+    const valid=(key:'holdAUp'|'holdADown'|'holdBUp'|'holdBDown')=>cfg.playing&&freshHeld(s,key,serverNow());
+    const controls={
+     aUp:cfg.mySide==='A'&&cfg.allowedDirections.includes(-1)?pressed.up:valid('holdAUp'),
+     aDown:cfg.mySide==='A'&&cfg.allowedDirections.includes(1)?pressed.down:valid('holdADown'),
+     bUp:cfg.mySide==='B'&&cfg.allowedDirections.includes(-1)?pressed.up:valid('holdBUp'),
+     bDown:cfg.mySide==='B'&&cfg.allowedDirections.includes(1)?pressed.down:valid('holdBDown'),
+    };
+    const p=display.current;
+    let next=step(p,velocity.current,dt,cfg.playing,controls);
+    // Server remains authoritative, but corrections are gradual rather than a
+    // stop-and-go reset on every 150–350 ms HTTP response.
+    const target={x:num(s.x,0.5),y:num(s.y,0.5),ay:num(s.ay,0.5),by:num(s.by,0.5)};
+    const dx=target.x-next.x,dy=target.y-next.y;
+    const distance=Math.hypot(dx,dy);
+    if(distance>0.28){
+     // Large divergence: goal / paddle bounce. Snap once, not every packet.
+     next.x=target.x;next.y=target.y;
+     velocity.current={vx:num(s.vx,0.46),vy:num(s.vy,0.23)};
+    }else{
+     // Only correct if server disagrees significantly, avoid dragging toward stale snapshots.
+     if(distance>0.07){
+      const k=1-Math.exp(-3*dt);
+      next.x+=dx*k;next.y+=dy*k;
+     }
+    }
+    // Local player's paddle must never wait for an HTTP request to complete.
+    const k=1-Math.exp(-4*dt);
+    if(cfg.mySide!=='A')next.ay+=(target.ay-next.ay)*k;
+    if(cfg.mySide!=='B')next.by+=(target.by-next.by)*k;
     display.current=next;
     ballX.setValue(next.x*width-6);ballY.setValue(next.y*height-6);
     leftY.setValue(next.ay*height-paddleHeight/2);rightY.setValue(next.by*height-paddleHeight/2);
