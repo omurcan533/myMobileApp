@@ -967,7 +967,9 @@ function MathGuessGame({
                   </Text>
                 </View>
 
-                {guess !== null ? (
+                {guess !== null && live && !isMe ? (
+                  <Chip label="Tahmin gönderildi" color={colors.mint} size="sm" icon="checkmark-circle" />
+                ) : guess !== null ? (
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
                       <Text display style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
