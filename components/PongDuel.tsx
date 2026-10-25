@@ -99,6 +99,13 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   if(!live)return;
   let mounted=true,inFlight=false,failures=0;
   stopped.current=false;
+  const applySnapshot=(incoming:State)=>setState(previous=>{
+   if(!previous)return incoming;
+   const nextTime=Date.parse(incoming.tick??'');
+   const prevTime=Date.parse(previous.tick??'');
+   if(Number.isFinite(nextTime)&&Number.isFinite(prevTime)&&nextTime<=prevTime)return previous;
+   return incoming;
+  });
   const poll=async()=>{
    if(!mounted||inFlight||stopped.current)return;
    inFlight=true;
@@ -111,7 +118,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       if(failures>=3){stopped.current=true;setGameError('Oyun senkronizasyonu durdu: '+error.message);}
      }else{
       failures=0;
-      if(updated)setState(updated as State);
+      if(updated)applySnapshot(updated as State);
       else {stopped.current=true;setServerFinished(true);}
      }
     }else{
@@ -120,13 +127,13 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      if(error){failures++;if(failures>=3)setGameError('Bağlantı hatası: '+error.message);}
      else{
       failures=0;
-      if(updated?.pong_state)setState(updated.pong_state as State);
+      if(updated?.pong_state)applySnapshot(updated.pong_state as State);
       if(updated?.status==='done'){stopped.current=true;setServerFinished(true);}
       // Sunucu yöneticinin sekmesi uykuya girerse, başka bir oda üyesi fiziği sürdürür.
       const lastTick=updated?.pong_state?.tick?Date.parse(updated.pong_state.tick):NaN;
       if(mg.starts_at&&!data.room.paused&&updated?.status==='live'&&Number.isFinite(lastTick)&&serverNow()-lastTick>950){
        const {data:recovered,error:failoverError}=await supabase.rpc('pong_tick',{p_minigame:mg.id});
-       if(recovered&&mounted)setState(recovered as State);
+       if(recovered&&mounted)applySnapshot(recovered as State);
        if(failoverError)console.warn('Pong host failover:',failoverError.message);
       }
      }
@@ -136,7 +143,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    }finally{inFlight=false;}
   };
   void poll();
-  const timer=setInterval(poll,me.is_host&&mg.starts_at?150:340);
+  const timer=setInterval(poll,me.is_host&&mg.starts_at?240:450);
   return ()=>{mounted=false;clearInterval(timer);};
  },[live,me.is_host,mg.id,mg.starts_at,data.room.paused]);
 
@@ -172,7 +179,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   sendHeld(direction,true);
   heartbeats.current[direction]=setInterval(()=>{
    if(activeDirections.current.has(direction))sendHeld(direction,true);
-  },900);
+  },1200);
  };
  useEffect(()=>{
   if(active)return;
