@@ -15,10 +15,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
  const [state, setState] = useState<PongState>((mg as Minigame & { pong_state?: PongState }).pong_state ?? {});
  const [busy, setBusy] = useState(false);
  const [approved, setApproved] = useState(false);
- const [now, setNow] = useState(Date.now());
  const { toast, show } = useToast();
- const deadline = mg.resolved_at ? Date.parse(mg.resolved_at) + 30000 : 0;
- const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));
  const myVote = votes.find(v => v.player_id === me.id);
  const yes = votes.filter(v => v.yes).length;
  const needed = Math.floor(data.players.length / 2) + 1;
@@ -37,14 +34,13 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
    if (v.data) setVotes(v.data as Vote[]);
    if (m.data?.pong_state) setState(m.data.pong_state as PongState);
    if (m.data) setApproved(!!m.data.rematch_approved_at);
-   setNow(Date.now());
   };
   void refresh();
   const timer = setInterval(refresh, 1500);
   return () => { alive = false; clearInterval(timer); };
  }, [mg.id]);
  const vote = async (value: boolean) => {
-  if (busy || remaining === 0 || approved) return;
+  if (busy || approved) return;
   setBusy(true);
   const { error } = await supabase.rpc('pong_vote_rematch',{ p_minigame: mg.id,p_yes:value });
   if (error) show(error.message,'error');
@@ -54,7 +50,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   setBusy(false);
  };
  const transfer = async (target: string) => {
-  if (busy || !myRole || (!approved && remaining === 0)) return;
+  if (busy || !myRole) return;
   setBusy(true);
   const { error } = await supabase.rpc('pong_transfer_role',{p_minigame:mg.id,p_target:target});
   if (error) show(error.message,'error');
@@ -65,7 +61,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   setBusy(false);
  };
  const continueAfterVote = async () => {
-  if (!me.is_host || busy || remaining>0 || approved) return;
+  if (!me.is_host || busy || approved) return;
   setBusy(true);
   try { await api.advanceHost(data.room.id); } catch (e) { show((e as Error).message,'error'); }
   setBusy(false);
@@ -85,15 +81,16 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
     <Muted>Rövanş sayısında sınır yok! Her maçın ardından yeniden oylama yapılır; çoğunluk EVET derse tekrar oynarsınız.</Muted>
     <Muted>Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.</Muted>
     <Text style={{ color: colors.text, fontWeight: '800' }}>Evet: {yes} / {needed} gerekli · {votes.length}/{data.players.length} oy</Text>
-    <Muted>Oylama için kalan süre: {remaining} sn</Muted>
-    {approved ? <View style={{ gap: 8 }}><Title size={18}>🎉 Rövanş kabul edildi!</Title><Muted>Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.</Muted>{me.is_host && <Btn title="Rövanşı Hazırla" tone="success" disabled={busy} onPress={start} />}</View> : remaining > 0 ? (
+    <Muted>Oylamada süre sınırı yok. Kurucu istediği zaman sonraki oyuna geçebilir.</Muted>
+    {approved ? <View style={{ gap: 8 }}><Title size={18}>🎉 Rövanş kabul edildi!</Title><Muted>Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.</Muted>{me.is_host && <Btn title="Rövanşı Hazırla" tone="success" disabled={busy} onPress={start} />}</View> : (
      <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? '✓ EVET' : 'EVET'} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === false ? '✓ HAYIR' : 'HAYIR'} tone="ghost" disabled={busy} onPress={() => vote(false)} /></View>
      </View>
-    ) : <View style={{ gap: 8 }}><Muted>Oylama sona erdi; çoğunluk sağlanamadı.</Muted>{me.is_host && <Btn title="Sonraki Oyuna Geç" tone="primary" disabled={busy} onPress={continueAfterVote} />}</View>}
+    )}
    </Card>
-   {myRole && (approved || remaining > 0) && (
+   {me.is_host && !approved && <Btn title="Rövanşı Atla · Sonraki Oyuna Geç" tone="primary" disabled={busy} onPress={continueAfterVote} />}
+   {myRole && (
     <Card style={{ gap: 10 }}>
      <Title size={18}>Rolü Devret</Title>
      <Muted>Rövanşta kendi {myRole.endsWith('1') ? '▲ YUKARI' : '▼ AŞAĞI'} rolünü aynı takımdan başka bir oyuncuya devredebilirsin. Bu seçim yalnızca rövanş için geçerlidir.</Muted>
