@@ -8,7 +8,7 @@ import {
   SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
-import { art, avatarFor } from '../lib/art';
+import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
 import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients } from '../lib/theme';
@@ -31,7 +31,7 @@ const STEPS: { icon: IconName; color: string; title: string; text: string }[] = 
   { icon: 'trophy', color: colors.gold, title: 'Gizli oylama', text: 'En çılgın yaratığa gizlice oy ver. Resmi şampiyon puanla, en komik tasarım oylarla belirlenir.' },
 ];
 
-export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
+export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (roomId: string) => void; avatarId: AvatarId; onAvatarChange: (id: AvatarId) => void }) {
   const [tab, setTab] = useState<Tab>('play');
   const [nick, setNick] = useState('');
   const [code, setCode] = useState('');
@@ -76,7 +76,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* ================= ÜST BAR ================= */}
         <View style={s.topBar}>
-          <Avatar source={avatarFor(displayName)} size={52} ring={colors.cyan} />
+          <Avatar source={avatarFor(displayName, avatarId)} size={52} ring={colors.cyan} />
           <View style={{ flex: 1, gap: 6 }}>
             <View style={s.nameRow}>
               <Text numberOfLines={1} display style={s.topName}>{displayName}</Text>
@@ -261,7 +261,7 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
                 <View style={s.profileHero}>
                   <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} style={StyleSheet.absoluteFill} />
                   <Float amount={5}>
-                    <Avatar source={avatarFor(displayName)} size={104} ring={colors.gold} />
+                    <Avatar source={avatarFor(displayName, avatarId)} size={104} ring={colors.gold} />
                   </Float>
                   <Title size={26} style={{ marginTop: 14 }}>{displayName}</Title>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -294,6 +294,16 @@ export function HomeScreen({ onEnter }: { onEnter: (roomId: string) => void }) {
               <Reveal delay={170}>
                 <Card style={{ gap: 14 }}>
                   <SectionLabel>Hesap</SectionLabel>
+                  <Muted>Avatarını değiştir</Muted>
+                  <View style={s.avatarPicker}>
+                    {AVATAR_OPTIONS.map((option) => (
+                      <Tap key={option.id} onPress={() => onAvatarChange(option.id)} style={[s.avatarChoice, avatarId === option.id && s.avatarChoiceSelected]}>
+                        <Avatar source={option.source} size={48} ring={avatarId === option.id ? colors.cyan : colors.borderLight} />
+                        <Text style={s.avatarChoiceLabel}>{option.label}</Text>
+                        {avatarId === option.id && <Ionicons name="checkmark-circle" size={16} color={colors.cyan} />}
+                      </Tap>
+                    ))}
+                  </View>
                   <Input
                     icon="happy"
                     value={nick}
@@ -340,6 +350,10 @@ function StatTile({ icon, color, value, label }: { icon: IconName; color: string
 }
 
 const s = StyleSheet.create({
+  avatarPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  avatarChoice: { alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 7, minWidth: 66 },
+  avatarChoiceSelected: { borderColor: colors.cyan, backgroundColor: alpha(colors.cyan, 0.12) },
+  avatarChoiceLabel: { color: colors.text, fontSize: 11, fontWeight: '700' },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
