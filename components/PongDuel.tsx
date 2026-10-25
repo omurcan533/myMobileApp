@@ -19,9 +19,11 @@ const dirs=[-1,1];
 
 export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:Props){
  const {data,me}=ctx;
- const {width:screenWidth}=useWindowDimensions();
+ const {width:screenWidth,height:screenHeight}=useWindowDimensions();
  const width=Math.min(520,Math.max(225,screenWidth-94));
- const height=Math.max(240,Math.min(320,Math.round(width*0.78)));
+ const height=Math.max(165,Math.min(320,Math.round(width*0.78),Math.round(screenHeight*0.34)));
+ const compactControls=screenHeight<780;
+ const matchSeconds=Math.max(0,Math.ceil((Date.parse(data.room.phase_ends_at??'')-serverNow())/1000));
  const [state,setState]=useState<State|null>((mg.pong_state as State|null)??null);
  const [reaction,setReaction]=useState<string|null>(null);
  const [goal,setGoal]=useState<{side:'A'|'B';score:number}|null>(null);
@@ -215,7 +217,10 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const top=goals.filter(([,n])=>n===high);
  return <View style={styles.wrapper}>
   <Card accent={colors.cyan} style={styles.gameCard}>
-   <Eyebrow color={colors.cyan}>PONG DÜELLOSU</Eyebrow>
+   <View style={styles.matchHeading}>
+    <Eyebrow color={colors.cyan}>PONG DÜELLOSU</Eyebrow>
+    {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} sn</Text>}
+   </View>
    <View style={styles.score}>
     <Text style={styles.teamA}>TAKIM A</Text>
     <Title size={32}>{state?.scoreA??0} : {state?.scoreB??0}</Title>
@@ -248,7 +253,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      {state?.modeB!=='solo'&&<Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text>}
     </View>
    </View>
-   {mySlot&&active?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
+   {mySlot&&live&&mg.starts_at?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
     <Title size={16} style={{textAlign:'center'}}>{solo?'İki yön de sende ▲ ▼':directions[0]===-1?'YUKARI yönü sende ▲':'AŞAĞI yönü sende ▼'}</Title>
     <View style={styles.paddleControls}>
      {directions.map(direction=><Pressable
@@ -258,11 +263,12 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       hitSlop={4}
       pressRetentionOffset={160}
       onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
-      style={[styles.paddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
+      disabled={!active}
+      style={[styles.paddleControl,compactControls&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
      ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
     </View>
-    <Muted style={{textAlign:'center'}}>Hareket ettirmek için tuşa basılı tut.</Muted>
+    {!compactControls&&<Muted style={{textAlign:'center'}}>Hareket ettirmek için tuşa basılı tut.</Muted>}
     {controlError&&<Muted style={styles.error}>Kontrol hatası: {controlError}</Muted>}
    </View>:<Muted style={{textAlign:'center'}}>{countdown>0?'Geri sayım bitince kontroller açılır.':live&&!mg.starts_at?'Kuralları oku; yönetici oyunu başlatacak.':live&&mySlot?'Kontroller hazırlanıyor…':live?'Seyircisin! Arkadaşlarını destekle.':'Maç tamamlandı.'}</Muted>}
    {(!live||serverFinished)&&state&&<View style={styles.results}>
@@ -281,7 +287,10 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  </View>;
 });
 const styles=StyleSheet.create({
- wrapper:{gap:12},gameCard:{gap:10,paddingHorizontal:10},
+ wrapper:{gap:12},gameCard:{gap:7,paddingHorizontal:10},
+ matchHeading:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8},
+ matchTime:{color:colors.cyan,fontSize:15,fontWeight:'900'},
+ compactPaddleControl:{minHeight:76},
  score:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
  teamA:{color:colors.cyan,fontSize:13,fontWeight:'800'},
  teamB:{color:colors.gold,fontSize:13,fontWeight:'800'},
