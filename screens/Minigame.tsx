@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
+import { supabase } from '../lib/supabase';
 import { PongDuel } from '../components/PongDuel';
 import { PongRematch } from '../components/PongRematch';
 import { Scoreboard } from '../components/Scoreboard';
@@ -22,8 +23,32 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const { data, me } = ctx;
-  const now = useNow(100);
-  const mg = latestMinigame(data.minigames);
+  const originalMg = latestMinigame(data.minigames);
+  const now = useNow(originalMg?.kind === 'pong' ? 350 : 100);
+  const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
+  const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
+    ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
+  const [pongHolding, setPongHolding] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const pongOffset = useRef(0);
+  const focusedPong = useRef<string | null>(null);
+  useEffect(() => {
+    if (!originalMg || originalMg.kind !== 'pong' || originalMg.starts_at) return;
+    let alive = true;
+    const readStart = async () => {
+      const { data: record } = await supabase.from('room_minigames').select('starts_at').eq('id', originalMg.id).single();
+      if (alive && record?.starts_at) setPongStarts({ id: originalMg.id, starts_at: record.starts_at });
+    };
+    void readStart();
+    const interval = setInterval(readStart, 600);
+    return () => { alive = false; clearInterval(interval); };
+  }, [originalMg?.id, originalMg?.kind, originalMg?.starts_at]);
+  useEffect(() => {
+    if (!mg || mg.kind !== 'pong' || !mg.starts_at || focusedPong.current === mg.id) return;
+    focusedPong.current = mg.id;
+    const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, pongOffset.current - 16), animated: true }), 1600);
+    return () => clearTimeout(timer);
+  }, [mg?.id, mg?.starts_at, mg?.kind]);
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
 
@@ -126,7 +151,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
-    mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu 2v2', color: colors.cyan }
+    mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu', color: colors.cyan }
     : mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
     : mg.kind === 'math_guess' ? { icon: 'calculator', label: 'Hızlı Matematik & Tahmin', color: colors.cyan }
     : variant === 'memory' ? { icon: 'bulb', label: 'Hızlı eşleştirme', color: colors.cyan }
@@ -143,12 +168,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
-      <Scoreboard ctx={ctx} />
+      <ScrollView ref={scrollRef} scrollEnabled={!pongHolding} style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <Scoreboard ctx={ctx} />
 
       <View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
-          <Title size={30}>Devre Arası</Title>
+          <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : 'Devre Arası'}</Title>
         </View>
         <Btn
           title={me.is_captain ? (data.room.paused ? 'Devam Et' : 'Mola') : 'Mola · Kaptan'}
@@ -160,8 +186,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />
+        {mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
 
         {live && !isPreparing && (
           <TimerBar
@@ -177,7 +202,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Eyebrow live color={mode.color} dot={mode.color}>Oyun Açıklaması</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
-            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} />}
+            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
             {me.is_host ? (
               <Btn
                 title={canContinueBriefing ? 'Oyunu Başlat' : `Kuralları Oku · ${briefingWaitSeconds} sn`}
@@ -197,7 +222,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             )}
           </Card>
         ) : mg.kind === 'pong' ? (
-          <PongDuel ctx={ctx} mg={mg} live={live} />
+          <View onLayout={(e) => { pongOffset.current = e.nativeEvent.layout.y; }}>
+            <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />
+          </View>
         ) : mg.kind === 'math_guess' ? (
           <MathGuessGame
             ctx={ctx}
