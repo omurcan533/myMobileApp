@@ -6,6 +6,7 @@ import {
   Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
+import { FriendFactsLobby } from '../components/FriendFactsLobby';
 import { avatarFor } from '../lib/art';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { Ctx } from '../lib/types';
@@ -32,6 +33,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
+  const [factsReady, setFactsReady] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
 
@@ -89,6 +91,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   };
 
   const assignTeams = async () => {
+    if (!factsReady) { show('Önce herkes kişisel sorularını tamamlamalı.', 'error'); return; }
     if (!gamesLocked) {
       show('Önce oyun seçimlerini yapıp kilitlemelisin.', 'error');
       return;
@@ -215,13 +218,15 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         </Reveal>
 
+        <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />
+
         {/* ================= BAŞLAT / AYRIL ================= */}
         <Reveal delay={180} style={{ gap: 12 }}>
           {me.is_host ? (
             <Btn
               title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
               icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart || savingGames || !gamesLocked}
+              disabled={!canStart || savingGames || !gamesLocked || !factsReady}
               loading={busy}
               tone="success"
               onPress={assignTeams}
