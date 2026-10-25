@@ -34,10 +34,10 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { toast, show } = useToast();
 
   const selectedGames = room.selected_games ?? DEFAULT_GAMES;
-  const canEditGames = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
   const [draftGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
+  const canEditGames = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
 
   // Synchronize with the server only outside editing mode. Taps never send requests.
   useEffect(() => {
