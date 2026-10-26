@@ -8,7 +8,7 @@ import {
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { avatarFor } from '../lib/art';
-import { secondsLeft } from '../lib/selectors';
+import { effNow, secondsLeft } from '../lib/selectors';
 import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import type { Ctx } from '../lib/types';
@@ -21,7 +21,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   const { data, me } = ctx;
   const { width, height } = useWindowDimensions();
   const now = useNow();
-  const left = secondsLeft(data.room.phase_ends_at, now);
+  const left = secondsLeft(data.room.phase_ends_at, effNow(data.room, now));
   const [open, setOpen] = useState(false);
   const [draggingPiece, setDraggingPiece] = useState(false);
   const [name, setName] = useState('');
