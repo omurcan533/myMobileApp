@@ -704,9 +704,10 @@ export function TimerBar({
   const prevSecs = useRef(secs);
   useEffect(() => {
     if (isUrgent && secs > 0 && prevSecs.current !== secs) {
-      soundFx.tick();
+      soundFx.countdown(secs);
       haptic.light();
     }
+    if (secs === 0 && prevSecs.current > 0) soundFx.timeUp();
     prevSecs.current = secs;
   }, [isUrgent, secs]);
 
