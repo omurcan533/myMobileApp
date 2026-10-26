@@ -238,7 +238,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         ) : mg.kind === 'tug_of_war' ? (
           <View style={{gap:12}}>
-           <TugOfWar key={mg.id} main event={{...mg,created_at:mg.starts_at}} players={data.players} myId={me.id} isHost={me.is_host}/>
+           <TugOfWar key={mg.id} main paused={data.room.paused} pausedAt={data.room.paused_at} event={{...mg,created_at:mg.starts_at}} players={data.players} myId={me.id} isHost={me.is_host}/>
            {!live&&<Card style={{gap:12}}>
             <Title size={21}>🔁 Rövanş süresi</Title>
             <Muted>Yeniden oynamak için yeni bir süre seçebilirsin.</Muted>
