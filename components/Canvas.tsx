@@ -395,7 +395,11 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
         const existing = await supabase.from('canvas_items').select('id').eq('team_piece_id', tp.id).maybeSingle();
         if (existing.data) setSelected(existing.data.id);
       } else if (error) show(error.message, 'error');
-      else if (row) setSelected(row.id as string);
+      else if (row) {
+        setSelected(row.id as string);
+        soundFx.piecePlace();
+        if (unplaced.length === 1) soundFx.pieceComplete();
+      }
     } finally {
       adding.current.delete(tp.id);
     }
