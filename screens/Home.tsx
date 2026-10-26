@@ -69,6 +69,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const toggleSound = (v: boolean) => {
     soundFx.setEnabled(v);
     setSound(v);
+    AsyncStorage.setItem('soundEnabled', String(v)).catch(console.warn);
   };
 
   return (
