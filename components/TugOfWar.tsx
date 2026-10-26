@@ -7,7 +7,7 @@ import {Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
 
 type TugState={a:number;b:number;players:{nickname:string;side:string;force:number}[]};
-export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[];myId:string;isHost:boolean}){
+export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;players:Player[];myId:string;isHost:boolean;main?:boolean}){
  const {width,height}=useWindowDimensions();
  const wide=width>height&&width>=600;
  const [now,setNow]=useState(Date.now());
@@ -21,7 +21,7 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
   if(event.created_at!==startedAt){setStartedAt(event.created_at);setState({a:0,b:0,players:[]});setFeedback('');setError('');lastPull.current=0;setNow(Date.now());}
  },[event.created_at]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
- const refresh=async()=>{try{const s=await api.partyTugState(event.id);if(s)setState(s);}catch{}};
+ const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState(s);}catch{}};
  useEffect(()=>{
   refresh();
   const timer=setInterval(()=>setNow(Date.now()),40);
@@ -32,9 +32,9 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
   return()=>{clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
- const duration=durationMatch?Number(durationMatch[1]):60;
+ const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);
  const elapsed=Math.max(0,(now-Date.parse(startedAt))/1000);
- const remaining=Math.max(0,Math.ceil(duration-elapsed));
+ const remaining=event.status==='done'?0:Math.max(0,Math.ceil(duration-elapsed));
  // Her telefonda akıcı yerel ibre. Dokunma sonucu ağ beklemeden gösterilir.
  const elapsedMs=Math.max(0,now-Date.parse(startedAt));
  const cycle=Math.floor(elapsedMs/2800);
@@ -57,7 +57,7 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
   setFeedback(hit?'🎯 İSABET! +'+force+' kuvvet':'💥 ISKALADIN! -45 kuvvet');
   setBusy(true);setError('');
   try{
-   await api.partyTugPull(event.id,force);
+   if(main)await api.minigameTugPull(event.id,force);else await api.partyTugPull(event.id,force);
    channel.current?.send({type:'broadcast',event:'pull',payload:{at:Date.now()}}).catch(()=>{});
    await refresh();
   }catch(e){setError((e as Error).message);}
@@ -101,8 +101,8 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
    <Title size={24}>🏆 {winner}</Title>
    <Text style={{color:'#E8F1FF'}}>🔵 {state.a} kuvvet · 🔴 {state.b} kuvvet</Text>
    <Muted>Etkinliği oda kurucusu bitirdiğinde ana oyun devam eder.</Muted>
-   {isHost&&<Pressable onPress={replay} disabled={busy} style={{padding:17,alignItems:'center',borderRadius:15,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:18,fontWeight:'900'}}>{busy?'Hazırlanıyor…':'🔁 TEKRAR OYNA'}</Text></Pressable>}
-   {!isHost&&<Muted>Tekrar oynamak için kurucuyu bekle.</Muted>}
+   {isHost&&!main&&<Pressable onPress={replay} disabled={busy} style={{padding:17,alignItems:'center',borderRadius:15,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:18,fontWeight:'900'}}>{busy?'Hazırlanıyor…':'🔁 TEKRAR OYNA'}</Text></Pressable>}
+   {!isHost&&!main&&<Muted>Tekrar oynamak için kurucuyu bekle.</Muted>}
   </Card>}
   {!wide&&<Muted>📱 Telefonu yatay çevirerek arenayı daha geniş görebilirsin.</Muted>}
   {!!error&&<Text style={{color:'#FF8592'}}>{error}</Text>}
