@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasStudio } from '../components/Canvas';
@@ -9,6 +9,7 @@ import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { avatarFor } from '../lib/art';
 import { secondsLeft } from '../lib/selectors';
+import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
 import type { Ctx } from '../lib/types';
 
@@ -38,6 +39,12 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   const tColor = teamColor(me.team_side);
   const secs = Math.ceil(Math.max(0, left));
   const isUrgent = secs <= 10;
+  const previousSecond = useRef(secs);
+  useEffect(() => {
+    if (secs !== previousSecond.current && secs > 0 && secs <= 5) soundFx.countdown(secs);
+    if (secs === 0 && previousSecond.current > 0) soundFx.timeUp();
+    previousSecond.current = secs;
+  }, [secs]);
   const progressPct = Math.max(0, Math.min(1, left / 75));
 
   const isMyTeamReady = me.team_side === 'A' ? !!data.room.building_ready_a : !!data.room.building_ready_b;
