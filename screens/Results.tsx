@@ -159,7 +159,7 @@ function buildCeremonyAwards(
   const wrong=answers.filter(a=>a.is_correct===false).length;
   const friend=friendScores.find(x=>x.player_id===p.id);
   const age=ageScores.find(x=>x.player_id===p.id);
-  const reactions=data.entries.filter(x=>x.player_id===p.id&&typeof x.reaction_ms==='number'&&x.reaction_ms!>0).map(x=>x.reaction_ms as number);
+  const reactions=data.entries.filter(x=>x.player_id===p.id&&typeof x.reaction_ms==='number'&&(x.reaction_ms as number)>0).map(x=>x.reaction_ms as number);
   return {id:p.id,correct,wrong,friendCorrect:friend?.correct??0,friendAttempts:friend?.attempts??0,ageCorrect:age?.correct??0,ageTotal:age?.total??0,reaction:reactions.length?Math.min(...reactions):null};
  }).sort((a,b)=>a.id.localeCompare(b.id));
  const bestCorrect=[...stats].sort((a,b)=>b.correct-a.correct||a.wrong-b.wrong||a.id.localeCompare(b.id))[0];
