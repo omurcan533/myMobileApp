@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {View,Pressable} from 'react-native';
+import {View,Pressable,useWindowDimensions} from 'react-native';
 import {api} from '../lib/api';
 import {supabase} from '../lib/supabase';
 import {Card,Muted,Text,Title} from './ui';
@@ -7,6 +7,8 @@ import type {Player} from '../lib/types';
 
 type TugState={a:number;b:number;players:{nickname:string;side:string;force:number}[]};
 export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[];myId:string;isHost:boolean}){
+ const {width,height}=useWindowDimensions();
+ const wide=width>height&&width>=600;
  const [now,setNow]=useState(Date.now());
  const [startedAt,setStartedAt]=useState<string>(event.created_at);
  const [state,setState]=useState<TugState>({a:0,b:0,players:[]});
@@ -21,18 +23,27 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
  const refresh=async()=>{try{const s=await api.partyTugState(event.id);if(s)setState(s);}catch{}};
  useEffect(()=>{
   refresh();
-  const timer=setInterval(()=>{setNow(Date.now());refresh();},700);
+  const timer=setInterval(()=>setNow(Date.now()),40);
+  const sync=setInterval(refresh,700);
   const ch=supabase.channel('tug:'+event.id);
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
   channel.current=ch;
-  return()=>{clearInterval(timer);supabase.removeChannel(ch);channel.current=null;};
+  return()=>{clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
  const elapsed=Math.max(0,(now-Date.parse(startedAt))/1000);
  const remaining=Math.max(0,Math.ceil(35-elapsed));
  // Her telefonda akıcı yerel ibre. Dokunma sonucu ağ beklemeden gösterilir.
- const position=(Math.sin(now/650)+1)/2;
- const accuracy=Math.abs(position-0.5);
- const force=Math.max(0,Math.round(100-accuracy*200));
+ const elapsedMs=Math.max(0,now-Date.parse(startedAt));
+ const cycle=Math.floor(elapsedMs/2800);
+ const phase=(elapsedMs%2800)/2800;
+ const seed=[...(event.id+startedAt+cycle)].reduce((n,ch)=>(Math.imul(n,31)+ch.charCodeAt(0))|0,17)>>>0;
+ const target=0.13+(seed%74)/100;
+ const narrow=seed%4===0;
+ const low=narrow?0.3:0.06,high=narrow?0.7:0.94;
+ const position=low+(high-low)*(1-Math.cos(phase*2*Math.PI))/2;
+ const distance=Math.abs(position-target);
+ const hit=distance<=0.085;
+ const force=hit?Math.round(35+65*(1-distance/0.085)):-45;
  const me=players.find(p=>p.id===myId);
  const side=me?.team_side;
  const total=state.a+state.b;
@@ -40,7 +51,7 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
  const pull=async()=>{
   if(busy||remaining===0||!side||Date.now()-lastPull.current<470)return;
   lastPull.current=Date.now();
-  setFeedback(force>=80?'🎯 Mükemmel! +'+force:force>=45?'💪 İyi çekiş! +'+force:'😬 Zayıf çekiş! +'+force);
+  setFeedback(hit?'🎯 İSABET! +'+force+' kuvvet':'💥 ISKALADIN! -45 kuvvet');
   setBusy(true);setError('');
   try{
    await api.partyTugPull(event.id,force);
@@ -59,27 +70,46 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  };
  const winner=state.a===state.b?'Berabere':state.a>state.b?'A Takımı':'B Takımı';
- return <View style={{gap:14}}>
-  <Title size={23}>🪢 Halat Çekme</Title>
-  <Muted>İbre ortadaki yeşil alana geldiğinde ÇEK! Her oyuncunun kuvveti takımına eklenir.</Muted>
-  <Title size={24}>⏱ {remaining} saniye</Title>
-  <Card style={{gap:10}}>
-   <View style={{flexDirection:'row',justifyContent:'space-between'}}><Text style={{color:'#8CDCFD'}}>🔵 A: {state.a}</Text><Text style={{color:'#FFB0C4'}}>🔴 B: {state.b}</Text></View>
-   <View style={{height:54,backgroundColor:'#21334D',borderRadius:12,justifyContent:'center',overflow:'hidden'}}>
-    <View style={{position:'absolute',left:'50%',width:3,height:54,backgroundColor:'#FFFFFF77'}}/>
-    <Text style={{textAlign:'center',fontSize:27,color:'#FFFFFF',transform:[{translateX:rope}]}}>🟦━━━━🪢━━━━🟥</Text>
+ return <View style={{gap:12}}>
+  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+   <View style={{flex:1}}><Title size={wide?28:23}>🏟️ HALAT ARENASI</Title><Muted>TAKIMLARIN BÜYÜK MÜCADELESİ</Muted></View>
+   <View style={{backgroundColor:remaining<10?'#803344':'#203653',padding:12,borderRadius:14}}><Text style={{color:'#FFFFFF',fontSize:24,fontWeight:'900'}}>⏱ {remaining}</Text></View>
+  </View>
+  <View style={{height:7,backgroundColor:'#283850',borderRadius:6,overflow:'hidden'}}><View style={{width:(elapsedMs/350)+'%',height:7,backgroundColor:'#FFD177'}}/></View>
+  <View style={{backgroundColor:'#101C31',borderWidth:2,borderColor:'#3A5373',borderRadius:22,padding:wide?24:14,gap:14}}>
+   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+    <View><Text style={{color:'#72D8FF',fontSize:wide?21:16,fontWeight:'900'}}>🔵 MAVİ</Text><Title size={wide?34:27} color="#A9E8FF">{state.a}</Title></View>
+    <Title size={20} color="#FFDC89">VS</Title>
+    <View style={{alignItems:'flex-end'}}><Text style={{color:'#FF8FA5',fontSize:wide?21:16,fontWeight:'900'}}>KIRMIZI 🔴</Text><Title size={wide?34:27} color="#FFD1DB">{state.b}</Title></View>
    </View>
-   <Muted>Halatın konumu sunucuda onaylanan toplam kuvvete göre hesaplanır.</Muted>
-  </Card>
+   <View style={{height:wide?170:125,backgroundColor:'#1A2B46',borderRadius:17,overflow:'hidden',justifyContent:'center'}}>
+    <View style={{position:'absolute',left:0,top:0,bottom:0,width:'50%',backgroundColor:'#123F64'}}/>
+    <View style={{position:'absolute',right:0,top:0,bottom:0,width:'50%',backgroundColor:'#5C283D'}}/>
+    <View style={{position:'absolute',left:'50%',top:0,bottom:0,width:3,backgroundColor:'#FFDA83'}}/>
+    <View style={{alignItems:'center',transform:[{translateX:rope}]}}>
+     <Text style={{fontSize:wide?54:35,color:'#FFFFFF'}}>🧍‍♂️━━━🪢━━━🧍‍♀️</Text>
+     <Text style={{color:'#FFE4A4',fontWeight:'900'}}>{state.a===state.b?'DENGE':state.a>state.b?'◀ MAVİ ÇEKİYOR':'KIRMIZI ÇEKİYOR ▶'}</Text>
+    </View>
+   </View>
+   <Muted>Takımların kuvvetleri anlık güncellenir. Iskalama kendi takımının puanını düşürür.</Muted>
+  </View>
   {remaining>0?<Card style={{gap:12}}>
-   <Title size={17}>🎯 Zamanlamayı yakala</Title>
-   <View style={{height:28,backgroundColor:'#33425C',borderRadius:14,overflow:'hidden',justifyContent:'center'}}>
-    <View style={{position:'absolute',left:'40%',width:'20%',height:28,backgroundColor:'#16A085'}}/>
-    <View style={{position:'absolute',left:(position*94)+'%',width:'6%',height:28,backgroundColor:'#FFFFFF',borderRadius:8}}/>
+   <View style={{flexDirection:'row',justifyContent:'space-between'}}><Title size={17}>🎯 REFLEKS TESTİ</Title><Text style={{color:hit?'#5BFFC2':'#FFC98B',fontWeight:'800'}}>{hit?'● HEDEFTE':'● BEKLE'}</Text></View>
+   <View style={{height:60,backgroundColor:'#172640',borderRadius:15,overflow:'hidden',justifyContent:'center',borderWidth:2,borderColor:'#3B516E'}}>
+    <View style={{position:'absolute',left:((target-0.085)*100)+'%',width:'17%',height:'100%',backgroundColor:'#119F78',borderLeftWidth:2,borderRightWidth:2,borderColor:'#8DFFDC'}}/>
+    <View style={{position:'absolute',left:(position*95)+'%',width:8,height:'100%',backgroundColor:'#FFFFFF',borderRadius:5}}/>
    </View>
-   <Pressable onPress={pull} disabled={busy||!side} style={{padding:19,alignItems:'center',borderRadius:16,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:22,fontWeight:'800'}}>✊ ÇEK!</Text></Pressable>
-   {!!feedback&&<Text style={{color:'#E8F1FF',textAlign:'center'}}>{feedback}</Text>}
-  </Card>:<Card style={{gap:8}}><Title size={23}>🏆 {winner}</Title><Text style={{color:'#E8F1FF'}}>A Takımı: {state.a} kuvvet · B Takımı: {state.b} kuvvet</Text><Muted>Etkinliği oda kurucusu bitirdiğinde ana oyun devam eder.</Muted>{isHost&&<Pressable onPress={replay} disabled={busy} style={{padding:15,alignItems:'center',borderRadius:14,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:18,fontWeight:'800'}}>{busy?'Hazırlanıyor…':'🔁 Tekrar Oyna'}</Text></Pressable>}{!isHost&&<Muted>Yeniden oynamak için oda kurucusunun Tekrar Oyna'ya basmasını bekle.</Muted>}</Card>}
+   <Muted>Yeşilde yakala: +35 ila +100 kuvvet. Dışarıda bas: -45 kuvvet. Hedef her geçişte yakalanamayabilir!</Muted>
+   <Pressable onPress={pull} disabled={busy||!side} style={{padding:20,alignItems:'center',borderRadius:16,borderWidth:2,borderColor:'#82FFD4',backgroundColor:busy?'#42576D':'#109777'}}><Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'900'}}>✊ HALATI ÇEK!</Text></Pressable>
+   {!!feedback&&<Text style={{color:hit?'#A0FFDA':'#FFB0B0',fontSize:17,fontWeight:'900',textAlign:'center'}}>{feedback}</Text>}
+  </Card>:<Card style={{gap:10}}>
+   <Title size={24}>🏆 {winner}</Title>
+   <Text style={{color:'#E8F1FF'}}>🔵 {state.a} kuvvet · 🔴 {state.b} kuvvet</Text>
+   <Muted>Etkinliği oda kurucusu bitirdiğinde ana oyun devam eder.</Muted>
+   {isHost&&<Pressable onPress={replay} disabled={busy} style={{padding:17,alignItems:'center',borderRadius:15,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:18,fontWeight:'900'}}>{busy?'Hazırlanıyor…':'🔁 TEKRAR OYNA'}</Text></Pressable>}
+   {!isHost&&<Muted>Tekrar oynamak için kurucuyu bekle.</Muted>}
+  </Card>}
+  {!wide&&<Muted>📱 Telefonu yatay çevirerek arenayı daha geniş görebilirsin.</Muted>}
   {!!error&&<Text style={{color:'#FF8592'}}>{error}</Text>}
  </View>;
 }
