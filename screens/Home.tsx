@@ -158,7 +158,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     </View>
                     <View style={{ flex: 1 }}>
                       <Title size={20}>Yeni Oda Kur</Title>
-                      <Muted>Modu seç, kodu arkadaşlarınla paylaş.</Muted>
+                      <Muted>Hızlı, Standart ve Epik modlarda oyunlar rastgele seçilir. Özel modda oyunları sen belirlersin.</Muted>
                     </View>
                   </View>
                   <View style={s.modes}>
@@ -166,6 +166,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       ['quick', 'flash', 'Hızlı', '8 Soru • ~5 dk', colors.yellow],
                       ['standard', 'trophy', 'Standart', '14 Soru • ~10 dk', colors.cyan],
                       ['long', 'flame', 'Epik', '20 Soru • ~18 dk', colors.violet],
+                      ['custom', 'options', 'Özel', 'Oyunları sen seç', colors.mint],
                     ] as const).map(([m, icon, label, sub, c]) => {
                       const on = mode === m;
                       return (
