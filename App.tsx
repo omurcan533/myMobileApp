@@ -16,6 +16,7 @@ import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
 import { api } from './lib/api';
+import { soundFx } from './lib/soundEffects';
 import { syncServerTime } from './lib/serverTime';
 import { art } from './lib/art';
 import { alpha, colors } from './lib/theme';
@@ -105,6 +106,8 @@ export default function App() {
       const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime()]);
       const [pieces, saved] = await Promise.all([supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY)]);
       setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((p) => [p.id, p])));
+      const soundEnabled = await AsyncStorage.getItem('soundEnabled');
+      if (soundEnabled !== null) soundFx.setEnabled(soundEnabled === 'true');
       const savedAvatar = await AsyncStorage.getItem('avatarId');
       if (AVATAR_OPTIONS.some((a) => a.id === savedAvatar)) setAvatarId(savedAvatar as AvatarId);
       setUserId(user.id);
