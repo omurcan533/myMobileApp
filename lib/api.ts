@@ -97,6 +97,7 @@ export const api = {
   partyEventFinish: (event:string)=>rpc<void>('party_event_finish',{p_event:event}),
   partyTugPull: (event:string,force:number)=>rpc<{accepted:boolean;force:number}>('party_tug_pull',{p_event:event,p_force:force}),
   partyTugState: (event:string)=>rpc<{a:number;b:number;players:{nickname:string;side:string;force:number}[]}|null>('party_tug_state',{p_event:event}),
+  partyTugReplay: (event:string)=>rpc<string>('party_tug_replay',{p_event:event}),
   partyLastAgeEvent: (room:string)=>rpc<string|null>('party_last_age_event',{p_room:room}),
   partyAgeResults: (event:string)=>rpc<{player_id:string;correct:number;total:number}[]>('party_age_results',{p_event:event}),
   saveFriendFacts: (room: string, facts: Record<string,string>) => rpc<void>('save_friend_facts',{p_room:room,p_facts:facts}),
