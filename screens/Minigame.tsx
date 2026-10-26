@@ -41,6 +41,15 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   // never shift the user's viewport while they are controlling a paddle.
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
+  const resultSoundId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!mg || mg.status === 'live' || !mg.resolved_at || resultSoundId.current === mg.id) return;
+    resultSoundId.current = mg.id;
+    if (!mg.winner_side) soundFx.timeUp();
+    else if (mg.winner_side === me.team_side) soundFx.victory();
+    else soundFx.defeat();
+  }, [mg?.id, mg?.status, mg?.resolved_at, mg?.winner_side, me.team_side]);
+
 
   if (!mg) {
     return (
