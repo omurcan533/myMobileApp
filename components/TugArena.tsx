@@ -28,17 +28,20 @@ function Fighter({x,side,step,effort,slip}:{x:number;side:'A'|'B';step:number;ef
 export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:number;wide:boolean}){
  const diff=blue-red;
  const magnitude=Math.abs(blue)+Math.abs(red);
- const shift=Math.max(-60,Math.min(60,magnitude?diff/Math.max(320,magnitude)*85:0));
+ // Kuvvet farkı büyüdükçe ilerleme yavaşlar; 200-300 puanda arena dolmaz.
+ // tanh eğrisi asimptotik olarak yaklaşır, asla aniden %100'e kilitlenmez.
+ const advantage=Math.tanh(diff/1000);
+ const shift=advantage*60;
  const move=shift;
  const step=time/240;
  const strength=Math.min(1,magnitude/1300);
  const blueEffort=Math.min(1,0.25+strength+(diff<0?0.2:0));
  const redEffort=Math.min(1,0.25+strength+(diff>0?0.2:0));
- const blueSlip=diff<0?Math.min(1,-diff/450):0;
- const redSlip=diff>0?Math.min(1,diff/450):0;
+ const blueSlip=diff<0?Math.abs(advantage):0;
+ const redSlip=diff>0?Math.abs(advantage):0;
  const tugWave=Math.sin(time/110)*Math.min(2.5,0.5+strength*2);
  const tension=2+strength*5;
- const intensity=Math.min(1,Math.abs(diff)/Math.max(250,magnitude));
+ const intensity=Math.abs(advantage);
  return <Svg width="100%" height={wide?290:215} viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet">
   <Defs>
    <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#101D39"/><Stop offset="1" stopColor="#355073"/></LinearGradient>
