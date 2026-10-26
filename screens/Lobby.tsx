@@ -45,7 +45,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const [draftGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
-  const canEditGames = me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
+  const canEditGames = room.mode === 'custom' && me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
 
   // Synchronize with the server only outside editing mode. Taps never send requests.
   useEffect(() => {
@@ -53,7 +53,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   }, [room.selected_games, gamesLocked, editingGames, savingGames]);
 
   const toggleGame = (gameId: string) => {
-    if (!me.is_host || gamesLocked && !editingGames || savingGames || busy) return;
+    if (room.mode !== 'custom' || !me.is_host || gamesLocked && !editingGames || savingGames || busy) return;
     setDraftGames((current) => current.includes(gameId)
       ? current.filter((id) => id !== gameId)
       : [...current, gameId]);
@@ -63,7 +63,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const clearAllGames = () => { if (canEditGames) setDraftGames([]); };
 
   const lockGames = async () => {
-    if (!me.is_host || savingGames || busy) return;
+    if (room.mode !== 'custom' || !me.is_host || savingGames || busy) return;
     if (draftGames.length === 0) {
       show('En az bir bulmaca türü seçmelisin.', 'error');
       return;
@@ -96,7 +96,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
   const assignTeams = async () => {
     if (!factsReady || !factsReviewed) { show('Önce herkes kişisel sorularını tamamlamalı.', 'error'); return; }
-    if (!gamesLocked) {
+    if (room.mode === 'custom' && !gamesLocked) {
       show('Önce oyun seçimlerini yapıp kilitlemelisin.', 'error');
       return;
     }
@@ -137,7 +137,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               <Text display style={s.code}>{room.code}</Text>
             </Pulse>
             <View style={s.chipsRow}>
-              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? 'Hızlı mod' : 'Uzun mod'} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
+              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? 'Hızlı mod' : room.mode === 'standard' ? 'Standart mod' : room.mode === 'long' ? 'Epik mod' : 'Özel mod'} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
               <Chip icon="people" label="2 Takım" color={colors.cyan} />
             </View>
             <Btn title="Arkadaşlarına Gönder" tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
@@ -145,7 +145,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         </Reveal>
 
         {/* ================= OYUN SEÇİMİ ================= */}
-        <Reveal delay={80}>
+        {room.mode === 'custom' ? <Reveal delay={80}>
           <Card style={{ gap: 12 }}>
             <Title size={20}>Oynamak istediğin oyunları seç</Title>
             <Muted>{me.is_host ? 'Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.' : 'Oyun kurucusunun seçtiği türler aşağıda görünüyor.'}</Muted>
@@ -176,7 +176,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             ) : null}
             <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
           </Card>
-        </Reveal>
+        </Reveal> : <Card style={{gap:8}}><Title size={20}>🎲 Rastgele Oyunlar</Title><Muted>Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
 
         {me.is_host && <Card style={{gap:12}}><Title size={20}>🤖 Test Botları</Title><Muted>İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.</Muted><Text>Bot sayısı: {draftBotCount??botCount} · Toplam oyuncu: {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title="Botları Uygula" tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show('Test botları güncellendi.','success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
