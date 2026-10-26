@@ -94,11 +94,44 @@ function playerFinalComment(
  return {headline,details:details.slice(0,7),verdict,facts};
 }
 
+type MatchMoment={at:string;type:'round'|'minigame';data:{round?:number;winner?:Side|null;question?:string;correct_players?:{id:string;name:string;side:Side}[];wrong_players?:{id:string;name:string;side:Side}[];kind?:string;tug_a?:number;tug_b?:number;top_tug_player?:{id:string;name:string;force:number}|null}};
+function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
+ const moments:{title:string;body:string;people:string[];accent:string}[]=[];
+ let prevWinner:Side|null=null,streak=0;
+ for(const moment of story){
+  const d=moment.data;
+  if(moment.type==='round'){
+   const winners=d.correct_players??[],misses=d.wrong_players??[];
+   if(winners.length&&misses.length){
+    const hit=winners[0],miss=misses.find(p=>p.side!==hit.side);
+    if(miss)moments.push({title:'🎯 Aynı soruda iki ayrı kader',body:`${hit.name} doğru cevabı bulurken ${miss.name} aynı turda yanıldı. ${hit.name} alkışı topladı, ${miss.name} ise jüriye yeni malzeme verdi.`,people:[hit.id,miss.id],accent:'#B8F7DA'});
+   }
+   if(d.winner){
+    streak=d.winner===prevWinner?streak+1:1;
+    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 İpler el değiştirdi',body:`${d.round}. soruda ${d.winner} takımı önceki turun kazananı ${prevWinner} takımının serisini kesti. Maçın ritmi burada değişti.`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
+    if(streak===3)moments.push({title:'🔥 Üç turluk seri',body:`${d.winner} takımı arka arkaya üç soru turunu kazandı. Rakip takımın strateji toplantısı için acil gündem oluştu.`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
+    prevWinner=d.winner;
+   }
+  }else if(d.kind==='tug_of_war'){
+   const a=Number(d.tug_a??0),b=Number(d.tug_b??0),top=d.top_tug_player;
+   moments.push({title:'🪢 Halat arenasında güç gösterisi',body:`Mavi takım ${a}, kırmızı takım ${b} net kuvvet üretti. ${top?`${top.name} tek başına ${top.force} net kuvvetle öne çıktı.`:'Bireysel kuvvet kaydı bulunmuyor.'} ${a===b?'Halatın ortasında tam bir düğüm yaşandı.':'Kazanan tarafı en çok toplam kuvvet farkı belirledi.'}`,people:top?[top.id]:[],accent:'#99E6FF'});
+  }else if(d.winner){
+   moments.push({title:'🎮 Mini oyunda sahne değişti',body:`${d.kind??'Mini oyun'} karşılaşmasını ${d.winner} takımı kazandı. Soru turlarından farklı bir alanda puan toplamak, rakibe küçük bir hatırlatma oldu: Bu maç tek bir beceriyle kazanılmıyor.`,people:[],accent:'#D3B8FF'});
+  }
+ }
+ if(story.length>=2){
+  const last=story[story.length-1];
+  moments.push({title:'🎬 Final düdüğü',body:`Maçın kayıtlı son karşılaşması ${last.type==='round'?'soru turu':'mini oyun'} oldu. ${story.length} sonuçlanmış karşılaşma üzerinden bu hikâye oluşturuldu; anlatılmayan olaylar uydurulmadı.`,people:[],accent:'#FFD99C'});
+ }
+ return moments.slice(0,12);
+}
+
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
+  const [matchStory,setMatchStory]=useState<MatchMoment[]>([]);
   const [revealing, setRevealing] = useState(false);
   const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
   const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
@@ -131,6 +164,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     return () => { active = false; if (revealTimer) clearTimeout(revealTimer); };
   }, [data.room.id, me.team_side]);
 
+  useEffect(()=>{api.matchStory(data.room.id).then(setMatchStory).catch(()=>{});},[data.room.id]);
+
   useEffect(()=>{api.friendMemoryLeaderboard(data.room.id).then(setFriendScores).catch(()=>{});api.partyLastAgeEvent(data.room.id).then(id=>id?api.partyAgeResults(id).then(setAgeScores):undefined).catch(()=>{});},[data.room.id]);
 
   if (!res) {
@@ -150,6 +185,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     );
   }
 
+  const matchMoments=describeMatch(matchStory,data.players);
   const isOfficialMine = res.official_winner && me.team_side === res.official_winner;
   const isFunnyMine = res.funny_winner && me.team_side === res.funny_winner;
   const champ = res.official_winner;
@@ -176,17 +212,29 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
         </Card>
 
+        {/* ================= MAÇIN HİKÂYESİ ================= */}
+        <Card accent={colors.cyan} style={{gap:13,backgroundColor:'#12243E',borderWidth:1,borderColor:'#32718A'}}>
+          <Title size={23}>📖 Maçın Hikâyesi</Title>
+          <Text style={{color:'#E0EDFF',fontSize:14,lineHeight:23}}>Aynı soruda karşı karşıya gelen arkadaşlar, seri galibiyetler, takımın geri dönüşleri ve mini oyunların gerçek kayıtlarından seçilmiş maç anları.</Text>
+          {matchMoments.length?matchMoments.map((moment,i)=><View key={i} style={{backgroundColor:'#09182D',borderWidth:1,borderColor:'#355470',borderRadius:14,padding:13,gap:7}}>
+            <Text style={{color:moment.accent,fontSize:16,fontWeight:'800'}}>{i+1}. {moment.title}</Text>
+            <Text style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{moment.body}</Text>
+          </View>):<Text style={{color:'#CFDFF5',fontSize:14,lineHeight:23}}>Henüz anlatılabilecek yeterli maç olayı bulunamadı. Oyun kayıtları oluştukça hikâye burada belirecek.</Text>}
+        </Card>
+
         {/* ================= OYUNCU FİNAL YORUMLARI ================= */}
         <Card accent={colors.violet} style={{gap:14,backgroundColor:'#14213B',borderWidth:1,borderColor:'#634AA0'}}>
           <Title size={23}>🎤 Ucube Jürisi: Final Taşlaması</Title>
           <Text style={{color:'#DFE8FF',fontSize:14,lineHeight:23}}>Jüri dosyaları açtı! Her oyuncunun gerçek yanıtları, dostluk hafızası, yaş tahminleri ve takım performansı ayrı ayrı incelendi. Yorumlar oyun verilerinden hazırlanır; yapay zekâ tarafından yazılmaz.</Text>
           {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>{
             const report=playerFinalComment(player,i,res,friendScores,ageScores,data);
+            const playerMoments=matchMoments.filter(m=>m.people.includes(player.id)).slice(0,2);
             return <View key={player.id} style={{backgroundColor:'#08162B',borderColor:'#334969',borderWidth:1,borderRadius:18,padding:15,gap:11}}>
               <Title size={20} color={'#FFCF70'}>🎭 {player.nickname}</Title>
               <Text style={{color:'#91F4D5',fontSize:13,fontWeight:'800'}}>{report.headline}</Text>
               <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{report.facts.map((fact,j)=><View key={j} style={{backgroundColor:'#203652',borderRadius:9,paddingVertical:6,paddingHorizontal:9}}><Text style={{color:'#EDF6FF',fontSize:12,fontWeight:'700'}}>{fact}</Text></View>)}</View>
               {report.details.map((line,j)=><Text key={j} style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{line}</Text>)}
+              {playerMoments.map((moment,j)=><View key={'story'+j} style={{backgroundColor:'#1D2D48',borderRadius:10,padding:10,gap:5}}><Text style={{color:'#A9F6DE',fontSize:12,fontWeight:'800'}}>📌 MAÇTAN KANIT: {moment.title}</Text><Text style={{color:'#EAF3FF',fontSize:13,lineHeight:21}}>{moment.body}</Text></View>)}
               <View style={{borderTopWidth:1,borderColor:'#3B5374',paddingTop:10}}><Text style={{color:'#FFDA9A',fontSize:13,lineHeight:21,fontWeight:'800'}}>{report.verdict}</Text></View>
             </View>;
           })}
