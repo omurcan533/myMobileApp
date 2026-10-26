@@ -6,13 +6,17 @@ import {Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
 
 type TugState={a:number;b:number;players:{nickname:string;side:string;force:number}[]};
-export function TugOfWar({event,players,myId}:{event:any;players:Player[];myId:string}){
+export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[];myId:string;isHost:boolean}){
  const [now,setNow]=useState(Date.now());
+ const [startedAt,setStartedAt]=useState<string>(event.created_at);
  const [state,setState]=useState<TugState>({a:0,b:0,players:[]});
  const [feedback,setFeedback]=useState('');
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const lastPull=useRef(0);
+ useEffect(()=>{
+  if(event.created_at!==startedAt){setStartedAt(event.created_at);setState({a:0,b:0,players:[]});setFeedback('');setError('');lastPull.current=0;setNow(Date.now());}
+ },[event.created_at]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
  const refresh=async()=>{try{const s=await api.partyTugState(event.id);if(s)setState(s);}catch{}};
  useEffect(()=>{
@@ -23,7 +27,7 @@ export function TugOfWar({event,players,myId}:{event:any;players:Player[];myId:s
   channel.current=ch;
   return()=>{clearInterval(timer);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
- const elapsed=Math.max(0,(now-Date.parse(event.created_at))/1000);
+ const elapsed=Math.max(0,(now-Date.parse(startedAt))/1000);
  const remaining=Math.max(0,Math.ceil(35-elapsed));
  // Her telefonda akıcı yerel ibre. Dokunma sonucu ağ beklemeden gösterilir.
  const position=(Math.sin(now/650)+1)/2;
@@ -44,6 +48,15 @@ export function TugOfWar({event,players,myId}:{event:any;players:Player[];myId:s
    await refresh();
   }catch(e){setError((e as Error).message);}
   finally{setBusy(false);}
+ };
+ const replay=async()=>{
+  if(!isHost||busy||remaining>0)return;
+  setBusy(true);setError('');
+  try{
+   const next=await api.partyTugReplay(event.id);
+   setStartedAt(next);setNow(Date.now());setState({a:0,b:0,players:[]});setFeedback('');lastPull.current=0;
+   channel.current?.send({type:'broadcast',event:'pull',payload:{replay:true}}).catch(()=>{});
+  }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  };
  const winner=state.a===state.b?'Berabere':state.a>state.b?'A Takımı':'B Takımı';
  return <View style={{gap:14}}>
@@ -66,7 +79,7 @@ export function TugOfWar({event,players,myId}:{event:any;players:Player[];myId:s
    </View>
    <Pressable onPress={pull} disabled={busy||!side} style={{padding:19,alignItems:'center',borderRadius:16,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:22,fontWeight:'800'}}>✊ ÇEK!</Text></Pressable>
    {!!feedback&&<Text style={{color:'#E8F1FF',textAlign:'center'}}>{feedback}</Text>}
-  </Card>:<Card style={{gap:8}}><Title size={23}>🏆 {winner}</Title><Text style={{color:'#E8F1FF'}}>A Takımı: {state.a} kuvvet · B Takımı: {state.b} kuvvet</Text><Muted>Etkinliği oda kurucusu bitirdiğinde ana oyun devam eder.</Muted></Card>}
+  </Card>:<Card style={{gap:8}}><Title size={23}>🏆 {winner}</Title><Text style={{color:'#E8F1FF'}}>A Takımı: {state.a} kuvvet · B Takımı: {state.b} kuvvet</Text><Muted>Etkinliği oda kurucusu bitirdiğinde ana oyun devam eder.</Muted>{isHost&&<Pressable onPress={replay} disabled={busy} style={{padding:15,alignItems:'center',borderRadius:14,backgroundColor:busy?'#42576D':'#13A785'}}><Text style={{color:'#FFFFFF',fontSize:18,fontWeight:'800'}}>{busy?'Hazırlanıyor…':'🔁 Tekrar Oyna'}</Text></Pressable>}{!isHost&&<Muted>Yeniden oynamak için oda kurucusunun Tekrar Oyna'ya basmasını bekle.</Muted>}</Card>}
   {!!error&&<Text style={{color:'#FF8592'}}>{error}</Text>}
  </View>;
 }
