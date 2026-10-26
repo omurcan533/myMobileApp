@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CanvasBoard } from '../components/Canvas';
@@ -140,7 +140,7 @@ function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
  return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
 }
 
-type CeremonyAward={id:string;icon:string;title:string;player:string;reason:string;color:string};
+type CeremonyAward={id:string;icon:string;title:string;player:string;playerId:string;reason:string;color:string};
 function buildCeremonyAwards(
  data:Ctx['data'],story:MatchMoment[],
  friendScores:{player_id:string;correct:number;attempts:number}[],
@@ -150,7 +150,7 @@ function buildCeremonyAwards(
  const awards:CeremonyAward[]=[];
  const add=(id:string,icon:string,title:string,playerId:string,reason:string,color:string)=>{
   const p=players.find(p=>p.id===playerId);
-  if(p)awards.push({id,icon,title,player:p.nickname,reason,color});
+  if(p)awards.push({id,icon,title,player:p.nickname,playerId:p.id,reason,color});
  };
  // Each prize requires a measurable achievement; ties are resolved by player id for stable results.
  const stats=players.map(p=>{
@@ -190,6 +190,78 @@ function buildCeremonyAwards(
  return awards;
 }
 
+/** Accessible, skippable client-side ceremony; each phone can watch at its own pace. */
+function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];players:Ctx['data']['players'];closing:string;onFinish:()=>void}){
+ const [step,setStep]=useState(0);
+ const fade=useRef(new Animated.Value(0)).current;
+ const lift=useRef(new Animated.Value(22)).current;
+ const pulse=useRef(new Animated.Value(0.94)).current;
+ const total=awards.length+2; // opening + awards + closing
+ const isOpening=step===0;
+ const isClosing=step===total-1;
+ const award=!isOpening&&!isClosing?awards[step-1]:null;
+ const next=()=>setStep(v=>Math.min(v+1,total-1));
+ useEffect(()=>{
+  fade.setValue(0);lift.setValue(22);pulse.setValue(0.94);
+  const animation=Animated.parallel([
+   Animated.timing(fade,{toValue:1,duration:550,useNativeDriver:true,easing:Easing.out(Easing.cubic)}),
+   Animated.spring(lift,{toValue:0,useNativeDriver:true,friction:7,tension:55}),
+   Animated.spring(pulse,{toValue:1,useNativeDriver:true,friction:5,tension:70}),
+  ]);
+  animation.start();
+  if(!isOpening&&award){soundFx.victory();haptic.success();}
+  return ()=>animation.stop();
+ },[step,fade,lift,pulse]);
+ useEffect(()=>{
+  const timer=setTimeout(()=>{if(isClosing)onFinish();else next();},isOpening?2600:isClosing?10000:5500);
+  return ()=>clearTimeout(timer);
+ },[step,isClosing,onFinish]);
+ const player=award?players.find(p=>p.id===award.playerId):null;
+ const teamTint=player?.team_side?teamColor(player.team_side):'#FFD88D';
+ return <Screen>
+  <View style={{flex:1,justifyContent:'space-between',paddingHorizontal:20,paddingTop:28,paddingBottom:32,gap:22}}>
+   <View style={{gap:12}}>
+    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}>
+     <View style={{flex:1}}><Text style={{color:'#8EF5D1',fontSize:12,fontWeight:'900',letterSpacing:2}}>✦ U C U B E  A T Ö L Y E S İ ✦</Text><Title size={26}>Ödül Gecesi</Title></View>
+     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve tüm sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:24,borderWidth:1,borderColor:'#5B6F90',backgroundColor:'#172941'}}><Text style={{color:'#EDF5FF',fontWeight:'800'}}>Atla ↗</Text></Pressable>
+    </View>
+    <View style={{flexDirection:'row',gap:5}}>{Array.from({length:total},(_,i)=><View key={i} style={{height:5,flex:1,borderRadius:6,backgroundColor:i<=step?'#FFCF77':'#354560'}}/>)}</View>
+    <Text style={{color:'#B6C9E5',fontSize:12,fontWeight:'700'}}>{isOpening?'Sahne hazırlanıyor':isClosing?'Final konuşması':`Ödül ${step} / ${awards.length}`}</Text>
+   </View>
+   <Animated.View style={{opacity:fade,transform:[{translateY:lift},{scale:pulse}],alignItems:'center',gap:20,paddingVertical:20}}>
+    <Text style={{fontSize:57,textAlign:'center'}}>{isOpening?'🎭':isClosing?'🎤':award?.icon}</Text>
+    <Text style={{color:'#FFDA92',fontSize:14,fontWeight:'900',letterSpacing:2,textAlign:'center'}}>{isOpening?'BU GECE SAHNE SİZİN':isClosing?'JÜRİDEN SON SÖZ':award?.title.toLocaleUpperCase('tr-TR')}</Text>
+    {award&&<View style={{width:130,height:130,borderRadius:65,borderWidth:4,borderColor:teamTint,backgroundColor:'#1B3250',alignItems:'center',justifyContent:'center',shadowColor:award.color,shadowOpacity:0.65,shadowRadius:25,elevation:9}}>
+     <Text style={{fontSize:54,color:'#FFFFFF',fontWeight:'900'}}>{award.player.trim().slice(0,1).toLocaleUpperCase('tr-TR')}</Text>
+     <View style={{position:'absolute',bottom:-9,right:-8,backgroundColor:'#FFCE78',borderRadius:22,padding:8}}><Text style={{fontSize:22}}>🏅</Text></View>
+    </View>}
+    <Title size={isClosing?26:30} color="#FFFFFF">{isOpening?'Hazır mısınız?':isClosing?'İşte bu gecenin özeti':award?.player}</Title>
+    <View style={{borderWidth:1,borderColor:'#486284',backgroundColor:'#142640',borderRadius:20,padding:20,width:'100%'}}>
+     <Text style={{color:'#E9F3FF',fontSize:16,lineHeight:27,textAlign:'center'}}>{isOpening?'Jüri dosyaları açıldı, spot ışıkları yandı! Her ödül gerçek oyun performansına göre açıklanacak.':isClosing?closing:award?.reason}</Text>
+    </View>
+    <Text style={{color:'#94ACC9',fontSize:13,textAlign:'center'}}>{isOpening?'Birazdan ilk ödül açıklanacak…':isClosing?'Bu gece herkesin anlatacak bir hikâyesi var.':'👏 Alkışlar sahnedeki oyuncuya!'}</Text>
+   </Animated.View>
+   <View style={{gap:12}}>
+    <Pressable accessibilityRole="button" onPress={isClosing?onFinish:next} style={{paddingVertical:17,borderRadius:16,backgroundColor:'#F6C66E',alignItems:'center'}}>
+     <Text style={{color:'#192238',fontSize:16,fontWeight:'900'}}>{isClosing?'📊 Tüm Sonuçları Gör':'Sonraki Sahne →'}</Text>
+    </Pressable>
+    <Text style={{color:'#9EB1CC',fontSize:12,textAlign:'center'}}>Sahneler otomatik ilerler · İstediğin an atlayabilirsin</Text>
+   </View>
+  </View>
+ </Screen>;
+}
+
+function ceremonyClosing(awards:CeremonyAward[],moments:ReturnType<typeof describeMatch>,res:GameResults):string{
+ const champ=res.official_winner?teamName(res.official_winner):'İki takım';
+ const highlight=moments.find(m=>/geri dönüş|Son saniyede|yanlışlık seri/.test(m.title))??moments[0];
+ const star=awards.find(a=>a.id==='hero')??awards[0];
+ const winner=res.official_winner?`${champ} kupayı kaldırdı`:'Kupa beraberlikle paylaşıldı';
+ const intro=`${winner}. Ama jüriye sorarsanız bu gecenin asıl kazananı, birbirine takılmayı bilen arkadaş grubu!`;
+ const detail=highlight?` Unutulmaz anımız: ${highlight.title.replace(/^[^\\p{L}]+/u,'').trim()}. Bu sahne maç kayıtlarına geçti.`:' Herkesin kendine göre bir hikâyesi vardı; kayıtların söylemediğini biz de uydurmadık.';
+ const outro=star?` ${star.player}, “${star.title}” unvanını kaptı. Diğerleri, bir sonraki oyunda jüriyi şaşırtmak için hazırlansın!`:' Bu turda kişisel ödül için yeterli veri yoktu; bir sonraki oyun yeni sürprizler getirsin!';
+ return intro+detail+outro+' 🎉 Ucube Jürisi dağılmıştır!';
+}
+
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
@@ -198,6 +270,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const [matchStory,setMatchStory]=useState<MatchMoment[]>([]);
   const [revealing, setRevealing] = useState(false);
   const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
+  const [ceremonyDismissed,setCeremonyDismissed]=useState(false);
+  const [ceremonyReady,setCeremonyReady]=useState(false);
   const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
   const { toast, show } = useToast();
 
@@ -229,6 +303,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   }, [data.room.id, me.team_side]);
 
   useEffect(()=>{api.matchStory(data.room.id).then(setMatchStory).catch(()=>{});},[data.room.id]);
+  useEffect(()=>{const timer=setTimeout(()=>setCeremonyReady(true),1300);return ()=>clearTimeout(timer);},[data.room.id]);
 
   useEffect(()=>{api.friendMemoryLeaderboard(data.room.id).then(setFriendScores).catch(()=>{});api.partyLastAgeEvent(data.room.id).then(id=>id?api.partyAgeResults(id).then(setAgeScores):undefined).catch(()=>{});},[data.room.id]);
 
@@ -258,6 +333,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const funny = res.funny_winner;
   const funnyColor = funny ? teamColor(funny) : colors.violet;
 
+  if(ceremonyReady&&!ceremonyDismissed){return <AwardStage awards={ceremonyAwards} players={data.players} closing={ceremonyClosing(ceremonyAwards,matchMoments,res)} onFinish={()=>setCeremonyDismissed(true)}/>;}
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -276,6 +353,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.</Text>}
           {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
         </Card>
+
+        <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>🎬 Ödül Törenini Yeniden İzle</Text></Pressable>
 
         {/* ================= ÖDÜL TÖRENİ ================= */}
         <Card accent={colors.gold} style={{gap:13,backgroundColor:'#17253D',borderWidth:1,borderColor:'#8A6B39'}}>
