@@ -327,6 +327,64 @@ class SoundEngine {
     } catch {}
   }
 
+
+  /** Takım yerleşimi: kısa yarış motoru / roket hızlanma efekti (Web Audio). */
+  teamLaunch() {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const start = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const harmonic = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.type = 'sawtooth';
+      harmonic.type = 'triangle';
+      osc.frequency.setValueAtTime(75, start);
+      osc.frequency.exponentialRampToValueAtTime(230, start + 0.38);
+      osc.frequency.exponentialRampToValueAtTime(570, start + 0.88);
+      harmonic.frequency.setValueAtTime(115, start);
+      harmonic.frequency.exponentialRampToValueAtTime(840, start + 0.88);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, start);
+      filter.frequency.linearRampToValueAtTime(2200, start + 0.88);
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.linearRampToValueAtTime(0.095, start + 0.12);
+      gain.gain.setValueAtTime(0.095, start + 0.65);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.92);
+      osc.connect(filter);
+      harmonic.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      harmonic.start(start);
+      osc.stop(start + 0.94);
+      harmonic.stop(start + 0.94);
+    } catch {}
+  }
+
+  /** Oyuncu takım yuvasına indiğinde tok ve parlak iniş sesi. */
+  teamLanding() {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(310, now);
+      osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } catch {}
+  }
+
   /** İsimle ses çalma */
   playByName(name: string) {
     switch (name) {
