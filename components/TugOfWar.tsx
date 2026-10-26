@@ -21,7 +21,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
   if(event.created_at!==startedAt){setStartedAt(event.created_at);setState({a:0,b:0,players:[]});setFeedback('');setError('');lastPull.current=0;setNow(Date.now());}
  },[event.created_at]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
- const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState(s);}catch{}};
+ const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState({a:s.a,b:s.b,players:'players' in s?s.players:[]});}catch{}};
  useEffect(()=>{
   refresh();
   const timer=setInterval(()=>setNow(Date.now()),40);
@@ -52,7 +52,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
  const total=state.a+state.b;
  const rope=total>0?Math.max(-44,Math.min(44,(state.a-state.b)/Math.max(250,total)*85)):0;
  const pull=async()=>{
-  if(busy||remaining===0||!side||Date.now()-lastPull.current<470)return;
+  if(busy||remaining===0||!side||(main&&Date.now()<Date.parse(startedAt))||Date.now()-lastPull.current<470)return;
   lastPull.current=Date.now();
   setFeedback(hit?'🎯 İSABET! +'+force+' kuvvet':'💥 ISKALADIN! -45 kuvvet');
   setBusy(true);setError('');
@@ -74,6 +74,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
  };
  const winner=state.a===state.b?'Berabere':state.a>state.b?'A Takımı':'B Takımı';
  return <View style={{gap:12}}>
+  {main&&now<Date.parse(startedAt)&&<Title size={20}>⏳ Başlıyor: {Math.ceil((Date.parse(startedAt)-now)/1000)}</Title>}
   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
    <View style={{flex:1}}><Title size={wide?28:23}>🏟️ HALAT ARENASI</Title><Muted>TAKIMLARIN BÜYÜK MÜCADELESİ · {duration} SANİYE</Muted></View>
    <View style={{backgroundColor:remaining<10?'#803344':'#203653',padding:12,borderRadius:14}}><Text style={{color:'#FFFFFF',fontSize:24,fontWeight:'900'}}>⏱ {remaining}</Text></View>
@@ -95,7 +96,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
     <View style={{position:'absolute',left:(position*95)+'%',width:8,height:'100%',backgroundColor:'#FFFFFF',borderRadius:5}}/>
    </View>
    <Muted>Yeşilde yakala: +35 ila +100 kuvvet. Dışarıda bas: -45 kuvvet. Hedef her geçişte yakalanamayabilir!</Muted>
-   <Pressable onPress={pull} disabled={busy||!side} style={{padding:20,alignItems:'center',borderRadius:16,borderWidth:2,borderColor:'#82FFD4',backgroundColor:busy?'#42576D':'#109777'}}><Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'900'}}>✊ HALATI ÇEK!</Text></Pressable>
+   <Pressable onPress={pull} disabled={busy||!side||(main&&now<Date.parse(startedAt))} style={{padding:20,alignItems:'center',borderRadius:16,borderWidth:2,borderColor:'#82FFD4',backgroundColor:busy?'#42576D':'#109777'}}><Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'900'}}>✊ HALATI ÇEK!</Text></Pressable>
    {!!feedback&&<Text style={{color:hit?'#A0FFDA':'#FFB0B0',fontSize:17,fontWeight:'900',textAlign:'center'}}>{feedback}</Text>}
   </Card>:<Card style={{gap:10}}>
    <Title size={24}>🏆 {winner}</Title>
