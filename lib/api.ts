@@ -102,6 +102,7 @@ export const api = {
   minigameTugPull: (id:string,force:number)=>rpc<{accepted:boolean;force:number}>('minigame_tug_pull',{p_minigame:id,p_force:force}),
   minigameTugDuration: (id:string,seconds:number)=>rpc<void>('minigame_tug_duration',{p_minigame:id,p_seconds:seconds}),
   minigameTugReplay: (id:string,seconds:number)=>rpc<string>('minigame_tug_replay',{p_minigame:id,p_seconds:seconds}),
+  minigameTugContinue: (id:string)=>rpc<void>('minigame_tug_continue',{p_minigame:id}),
   partyLastAgeEvent: (room:string)=>rpc<string|null>('party_last_age_event',{p_room:room}),
   partyAgeResults: (event:string)=>rpc<{player_id:string;correct:number;total:number}[]>('party_age_results',{p_event:event}),
   saveFriendFacts: (room: string, facts: Record<string,string>) => rpc<void>('save_friend_facts',{p_room:room,p_facts:facts}),
