@@ -1,4 +1,5 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ScrollView,View,TextInput,Modal,Pressable} from 'react-native';
 import {api} from '../lib/api';
 import {Btn,Card,Muted,Text,Title} from './ui';
@@ -24,7 +25,7 @@ const SCENE_PAIRS = [
   [['🎪','🤹','🎯','🎠','🍿','🎡','🥁','🎟️','🎭'],['🎪','🤹','🏹','🎠','🍭','🎢','🎺','🎟️','🎭']]
 ] as const;
 const puzzleIndex = (id: string) => [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % SCENE_PAIRS.length;
-export function PartyBreak({roomId,players,myId,isHost,canStart}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean}){
+export function PartyBreak({roomId,players,myId,isHost,canStart,autoKey}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean;autoKey?:string|null}){
 const [dismissed,setDismissed]=useState(false);
 const [tick,setTick]=useState(Date.now());
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
@@ -33,6 +34,47 @@ const refresh=async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent
 useEffect(()=>{refresh();const t=setInterval(refresh,2500);return()=>clearInterval(t);},[roomId]);
 const run=async(fn:()=>Promise<any>)=>{setBusy(true);setError('');try{await fn();await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const start=(kind:string)=>run(async()=>{const prompt=kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?'Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!':kind==='age_guess'?'Herkes diğer oyuncuların yaşını tahmin etsin!':kind==='spot_diff'?'İki resimde kaç fark var?':'Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!';const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='age_guess'||kind==='spot_diff')await api.testBotsVote(eventId);setShowMenu(false);setAnswer('');setAge({});setWinner(null);});
+// Bir mini oyun sonrası tek seferlik, ev sahibi kontrollü sürpriz etkinlik.
+const autoBusy = useRef(false);
+useEffect(() => {
+  if (!isHost || !autoKey || players.length < 2 || autoBusy.current) return;
+  let cancelled = false;
+  const trigger = async () => {
+    const key = 'party-auto:' + roomId + ':' + autoKey;
+    autoBusy.current = true;
+    try {
+      if (await AsyncStorage.getItem(key)) return;
+      // Her mini oyun için deterministik seçim; aynı tur tekrar denenmez.
+      const seed = [...autoKey].reduce((n, ch) => n + ch.charCodeAt(0), 0);
+      await AsyncStorage.setItem(key, 'checked');
+      if (seed % 3 !== 0 || cancelled) return;
+      const current = await api.partyEventCurrent(roomId);
+      if (current || cancelled) return;
+      const kinds = players.length % 2 === 0
+        ? ['challenge', 'first_word', 'spot_diff', 'eye_duel']
+        : ['challenge', 'first_word', 'spot_diff'];
+      const kind = kinds[seed % kinds.length];
+      const available = players.length >= 4 ? TASKS : TASKS.slice(0, -1);
+      const prompt = kind === 'challenge'
+        ? available[(seed * 7 + 3) % available.length]
+        : kind === 'first_word'
+          ? 'Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!'
+          : kind === 'spot_diff'
+            ? 'İki resimde kaç fark var?'
+            : 'Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!';
+      if (cancelled) return;
+      const id = await api.partyEventStart(roomId, kind, prompt);
+      if (kind === 'challenge' || kind === 'spot_diff') await api.testBotsVote(id);
+      if (!cancelled) await refresh();
+    } catch (e) {
+      if (!cancelled) setError((e as Error).message);
+    } finally {
+      autoBusy.current = false;
+    }
+  };
+  trigger();
+  return () => { cancelled = true; };
+}, [autoKey, roomId, isHost, players.length]);
 const votes=event?.votes??[];
 const scenes = SCENE_PAIRS[puzzleIndex(event?.id??'')];
 const differenceCount = scenes[0].filter((emoji,i)=>emoji!==scenes[1][i]).length;
