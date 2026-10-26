@@ -56,7 +56,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
     if (!data || !me?.is_host || !data.players.some(p=>(p as any).is_bot)) return;
     if (data.room.phase!=='team_reveal' && data.room.phase!=='minigame') return;
     let running=false;
-    const advance=async()=>{if(running)return;running=true;try{await api.advanceTestBots(roomId);}catch(e){console.warn('Test bot action:',e);}finally{running=false;}};
+    const advance=async()=>{if(running)return;running=true;try{await api.advanceTestBots(roomId);await api.botSurvivorStep(roomId);}catch(e){console.warn('Test bot action:',e);}finally{running=false;}};
     advance();const timer=setInterval(advance,1800);return()=>clearInterval(timer);
   },[roomId,me?.is_host,data?.room.phase,data?.players.some(p=>(p as any).is_bot)]);
   const exitRoom = useCallback(async () => {
