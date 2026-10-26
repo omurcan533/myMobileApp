@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
 import { supabase } from '../lib/supabase';
 import { PongDuel } from '../components/PongDuel';
+import { TugOfWar } from '../components/TugOfWar';
 import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
 import { LineConnectGame } from '../components/LineConnectGame';
 import { SongCompleteGame } from '../components/SongCompleteGame';
@@ -40,6 +41,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   // Do not programmatically scroll during Pong: score and goal changes must
   // never shift the user's viewport while they are controlling a paddle.
   const [busy, setBusy] = useState(false);
+  const [tugDuration,setTugDuration]=useState<30|60|90|120>(60);
   const { toast, show } = useToast();
   const resultSoundId = useRef<string | null>(null);
   useEffect(() => {
@@ -139,6 +141,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     if (!me.is_host || data.room.paused || busy || !canContinueBriefing) return;
     setBusy(true);
     try {
+      if(mg.kind==='tug_of_war')await api.minigameTugDuration(mg.id,tugDuration);
       await api.confirmBriefing(data.room.id);
     } catch (error) {
       show((error as Error).message, 'error');
@@ -150,7 +153,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
-    mg.kind === 'survivor_memory' ? { icon: 'grid', label: 'Survivor Hafıza Parkuru', color: colors.mint }
+    mg.kind === 'tug_of_war' ? { icon: 'fitness', label: 'Halat Çekme', color: colors.mint }
+    : mg.kind === 'survivor_memory' ? { icon: 'grid', label: 'Survivor Hafıza Parkuru', color: colors.mint }
     : mg.kind === 'song_complete' ? { icon: 'musical-notes', label: 'Şarkı Tamamlama', color: colors.magenta }
     : mg.kind === 'line_connect' ? { icon: 'git-merge', label: 'Çizgi Birleştirme', color: colors.mint }
     : mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu', color: colors.cyan }
@@ -160,7 +164,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
     : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
+    mg.kind === 'tug_of_war' ? 'İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.'
+    : mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
     : mg.kind === 'song_complete' ? '75 popüler Türkçe şarkıdan biri seçilir. Sanatçıya ve şarkı adının eksik kısmına bakarak şarkının tam adını yaz. Oyuncular doğru cevabı bulana kadar tekrar deneyebilir. İlk doğru yanıt veren takım +2 puan ve bonus parça kazanır. Süre 65 saniyedir.'
     : mg.kind === 'line_connect' ? 'İki takım aynı 6×6 bulmacayı çözer. Aynı renkli noktaları birbirine bağla, çizgiler kesişemez ve diğer renklerin noktalarından geçemez. İlk hatasız bitiren takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
     : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
@@ -200,7 +205,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && !isPreparing && mg.kind !== 'pong' && (
           <TimerBar
             left={left}
-            total={mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
+            total={mg.kind === 'tug_of_war' ? (mg.target_num||60)+3 : mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />
@@ -230,6 +235,16 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               </View>
             )}
           </Card>
+        ) : mg.kind === 'tug_of_war' ? (
+          <View style={{gap:12}}>
+           <TugOfWar key={mg.id} main event={{...mg,created_at:mg.starts_at}} players={data.players} myId={me.id} isHost={me.is_host}/>
+           {!live&&<Card style={{gap:12}}>
+            <Title size={21}>🔁 Rövanş süresi</Title>
+            <Muted>Yeniden oynamak için yeni bir süre seçebilirsin.</Muted>
+            {me.is_host?<><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{([30,60,90,120] as const).map(seconds=><Pressable key={seconds} onPress={()=>setTugDuration(seconds)} style={{padding:12,borderRadius:12,borderWidth:2,borderColor:tugDuration===seconds?'#7BF4C5':'#50627A',backgroundColor:tugDuration===seconds?'#166B59':'#25354B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{seconds} sn</Text></Pressable>)}</View>
+            <Btn title={busy?'Başlatılıyor…':`🔁 Tekrar Oyna · ${tugDuration} sn`} disabled={busy} onPress={async()=>{setBusy(true);try{await api.minigameTugReplay(mg.id,tugDuration);}catch(e){show((e as Error).message,'error');}finally{setBusy(false);}}}/></>:<Muted>Oda kurucusu yeni tur başlatabilir.</Muted>}
+           </Card>}
+          </View>
         ) : mg.kind === 'pong' ? (
           <View>
             <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />
