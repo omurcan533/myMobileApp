@@ -189,7 +189,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       {!(mg.kind === 'pong' && !isPreparing && live) && <View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
-          <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : 'Devre Arası'}</Title>
+          <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : mg.kind === 'tug_of_war' ? 'Halat Çekme' : 'Devre Arası'}</Title>
         </View>
         <Btn
           title={me.is_captain ? (data.room.paused ? 'Devam Et' : 'Mola') : 'Mola · Kaptan'}
@@ -203,7 +203,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
 
-        {live && !isPreparing && mg.kind !== 'pong' && (
+        {live && !isPreparing && mg.kind !== 'pong' && mg.kind !== 'tug_of_war' && (
           <TimerBar
             left={left}
             total={mg.kind === 'tug_of_war' ? (mg.target_num||60)+3 : mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
