@@ -7,7 +7,7 @@ import {Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
 
 type TugState={a:number;b:number;players:{nickname:string;side:string;force:number}[]};
-export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;players:Player[];myId:string;isHost:boolean;main?:boolean}){
+export function TugOfWar({event,players,myId,isHost,main=false,paused=false,pausedAt=null}:{event:any;players:Player[];myId:string;isHost:boolean;main?:boolean;paused?:boolean;pausedAt?:string|null}){
  const {width,height}=useWindowDimensions();
  const wide=width>height&&width>=600;
  const [now,setNow]=useState(Date.now());
@@ -33,10 +33,11 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
  },[event.id]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
  const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);
- const elapsed=Math.max(0,(now-Date.parse(startedAt))/1000);
+ const clockNow=main&&paused&&pausedAt?Date.parse(pausedAt):now;
+ const elapsed=Math.max(0,(clockNow-Date.parse(startedAt))/1000);
  const remaining=event.status==='done'?0:Math.max(0,Math.ceil(duration-elapsed));
  // Her telefonda akıcı yerel ibre. Dokunma sonucu ağ beklemeden gösterilir.
- const elapsedMs=Math.max(0,now-Date.parse(startedAt));
+ const elapsedMs=Math.max(0,clockNow-Date.parse(startedAt));
  const cycle=Math.floor(elapsedMs/2800);
  const phase=(elapsedMs%2800)/2800;
  const seed=[...(event.id+startedAt+cycle)].reduce((n,ch)=>(Math.imul(n,31)+ch.charCodeAt(0))|0,17)>>>0;
@@ -52,7 +53,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
  const total=state.a+state.b;
  const rope=total>0?Math.max(-44,Math.min(44,(state.a-state.b)/Math.max(250,total)*85)):0;
  const pull=async()=>{
-  if(busy||remaining===0||!side||(main&&Date.now()<Date.parse(startedAt))||Date.now()-lastPull.current<470)return;
+  if(busy||(main&&paused)||remaining===0||!side||(main&&Date.now()<Date.parse(startedAt))||Date.now()-lastPull.current<470)return;
   lastPull.current=Date.now();
   setFeedback(hit?'🎯 İSABET! +'+force+' kuvvet':'💥 ISKALADIN! -45 kuvvet');
   setBusy(true);setError('');
@@ -74,7 +75,8 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
  };
  const winner=state.a===state.b?'Berabere':state.a>state.b?'A Takımı':'B Takımı';
  return <View style={{gap:12}}>
-  {main&&now<Date.parse(startedAt)&&<Title size={20}>⏳ Başlıyor: {Math.ceil((Date.parse(startedAt)-now)/1000)}</Title>}
+  {main&&paused&&<Title size={20}>⏸️ OYUN DURAKLATILDI</Title>}
+  {main&&clockNow<Date.parse(startedAt)&&<Title size={20}>⏳ Başlıyor: {Math.ceil((Date.parse(startedAt)-now)/1000)}</Title>}
   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
    <View style={{flex:1}}><Title size={wide?28:23}>🏟️ HALAT ARENASI</Title><Muted>TAKIMLARIN BÜYÜK MÜCADELESİ · {duration} SANİYE</Muted></View>
    <View style={{backgroundColor:remaining<10?'#803344':'#203653',padding:12,borderRadius:14}}><Text style={{color:'#FFFFFF',fontSize:24,fontWeight:'900'}}>⏱ {remaining}</Text></View>
@@ -86,7 +88,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
     <Title size={20} color="#FFDC89">VS</Title>
     <View style={{alignItems:'flex-end'}}><Text style={{color:'#FF8FA5',fontSize:wide?21:16,fontWeight:'900'}}>KIRMIZI 🔴</Text><Title size={wide?34:27} color="#FFD1DB">{state.b}</Title></View>
    </View>
-   <TugArena blue={state.a} red={state.b} time={now} wide={wide}/>
+   <TugArena blue={state.a} red={state.b} time={clockNow} wide={wide}/>
    <Muted>Takımların kuvvetleri anlık güncellenir. Iskalama kendi takımının puanını düşürür.</Muted>
   </View>
   {remaining>0?<Card style={{gap:12}}>
@@ -96,7 +98,7 @@ export function TugOfWar({event,players,myId,isHost,main=false}:{event:any;playe
     <View style={{position:'absolute',left:(position*95)+'%',width:8,height:'100%',backgroundColor:'#FFFFFF',borderRadius:5}}/>
    </View>
    <Muted>Yeşilde yakala: +35 ila +100 kuvvet. Dışarıda bas: -45 kuvvet. Hedef her geçişte yakalanamayabilir!</Muted>
-   <Pressable onPress={pull} disabled={busy||!side||(main&&now<Date.parse(startedAt))} style={{padding:20,alignItems:'center',borderRadius:16,borderWidth:2,borderColor:'#82FFD4',backgroundColor:busy?'#42576D':'#109777'}}><Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'900'}}>✊ HALATI ÇEK!</Text></Pressable>
+   <Pressable onPress={pull} disabled={busy||(main&&paused)||!side||(main&&clockNow<Date.parse(startedAt))} style={{padding:20,alignItems:'center',borderRadius:16,borderWidth:2,borderColor:'#82FFD4',backgroundColor:busy||(main&&paused)?'#42576D':'#109777'}}><Text style={{color:'#FFFFFF',fontSize:23,fontWeight:'900'}}>✊ HALATI ÇEK!</Text></Pressable>
    {!!feedback&&<Text style={{color:hit?'#A0FFDA':'#FFB0B0',fontSize:17,fontWeight:'900',textAlign:'center'}}>{feedback}</Text>}
   </Card>:<Card style={{gap:10}}>
    <Title size={24}>🏆 {winner}</Title>
