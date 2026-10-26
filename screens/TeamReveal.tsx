@@ -133,6 +133,8 @@ function PlayerSpotlight({
 
   const [phaseText, setPhaseText] = useState<'reveal' | 'shake' | 'flight'>('reveal');
   const hasImpacted = useRef(false);
+  const impactCallback = useRef(onImpact);
+  impactCallback.current = onImpact;
 
   useEffect(() => {
     // 1. AŞAMA: The Reveal (0 - 900ms)
@@ -181,7 +183,7 @@ function PlayerSpotlight({
         // 5. AŞAMA: The Impact (2500ms - Çarpma anı)
         if (!hasImpacted.current) {
           hasImpacted.current = true;
-          onImpact?.(side);
+          impactCallback.current?.(side);
 
           Animated.sequence([
             Animated.timing(impactBounce, { toValue: 0.86, duration: 75, useNativeDriver: true }),
@@ -195,7 +197,7 @@ function PlayerSpotlight({
       clearTimeout(shakeTimer);
       clearTimeout(flightTimer);
     };
-  }, [onImpact, side]);
+  }, [side]);
 
   // Kavisli Yol (Arc Motion / Bezier Curve):
   // X: Düz gitmek yerine dışa doğru geniş kavis çizer (Team A için sola, Team B için sağa savrulur)
