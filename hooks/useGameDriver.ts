@@ -28,7 +28,7 @@ function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: num
         const entries = d.entries.filter((e) => e.minigame_id === mg.id).length;
         return (
           now >= ms(room.phase_ends_at) + 300 ||
-          (mg.kind !== 'math_guess' && entries >= d.players.length)
+          (d.players.length > 0 && entries >= d.players.length)
         );
       }
       return false;
