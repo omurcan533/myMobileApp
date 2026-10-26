@@ -34,7 +34,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     api.results(data.room.id).then((r) => {
       setRes(r);
-      soundFx.cheer();
+      soundFx.victory();
       haptic.success();
       recordGame(data.room.id, !!r.official_winner && r.official_winner === me.team_side);
     }).catch(() => undefined);
