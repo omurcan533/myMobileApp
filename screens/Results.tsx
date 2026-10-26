@@ -19,6 +19,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
+  const [revealing, setRevealing] = useState(false);
   const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
   const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
   const { toast, show } = useToast();
@@ -32,12 +33,22 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   };
 
   useEffect(() => {
+    let active = true;
+    let revealTimer: ReturnType<typeof setTimeout> | undefined;
     api.results(data.room.id).then((r) => {
-      setRes(r);
-      soundFx.victory();
-      haptic.success();
-      recordGame(data.room.id, !!r.official_winner && r.official_winner === me.team_side);
-    }).catch(() => undefined);
+      if (!active) return;
+      setRevealing(true);
+      soundFx.drumRoll();
+      revealTimer = setTimeout(() => {
+        if (!active) return;
+        setRes(r);
+        setRevealing(false);
+        soundFx.victory();
+        haptic.success();
+        recordGame(data.room.id, !!r.official_winner && r.official_winner === me.team_side);
+      }, 1400);
+    }).catch(() => { if (active) setRevealing(false); });
+    return () => { active = false; if (revealTimer) clearTimeout(revealTimer); };
   }, [data.room.id, me.team_side]);
 
   useEffect(()=>{api.friendMemoryLeaderboard(data.room.id).then(setFriendScores).catch(()=>{});api.partyLastAgeEvent(data.room.id).then(id=>id?api.partyAgeResults(id).then(setAgeScores):undefined).catch(()=>{});},[data.room.id]);
@@ -52,8 +63,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           <Float amount={8}>
             <View style={s.bigIcon}><Ionicons name="flag" size={42} color={colors.gold} /></View>
           </Float>
-          <Title size={24}>Sonuçlar Hesaplanıyor…</Title>
-          <Muted>Puanlar toplanıyor, lütfen bekle.</Muted>
+          <Title size={24}>{revealing ? 'Kazanan Açıklanıyor…' : 'Sonuçlar Hesaplanıyor…'}</Title>
+          <Muted>{revealing ? 'Davullar çalıyor! Hazır mısınız?' : 'Puanlar toplanıyor, lütfen bekle.'}</Muted>
         </View>
       </Screen>
     );
