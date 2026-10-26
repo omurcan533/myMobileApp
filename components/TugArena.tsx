@@ -2,11 +2,14 @@ import React from 'react';
 import Svg,{Defs,LinearGradient,Stop,Rect,Circle,Path,Line,G,Ellipse,Polygon,Text as SvgText} from 'react-native-svg';
 
 const BLUE='#4BC7FF',RED='#FF698B';
-function Fighter({x,side,step}:{x:number;side:'A'|'B';step:number}){
+function Fighter({x,side,step,effort,slip}:{x:number;side:'A'|'B';step:number;effort:number;slip:number}){
  const flip=side==='B';
  const color=flip?RED:BLUE;
- const sway=Math.sin(step+(flip?1.8:0))*3;
- return <G transform={`translate(${x},${sway})`}>
+ const pulse=Math.sin(step+(flip?1.8:0));
+ const sway=pulse*(2+effort*4);
+ const footSlip=slip*(5+Math.abs(pulse)*4);
+ const lean=(flip?-1:1)*(4+effort*10);
+ return <G transform={`translate(${x+footSlip},${sway})`}><G transform={`rotate(${lean+pulse*effort*2},0,135)`}>
   <Ellipse cx="0" cy="168" rx="34" ry="8" fill="#081525" opacity=".5"/>
   <Path d="M -12 130 L -20 163 L -5 165 L 3 141 L 12 165 L 26 164 L 12 126 Z" fill="#253149" stroke="#10182B" strokeWidth="3"/>
   <Path d="M -22 163 L -3 163 L -2 169 L -24 169 Z M 10 163 L 29 163 L 31 169 L 11 169 Z" fill="#131A2A"/>
@@ -20,7 +23,7 @@ function Fighter({x,side,step}:{x:number;side:'A'|'B';step:number}){
   <Circle cx="-7" cy="57" r="2.5" fill="#17243B"/><Circle cx="9" cy="57" r="2.5" fill="#17243B"/>
   <Path d="M -6 69 Q 1 73 9 68" stroke="#8D4D4A" strokeWidth="2.5" fill="none"/>
   <Path d="M -20 90 Q 0 80 20 90" fill="none" stroke="#FFFFFF" opacity=".45" strokeWidth="2"/>
- </G>;
+ </G></G>;
 }
 export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:number;wide:boolean}){
  const diff=blue-red;
@@ -28,6 +31,13 @@ export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:numbe
  const shift=Math.max(-60,Math.min(60,magnitude?diff/Math.max(320,magnitude)*85:0));
  const move=shift;
  const step=time/240;
+ const strength=Math.min(1,magnitude/1300);
+ const blueEffort=Math.min(1,0.25+strength+(diff<0?0.2:0));
+ const redEffort=Math.min(1,0.25+strength+(diff>0?0.2:0));
+ const blueSlip=diff<0?Math.min(1,-diff/450):0;
+ const redSlip=diff>0?Math.min(1,diff/450):0;
+ const tugWave=Math.sin(time/110)*Math.min(2.5,0.5+strength*2);
+ const tension=2+strength*5;
  const intensity=Math.min(1,Math.abs(diff)/Math.max(250,magnitude));
  return <Svg width="100%" height={wide?290:215} viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet">
   <Defs>
@@ -44,16 +54,17 @@ export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:numbe
   <Rect x="356" y="176" width="8" height="90" fill="#FFD68A" opacity=".9"/>
   <Ellipse cx="360" cy="205" rx="64" ry="13" fill="#0A1723" opacity=".35"/>
   <G transform={`translate(${move},0)`}>
-   <Fighter x={145} side="A" step={step}/>
-   <Fighter x={230} side="A" step={step+.9}/>
-   <Fighter x={490} side="B" step={step+.6}/>
-   <Fighter x={575} side="B" step={step+1.5}/>
-   <Path d="M 150 116 Q 270 126 360 119 Q 460 111 570 119" fill="none" stroke="#3A291F" strokeWidth="13" strokeLinecap="round"/>
-   <Path d="M 150 114 Q 270 124 360 117 Q 460 109 570 117" fill="none" stroke="url(#rope)" strokeWidth="8" strokeLinecap="round"/>
+   <Fighter x={145} side="A" step={step} effort={blueEffort} slip={blueSlip}/>
+   <Fighter x={230} side="A" step={step+.9} effort={blueEffort} slip={blueSlip}/>
+   <Fighter x={490} side="B" step={step+.6} effort={redEffort} slip={-redSlip}/>
+   <Fighter x={575} side="B" step={step+1.5} effort={redEffort} slip={-redSlip}/>
+   <Path d={`M 150 116 Q 270 ${126-tension} 360 ${119+tugWave} Q 460 ${111-tension} 570 119`} fill="none" stroke="#3A291F" strokeWidth="13" strokeLinecap="round"/>
+   <Path d={`M 150 114 Q 270 ${124-tension} 360 ${117+tugWave} Q 460 ${109-tension} 570 117`} fill="none" stroke="url(#rope)" strokeWidth="8" strokeLinecap="round"/>
    {Array.from({length:23},(_,i)=><Line key={i} x1={165+i*17} y1="110" x2={169+i*17} y2="124" stroke="#FFF0C4" strokeWidth="2" opacity=".45"/>)}
    <Polygon points="360,113 370,142 350,142" fill="#FFE16D" stroke="#4B321E" strokeWidth="3"/>
    <Circle cx="360" cy="116" r="7" fill="#F9DE92" stroke="#6B4527" strokeWidth="3"/>
   </G>
+  {strength>0.08&&[145,230,490,575].map((x,i)=>{const slip=i<2?blueSlip:redSlip;const puff=(Math.sin(step*1.7+i*1.8)+1)/2;return <G key={i} opacity={Math.min(.65,(.12+slip*.5+strength*.15)*puff)}><Ellipse cx={x+move+(i<2?8:-8)} cy={194-puff*12} rx={8+puff*9} ry={4+puff*5} fill="#C8B7A1"/><Circle cx={x+move+(i<2?19:-19)} cy={185-puff*16} r={2+puff*4} fill="#D9C3A2"/></G>;})}
   <Rect x="16" y="12" width="125" height="36" rx="12" fill="#0D355A" stroke={BLUE} strokeWidth="2"/>
   <SvgText x="78" y="36" fill="#E5F7FF" fontSize="18" fontWeight="900" textAnchor="middle">MAVİ {blue}</SvgText>
   <Rect x="579" y="12" width="125" height="36" rx="12" fill="#57263A" stroke={RED} strokeWidth="2"/>
