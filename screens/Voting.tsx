@@ -8,7 +8,7 @@ import { Avatar, Btn, Eyebrow, Muted, RoomExitButton, Screen, TimerBar, Title, T
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { teamMascot } from '../lib/art';
-import { secondsLeft } from '../lib/selectors';
+import { effNow, secondsLeft } from '../lib/selectors';
 import { alpha, colors, teamColor, teamName } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
@@ -19,7 +19,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2;
   const now = useNow();
-  const left = secondsLeft(data.room.phase_ends_at, now);
+  const left = secondsLeft(data.room.phase_ends_at, effNow(data.room, now));
   useEffect(() => { soundFx.suspense(); }, [data.room.id]);
   const myVote = data.votes.find((v) => v.voter_id === me.id);
   const { toast, show } = useToast();
