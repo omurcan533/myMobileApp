@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {View,Pressable,useWindowDimensions} from 'react-native';
 import {api} from '../lib/api';
+import {TugArena} from './TugArena';
 import {supabase} from '../lib/supabase';
 import {Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
@@ -82,15 +83,7 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
     <Title size={20} color="#FFDC89">VS</Title>
     <View style={{alignItems:'flex-end'}}><Text style={{color:'#FF8FA5',fontSize:wide?21:16,fontWeight:'900'}}>KIRMIZI 🔴</Text><Title size={wide?34:27} color="#FFD1DB">{state.b}</Title></View>
    </View>
-   <View style={{height:wide?170:125,backgroundColor:'#1A2B46',borderRadius:17,overflow:'hidden',justifyContent:'center'}}>
-    <View style={{position:'absolute',left:0,top:0,bottom:0,width:'50%',backgroundColor:'#123F64'}}/>
-    <View style={{position:'absolute',right:0,top:0,bottom:0,width:'50%',backgroundColor:'#5C283D'}}/>
-    <View style={{position:'absolute',left:'50%',top:0,bottom:0,width:3,backgroundColor:'#FFDA83'}}/>
-    <View style={{alignItems:'center',transform:[{translateX:rope}]}}>
-     <Text style={{fontSize:wide?54:35,color:'#FFFFFF'}}>🧍‍♂️━━━🪢━━━🧍‍♀️</Text>
-     <Text style={{color:'#FFE4A4',fontWeight:'900'}}>{state.a===state.b?'DENGE':state.a>state.b?'◀ MAVİ ÇEKİYOR':'KIRMIZI ÇEKİYOR ▶'}</Text>
-    </View>
-   </View>
+   <TugArena blue={state.a} red={state.b} time={now} wide={wide}/>
    <Muted>Takımların kuvvetleri anlık güncellenir. Iskalama kendi takımının puanını düşürür.</Muted>
   </View>
   {remaining>0?<Card style={{gap:12}}>
