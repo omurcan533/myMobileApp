@@ -488,6 +488,11 @@ function GiantDiceDuelArena({
   const isMyTurn = !isDuelDone && duel.turn_player_id === me.id;
   const isHost = me.is_host;
   const isTiebreaker = duel.round > 1;
+  const lastTiebreak = useRef(duel.round);
+  useEffect(() => {
+    if (duel.round > lastTiebreak.current) soundFx.tiebreak();
+    lastTiebreak.current = duel.round;
+  }, [duel.round]);
 
   const currentRoundRolls = (duel.rolls || []).filter((r) => r.round === duel.round);
   const maxRollInRound = currentRoundRolls.length > 0 ? Math.max(...currentRoundRolls.map((r) => r.total)) : 0;
@@ -503,6 +508,7 @@ function GiantDiceDuelArena({
     if (currentKey && currentKey !== prevRollKey.current) {
       prevRollKey.current = currentKey;
       setIsRolling(true);
+      soundFx.diceRoll();
       haptic.light();
 
       Animated.sequence([
@@ -516,6 +522,7 @@ function GiantDiceDuelArena({
       const timer = setTimeout(() => {
         setIsRolling(false);
         haptic.heavy();
+        soundFx.diceStop();
         scaleAnim.setValue(1.15);
         Animated.spring(scaleAnim, { toValue: 1, friction: 4, tension: 70, useNativeDriver: true }).start();
       }, 1400);
@@ -537,6 +544,7 @@ function GiantDiceDuelArena({
   const handleRollPress = async () => {
     if (busy || isRolling) return;
     setIsRolling(true);
+    soundFx.diceRoll();
     haptic.light();
 
     Animated.sequence([
