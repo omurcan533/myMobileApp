@@ -14,7 +14,7 @@ useEffect(()=>{refresh();const t=setInterval(refresh,5000);return()=>clearInterv
 const save=async()=>{if(QUESTIONS.some(([k])=>!facts[k]?.trim())){setError('Tüm soruları cevapla.');return;}setBusy(true);try{await api.saveFriendFacts(roomId,facts);setSaved(true);await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const ready=players.length>=2&&players.every(p=>(progress.find(x=>x.player_id===p.id)?.count??0)>=6);
 return <Card style={{gap:12}}><Title size={21}>Beni Ne Kadar Tanıyorsun?</Title><Muted>Herkes cevaplasın. Sonra cevapları birlikte okuyup aklınızda tutun.</Muted>
-{!saved&&QUESTIONS.map(([k,label])=><View key={k} style={{gap:5}}><Text>{label}</Text><TextInput value={facts[k]??''} onChangeText={v=>setFacts(s=>({...s,[k]:v}))} maxLength={60} placeholder="Cevabını yaz" placeholderTextColor="#9AA8B9" style={{color:'white',borderWidth:1,borderColor:'#536D91',borderRadius:12,padding:12}}/></View>)}
+{!saved&&QUESTIONS.map(([k,label])=><View key={k} style={{gap:5}}><Text style={{ color: '#F2F7FF', fontWeight: '600' }}>{label}</Text><TextInput value={facts[k]??''} onChangeText={v=>setFacts(s=>({...s,[k]:v}))} maxLength={60} placeholder="Cevabını yaz" placeholderTextColor="#9AA8B9" style={{color:'white',borderWidth:1,borderColor:'#536D91',borderRadius:12,padding:12}}/></View>)}
 {!saved?<Btn title="Cevapları Kaydet" onPress={save} loading={busy} tone="success"/>:<Text>✓ Cevapların kaydedildi.</Text>}
 <Text>Hazır: {progress.filter(p=>p.count>=6).length}/{players.length}</Text>
 {players.map(p=><Text key={p.id}>{(progress.find(x=>x.player_id===p.id)?.count??0)>=6?'✅':'⌛'} {p.nickname}</Text>)}
