@@ -364,7 +364,7 @@ class SoundEngine {
     } catch {}
   }
 
-  /** Oyuncu takım yuvasına indiğinde tok ve parlak iniş sesi. */
+  /** Takıma tam yerleşme anında kısa, su damlası benzeri parlak click. */
   teamLanding() {
     if (!this.enabled) return;
     const ctx = this.getContext();
@@ -373,15 +373,17 @@ class SoundEngine {
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(310, now);
-      osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(980, now);
+      osc.frequency.exponentialRampToValueAtTime(520, now + 0.055);
+      osc.frequency.exponentialRampToValueAtTime(350, now + 0.13);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.24, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.25);
+      osc.stop(now + 0.17);
     } catch {}
   }
 
