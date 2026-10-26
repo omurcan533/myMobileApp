@@ -31,8 +31,10 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
   channel.current=ch;
   return()=>{clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
+ const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
+ const duration=durationMatch?Number(durationMatch[1]):60;
  const elapsed=Math.max(0,(now-Date.parse(startedAt))/1000);
- const remaining=Math.max(0,Math.ceil(35-elapsed));
+ const remaining=Math.max(0,Math.ceil(duration-elapsed));
  // Her telefonda akıcı yerel ibre. Dokunma sonucu ağ beklemeden gösterilir.
  const elapsedMs=Math.max(0,now-Date.parse(startedAt));
  const cycle=Math.floor(elapsedMs/2800);
@@ -73,10 +75,10 @@ export function TugOfWar({event,players,myId,isHost}:{event:any;players:Player[]
  const winner=state.a===state.b?'Berabere':state.a>state.b?'A Takımı':'B Takımı';
  return <View style={{gap:12}}>
   <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-   <View style={{flex:1}}><Title size={wide?28:23}>🏟️ HALAT ARENASI</Title><Muted>TAKIMLARIN BÜYÜK MÜCADELESİ</Muted></View>
+   <View style={{flex:1}}><Title size={wide?28:23}>🏟️ HALAT ARENASI</Title><Muted>TAKIMLARIN BÜYÜK MÜCADELESİ · {duration} SANİYE</Muted></View>
    <View style={{backgroundColor:remaining<10?'#803344':'#203653',padding:12,borderRadius:14}}><Text style={{color:'#FFFFFF',fontSize:24,fontWeight:'900'}}>⏱ {remaining}</Text></View>
   </View>
-  <View style={{height:7,backgroundColor:'#283850',borderRadius:6,overflow:'hidden'}}><View style={{width:(elapsedMs/350)+'%',height:7,backgroundColor:'#FFD177'}}/></View>
+  <View style={{height:7,backgroundColor:'#283850',borderRadius:6,overflow:'hidden'}}><View style={{width:(Math.min(100,elapsedMs/(duration*10)))+'%',height:7,backgroundColor:'#FFD177'}}/></View>
   <View style={{backgroundColor:'#101C31',borderWidth:2,borderColor:'#3A5373',borderRadius:22,padding:wide?24:14,gap:14}}>
    <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
     <View><Text style={{color:'#72D8FF',fontSize:wide?21:16,fontWeight:'900'}}>🔵 MAVİ</Text><Title size={wide?34:27} color="#A9E8FF">{state.a}</Title></View>
