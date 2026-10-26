@@ -129,6 +129,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     if (!me.is_host || !continueReady || busy) return;
     setBusy(true);
     try {
+      if(mg.kind==='tug_of_war')await api.minigameTugContinue(mg.id);
       await api.advanceHost(data.room.id);
     } catch (error) {
       show((error as Error).message, 'error');
