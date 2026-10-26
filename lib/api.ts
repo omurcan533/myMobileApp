@@ -119,5 +119,6 @@ export const api = {
   castVote: (room: string, side: Side) => rpc<void>('cast_vote', { p_room: room, p_side: side }),
   voteArchitect: (room: string, candidate: string) =>
     rpc<boolean>('vote_architect', { p_room: room, p_candidate: candidate }),
+  matchStory: (room: string) => rpc<{at:string;type:'round'|'minigame';data:any}[]>('party_match_story',{p_room:room}),
   results: (room: string) => rpc<GameResults>('get_results', { p_room: room }),
 };
