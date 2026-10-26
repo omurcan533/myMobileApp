@@ -14,6 +14,35 @@ import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { Ctx, GameResults, Side } from '../lib/types';
 
+/** Oyun verilerinden kişiye özel, şakacı final yorumları üretir. Harici yapay zekâ servisi kullanmaz. */
+function playerFinalComment(
+  player: { id: string; nickname: string; team_side: Side | null },
+  index: number,
+  results: GameResults,
+  friendScores: { player_id: string; correct: number; attempts: number }[],
+  ageScores: { player_id: string; correct: number; total: number }[],
+): string {
+  const friend = friendScores.find(p => p.player_id === player.id);
+  const age = ageScores.find(p => p.player_id === player.id);
+  const team = player.team_side ? results.teams[player.team_side] : null;
+  const winner = player.team_side !== null && player.team_side === results.official_winner;
+  const seed = [...player.id].reduce((n, ch) => n + ch.charCodeAt(0), index);
+  const teasing = [
+    'Özgüvenin tam, sonuçlar biraz çekingen. Ama sahne enerjin tartışılmaz.',
+    'Stratejin o kadar gizemliydi ki rakip takım bile ne yaptığını çözemedi.',
+    'Kaos üretiminde doktora yapmış gibisin. Neyse ki eğlence puanın yüksek.',
+    'Bazen oyunu değil, oyun seni oynadı. Yine de masaya renk kattın.',
+    'Planların sürpriz yumurta gibi: İçinden ne çıkacağı hiç belli olmuyor.',
+  ];
+  const praise = [];
+  if (winner) praise.push('Ama kazanan taraftasın; skor tabelası senin adına konuşuyor.');
+  if (friend && friend.attempts > 0 && friend.correct === friend.attempts) praise.push('Arkadaşlarını kusursuz tanıyorsun, buna laf yok.');
+  else if (friend && friend.correct > 0) praise.push(`Dostluk hafızasında ${friend.correct}/${friend.attempts} yaptın; hiç fena değil.`);
+  if (age && age.total > 0 && age.correct === age.total) praise.push('Yaş tahmininde tam isabet: dedektiflik rozeti senin.');
+  if (!praise.length && team && team.pieces > 0) praise.push(`Takımın ${team.pieces} parça topladı; ortada emek var.`);
+  return teasing[seed % teasing.length] + ' ' + (praise[0] ?? 'Bu turun asıl başarısı herkesi güldürmen.');
+}
+
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
@@ -90,6 +119,18 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         </View>
 
         <Card style={{gap:9}}><Title size={22}>🏅 Dostluk Madalyaları</Title><Muted>Dostluk Hafızası doğru cevap sıralaması</Muted>{[...friendScores].sort((a,b)=>Number(b.correct)-Number(a.correct)).map((p,i)=><Text key={p.player_id}>{i+1}. {p.nickname} — {p.correct}/{p.attempts} doğru {i===0&&Number(p.correct)>0?'🥇':''}</Text>)}{ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname} (Tüm yaşlar doğru!)</Text>)}{ageScores.length>0&&ageScores.every(x=>Number(x.correct)!==Number(x.total))&&<Muted>Bu turda tüm yaşları doğru bilen olmadı.</Muted>}</Card>
+
+        {/* ================= OYUNCU FİNAL YORUMLARI ================= */}
+        <Card accent={colors.violet} style={{gap:12}}>
+          <Title size={23}>🎤 Ucube Jürisi: Final Taşlaması</Title>
+          <Muted>Herkese ufak bir laf, hak edene büyük bir alkış! Yorumlar oyun istatistiklerinden otomatik hazırlanır; gerçek yapay zekâ analizi değildir.</Muted>
+          {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>(
+            <View key={player.id} style={{backgroundColor:colors.inset,borderRadius:14,padding:12,gap:6}}>
+              <Title size={18} color={colors.gold}>🎭 {player.nickname}</Title>
+              <Text style={{color:colors.text,fontSize:15,lineHeight:23}}>{playerFinalComment(player,i,res,friendScores,ageScores)}</Text>
+            </View>
+          ))}
+        </Card>
 
         {/* ================= RESMİ ŞAMPİYON ================= */}
         <Reveal>
