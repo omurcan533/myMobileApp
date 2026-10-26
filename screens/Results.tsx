@@ -191,61 +191,91 @@ function buildCeremonyAwards(
 }
 
 /** Accessible, skippable client-side ceremony; each phone can watch at its own pace. */
+/** Responsive, skippable award stage with animated spotlights and confetti. */
 function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];players:Ctx['data']['players'];closing:string;onFinish:()=>void}){
+ const {width,height}=useWindowDimensions();
+ const compact=height<720||width<350;
  const [step,setStep]=useState(0);
  const fade=useRef(new Animated.Value(0)).current;
- const lift=useRef(new Animated.Value(22)).current;
- const pulse=useRef(new Animated.Value(0.94)).current;
- const total=awards.length+2; // opening + awards + closing
- const isOpening=step===0;
- const isClosing=step===total-1;
- const award=!isOpening&&!isClosing?awards[step-1]:null;
- const next=()=>setStep(v=>Math.min(v+1,total-1));
+ const lift=useRef(new Animated.Value(24)).current;
+ const scale=useRef(new Animated.Value(0.88)).current;
+ const sparkle=useRef(new Animated.Value(0)).current;
+ const total=awards.length+2;
+ const opening=step===0,closingScene=step===total-1;
+ const award=!opening&&!closingScene?awards[step-1]:null;
+ const next=()=>setStep(s=>Math.min(s+1,total-1));
  useEffect(()=>{
-  fade.setValue(0);lift.setValue(22);pulse.setValue(0.94);
-  const animation=Animated.parallel([
-   Animated.timing(fade,{toValue:1,duration:550,useNativeDriver:true,easing:Easing.out(Easing.cubic)}),
-   Animated.spring(lift,{toValue:0,useNativeDriver:true,friction:7,tension:55}),
-   Animated.spring(pulse,{toValue:1,useNativeDriver:true,friction:5,tension:70}),
+  fade.setValue(0);lift.setValue(24);scale.setValue(0.88);sparkle.setValue(0);
+  const entrance=Animated.parallel([
+   Animated.timing(fade,{toValue:1,duration:550,easing:Easing.out(Easing.cubic),useNativeDriver:true}),
+   Animated.spring(lift,{toValue:0,friction:7,tension:55,useNativeDriver:true}),
+   Animated.spring(scale,{toValue:1,friction:5,tension:65,useNativeDriver:true}),
+   Animated.timing(sparkle,{toValue:1,duration:1900,easing:Easing.out(Easing.quad),useNativeDriver:true}),
   ]);
-  animation.start();
-  if(!isOpening&&award){soundFx.victory();haptic.success();}
-  return ()=>animation.stop();
- },[step,fade,lift,pulse]);
+  entrance.start();
+  if(award){soundFx.victory();haptic.success();}
+  return ()=>entrance.stop();
+ },[step,fade,lift,scale,sparkle]);
+ // The closing scene stays until the user chooses to leave; no abrupt exit mid-speech.
  useEffect(()=>{
-  const timer=setTimeout(()=>{if(isClosing)onFinish();else next();},isOpening?2600:isClosing?10000:5500);
+  if(closingScene)return;
+  const timer=setTimeout(next,opening?3000:6500);
   return ()=>clearTimeout(timer);
- },[step,isClosing,onFinish]);
+ },[step,opening,closingScene]);
  const player=award?players.find(p=>p.id===award.playerId):null;
- const teamTint=player?.team_side?teamColor(player.team_side):'#FFD88D';
+ const tint=player?.team_side?teamColor(player.team_side):'#FFCF78';
+ const avatarSize=compact?100:136;
+ const particles=Array.from({length:18},(_,i)=>({
+  x:((i*73+19)%100)/100,
+  y:((i*43+13)%42)/100,
+  color:['#FFD46C','#8EF5D1','#D3A7FF','#FF94B4','#85D5FF'][i%5],
+  tilt:i%2===0?'-18deg':'22deg',
+ }));
  return <Screen>
-  <View style={{flex:1,justifyContent:'space-between',paddingHorizontal:20,paddingTop:28,paddingBottom:32,gap:22}}>
-   <View style={{gap:12}}>
-    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}>
-     <View style={{flex:1}}><Text style={{color:'#8EF5D1',fontSize:12,fontWeight:'900',letterSpacing:2}}>✦ U C U B E  A T Ö L Y E S İ ✦</Text><Title size={26}>Ödül Gecesi</Title></View>
-     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve tüm sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:24,borderWidth:1,borderColor:'#5B6F90',backgroundColor:'#172941'}}><Text style={{color:'#EDF5FF',fontWeight:'800'}}>Atla ↗</Text></Pressable>
-    </View>
-    <View style={{flexDirection:'row',gap:5}}>{Array.from({length:total},(_,i)=><View key={i} style={{height:5,flex:1,borderRadius:6,backgroundColor:i<=step?'#FFCF77':'#354560'}}/>)}</View>
-    <Text style={{color:'#B6C9E5',fontSize:12,fontWeight:'700'}}>{isOpening?'Sahne hazırlanıyor':isClosing?'Final konuşması':`Ödül ${step} / ${awards.length}`}</Text>
+  <View style={{flex:1,backgroundColor:'#081329'}}>
+   <LinearGradient colors={['#1D1B45','#0A1B34','#081329']} style={StyleSheet.absoluteFill}/>
+   <View pointerEvents="none" style={{position:'absolute',top:80,left:-65,width:width*0.65,height:height*0.62,transform:[{rotate:'-23deg'}],opacity:0.24}}>
+    <LinearGradient colors={['#FFE6A3','rgba(255,225,154,0)']} style={{flex:1,borderTopRightRadius:170,borderTopLeftRadius:170}}/>
    </View>
-   <Animated.View style={{opacity:fade,transform:[{translateY:lift},{scale:pulse}],alignItems:'center',gap:20,paddingVertical:20}}>
-    <Text style={{fontSize:57,textAlign:'center'}}>{isOpening?'🎭':isClosing?'🎤':award?.icon}</Text>
-    <Text style={{color:'#FFDA92',fontSize:14,fontWeight:'900',letterSpacing:2,textAlign:'center'}}>{isOpening?'BU GECE SAHNE SİZİN':isClosing?'JÜRİDEN SON SÖZ':award?.title.toLocaleUpperCase('tr-TR')}</Text>
-    {award&&<View style={{width:130,height:130,borderRadius:65,borderWidth:4,borderColor:teamTint,backgroundColor:'#1B3250',alignItems:'center',justifyContent:'center',shadowColor:award.color,shadowOpacity:0.65,shadowRadius:25,elevation:9}}>
-     <Text style={{fontSize:54,color:'#FFFFFF',fontWeight:'900'}}>{award.player.trim().slice(0,1).toLocaleUpperCase('tr-TR')}</Text>
-     <View style={{position:'absolute',bottom:-9,right:-8,backgroundColor:'#FFCE78',borderRadius:22,padding:8}}><Text style={{fontSize:22}}>🏅</Text></View>
-    </View>}
-    <Title size={isClosing?26:30} color="#FFFFFF">{isOpening?'Hazır mısınız?':isClosing?'İşte bu gecenin özeti':award?.player}</Title>
-    <View style={{borderWidth:1,borderColor:'#486284',backgroundColor:'#142640',borderRadius:20,padding:20,width:'100%'}}>
-     <Text style={{color:'#E9F3FF',fontSize:16,lineHeight:27,textAlign:'center'}}>{isOpening?'Jüri dosyaları açıldı, spot ışıkları yandı! Her ödül gerçek oyun performansına göre açıklanacak.':isClosing?closing:award?.reason}</Text>
+   <View pointerEvents="none" style={{position:'absolute',top:80,right:-65,width:width*0.65,height:height*0.62,transform:[{rotate:'23deg'}],opacity:0.22}}>
+    <LinearGradient colors={['#B6A5FF','rgba(173,151,255,0)']} style={{flex:1,borderTopRightRadius:170,borderTopLeftRadius:170}}/>
+   </View>
+   {award&&<View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    {particles.map((p,i)=><Animated.View key={i} style={{position:'absolute',left:`${p.x*92+4}%`,top:`${p.y*100+15}%`,width:i%3===0?9:6,height:i%3===0?14:10,borderRadius:2,backgroundColor:p.color,opacity:sparkle.interpolate({inputRange:[0,0.2,0.85,1],outputRange:[0,1,1,0]}),transform:[{translateY:sparkle.interpolate({inputRange:[0,1],outputRange:[-20,Math.min(height*0.5,350)]})},{rotate:p.tilt}]}}/>)}
+   </View>}
+   <View style={{paddingHorizontal:18,paddingTop:compact?12:24,paddingBottom:10,gap:10}}>
+    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
+     <View style={{flex:1,gap:3}}><Text style={{color:'#8EF5D1',fontSize:10,fontWeight:'900',letterSpacing:1.4}}>✦ UCUBE ATÖLYESİ ✦</Text><Title size={compact?23:27}>🏆 Ödül Gecesi</Title></View>
+     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:22,borderWidth:1,borderColor:'#8092B2',backgroundColor:'#1A2D4B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>Atla ↗</Text></Pressable>
     </View>
-    <Text style={{color:'#94ACC9',fontSize:13,textAlign:'center'}}>{isOpening?'Birazdan ilk ödül açıklanacak…':isClosing?'Bu gece herkesin anlatacak bir hikâyesi var.':'👏 Alkışlar sahnedeki oyuncuya!'}</Text>
-   </Animated.View>
-   <View style={{gap:12}}>
-    <Pressable accessibilityRole="button" onPress={isClosing?onFinish:next} style={{paddingVertical:17,borderRadius:16,backgroundColor:'#F6C66E',alignItems:'center'}}>
-     <Text style={{color:'#192238',fontSize:16,fontWeight:'900'}}>{isClosing?'📊 Tüm Sonuçları Gör':'Sonraki Sahne →'}</Text>
+    <View style={{flexDirection:'row',gap:4}}>{Array.from({length:total},(_,i)=><View key={i} style={{height:5,flex:1,borderRadius:5,backgroundColor:i<=step?'#FFCE73':'#354765'}}/>)}</View>
+    <Text style={{color:'#D2E0F7',fontSize:12,fontWeight:'800'}}>{opening?'Perde açılıyor…':closingScene?'🎤 Jürinin kapanış konuşması':`🏅 Ödül ${step} / ${awards.length}`}</Text>
+   </View>
+   <ScrollView key={step} style={{flex:1}} contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:20,paddingVertical:compact?12:20}} showsVerticalScrollIndicator={false}>
+    <Animated.View style={{opacity:fade,transform:[{translateY:lift},{scale}],alignItems:'center',gap:compact?10:17}}>
+     <Text style={{fontSize:compact?43:58,textAlign:'center'}}>{opening?'🎭':closingScene?'🎤':award?.icon}</Text>
+     <Text style={{color:'#FFE1A5',fontSize:compact?12:14,fontWeight:'900',letterSpacing:1.3,textAlign:'center'}}>{opening?'BU GECE SAHNE SİZİN':closingScene?'JÜRİDEN SON SÖZ':award?.title.toLocaleUpperCase('tr-TR')}</Text>
+     {award&&<View style={{alignItems:'center',gap:7}}>
+      <View style={{width:avatarSize+22,height:avatarSize+22,borderRadius:(avatarSize+22)/2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:award.color,backgroundColor:'#101F3B'}}>
+       <View style={{width:avatarSize,height:avatarSize,borderRadius:avatarSize/2,borderWidth:4,borderColor:tint,backgroundColor:'#263D63',alignItems:'center',justifyContent:'center',shadowColor:award.color,shadowOpacity:0.7,shadowRadius:22,elevation:10}}>
+        <Text style={{fontSize:avatarSize*0.41,color:'#FFFFFF',fontWeight:'900'}}>{award.player.trim().slice(0,1).toLocaleUpperCase('tr-TR')}</Text>
+       </View>
+       <View style={{position:'absolute',bottom:0,right:0,backgroundColor:'#FFCE78',borderRadius:30,padding:7}}><Text style={{fontSize:20}}>🏅</Text></View>
+      </View>
+      {player?.team_side&&<Text style={{color:tint,fontSize:12,fontWeight:'800'}}>{teamName(player.team_side)} TAKIMI</Text>}
+     </View>}
+     <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={2} style={{color:'#FFFFFF',fontSize:compact?25:32,fontWeight:'900',textAlign:'center',width:'100%'}}>{opening?'Hazır mısınız?':closingScene?'Bu gece unutulmazdı!':award?.player}</Text>
+     <View style={{width:'100%',backgroundColor:'#152845',borderRadius:18,borderWidth:1,borderColor:'#647A9C',padding:compact?14:19}}>
+      <Text style={{color:'#F4F8FF',fontSize:compact?14:16,lineHeight:compact?22:26,textAlign:'center'}}>{opening?'Spot ışıkları yandı, jüri dosyaları açıldı! Ödüller gerçek oyun performansına göre açıklanıyor.':closingScene?closing:award?.reason}</Text>
+     </View>
+     <Text style={{color:'#C6D6EF',fontSize:12,textAlign:'center'}}>{opening?'İlk ödül birazdan açıklanıyor…':closingScene?'🎉 Ucube Jürisi alkışlarla kapanıyor!':'👏 Alkışlar sahnedeki oyuncuya!'}</Text>
+    </Animated.View>
+   </ScrollView>
+   <View style={{paddingHorizontal:18,paddingBottom:compact?16:26,paddingTop:10,gap:10,backgroundColor:'rgba(8,19,41,0.85)'}}>
+    <Pressable accessibilityRole="button" onPress={closingScene?onFinish:next} style={{paddingVertical:16,borderRadius:15,backgroundColor:'#F8CC78',alignItems:'center'}}>
+     <Text style={{color:'#1A263A',fontSize:16,fontWeight:'900'}}>{closingScene?'📊 Tüm Sonuçları Gör':'Sonraki Sahne →'}</Text>
     </Pressable>
-    <Text style={{color:'#9EB1CC',fontSize:12,textAlign:'center'}}>Sahneler otomatik ilerler · İstediğin an atlayabilirsin</Text>
+    <Text style={{color:'#AABEDB',fontSize:11,textAlign:'center'}}>{closingScene?'Kapanış konuşmasını istediğin kadar okuyabilirsin.':'Sahneler otomatik ilerler · Atla ile sonuçlara geç'}</Text>
    </View>
   </View>
  </Screen>;
