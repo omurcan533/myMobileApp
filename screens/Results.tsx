@@ -14,33 +14,84 @@ import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { Ctx, GameResults, Side } from '../lib/types';
 
-/** Oyun verilerinden kişiye özel, şakacı final yorumları üretir. Harici yapay zekâ servisi kullanmaz. */
+/** Gerçek oyun olaylarından oyuncuya özgü, kanıta dayalı ve şakacı bir final raporu üretir. */
 function playerFinalComment(
-  player: { id: string; nickname: string; team_side: Side | null },
-  index: number,
-  results: GameResults,
-  friendScores: { player_id: string; correct: number; attempts: number }[],
-  ageScores: { player_id: string; correct: number; total: number }[],
-): string {
-  const friend = friendScores.find(p => p.player_id === player.id);
-  const age = ageScores.find(p => p.player_id === player.id);
-  const team = player.team_side ? results.teams[player.team_side] : null;
-  const winner = player.team_side !== null && player.team_side === results.official_winner;
-  const seed = [...player.id].reduce((n, ch) => n + ch.charCodeAt(0), index);
-  const teasing = [
-    'Özgüvenin tam, sonuçlar biraz çekingen. Ama sahne enerjin tartışılmaz.',
-    'Stratejin o kadar gizemliydi ki rakip takım bile ne yaptığını çözemedi.',
-    'Kaos üretiminde doktora yapmış gibisin. Neyse ki eğlence puanın yüksek.',
-    'Bazen oyunu değil, oyun seni oynadı. Yine de masaya renk kattın.',
-    'Planların sürpriz yumurta gibi: İçinden ne çıkacağı hiç belli olmuyor.',
-  ];
-  const praise = [];
-  if (winner) praise.push('Ama kazanan taraftasın; skor tabelası senin adına konuşuyor.');
-  if (friend && friend.attempts > 0 && friend.correct === friend.attempts) praise.push('Arkadaşlarını kusursuz tanıyorsun, buna laf yok.');
-  else if (friend && friend.correct > 0) praise.push(`Dostluk hafızasında ${friend.correct}/${friend.attempts} yaptın; hiç fena değil.`);
-  if (age && age.total > 0 && age.correct === age.total) praise.push('Yaş tahmininde tam isabet: dedektiflik rozeti senin.');
-  if (!praise.length && team && team.pieces > 0) praise.push(`Takımın ${team.pieces} parça topladı; ortada emek var.`);
-  return teasing[seed % teasing.length] + ' ' + (praise[0] ?? 'Bu turun asıl başarısı herkesi güldürmen.');
+ player: {id:string;nickname:string;team_side:Side|null},
+ index:number,
+ results:GameResults,
+ friendScores:{player_id:string;correct:number;attempts:number}[],
+ ageScores:{player_id:string;correct:number;total:number}[],
+ data:Ctx['data'],
+): {headline:string;details:string[];verdict:string;facts:string[]} {
+ const side=player.team_side;
+ const team=side?results.teams[side]:null;
+ const rival=side?results.teams[side==='A'?'B':'A']:null;
+ const friend=friendScores.find(x=>x.player_id===player.id);
+ const age=ageScores.find(x=>x.player_id===player.id);
+ const answers=data.answers.filter(x=>x.player_id===player.id);
+ const correct=answers.filter(x=>x.is_correct===true).length;
+ const wrong=answers.filter(x=>x.is_correct===false).length;
+ const pending=answers.filter(x=>x.is_correct===null).length;
+ const finalAnswers=answers.filter(x=>x.is_final).length;
+ const roundWins=data.rounds.filter(x=>x.winner_side===side&&x.status==='resolved').length;
+ const roundsPlayed=data.rounds.filter(x=>x.status==='resolved').length;
+ const pieces=side?data.teamPieces.filter(x=>x.side===side):[];
+ const playerMinigameEntries=data.entries.filter(x=>x.player_id===player.id);
+ const teamMinigameWins=data.minigames.filter(x=>x.status==='done'&&x.winner_side===side).length;
+ const playedMinigames=data.minigames.filter(x=>x.status==='done').length;
+ const friendAttempt=friend?.attempts??0;
+ const ageTotal=age?.total??0;
+ const facts:string[]=[];
+ const details:string[]=[];
+ if(answers.length){
+  facts.push(`Sorular: ${answers.length} yanıt · ${correct} doğru · ${wrong} yanlış`);
+  if(correct>0&&wrong===0)details.push(`Sorularda ${correct} doğru yanıtın var, kayıtlarda yanlışın görünmüyor. Jüri notu: Cevap anahtarıyla gizli anlaşman mı var?`);
+  else if(correct>wrong)details.push(`Sorularda ${correct} doğruya karşı ${wrong} yanlış: Hesaplı riskler almışsın. Yalnız her özgüvenli cevap doğru cevap sayılmıyor, haberin olsun.`);
+  else if(wrong>correct)details.push(`Sorularda ${wrong} yanlış, ${correct} doğru var. Yanıtları cesurca savunmuşsun; doğruluk payı ise biraz tatildeymiş.`);
+  else details.push(`Sorularda ${correct} doğru, ${wrong} yanlışla dengeyi kurmuşsun. Jüri, bu istikrarlı kararsızlığı takdir etti.`);
+  if(finalAnswers>0)details.push(`${finalAnswers} kez son yanıt vermişsin. Karar anında sorumluluk almışsın; jüri bunu not etti.`);
+  if(pending>0)facts.push(`${pending} yanıt henüz değerlendirilmemiş`);
+ }else details.push('Soru yanıtı kaydın görünmüyor. Bu tur sessiz gözlemci modunda mıydın, yoksa büyük planı son ana mı sakladın?');
+ if(friendAttempt>0){
+  facts.push(`Dostluk Hafızası: ${friend!.correct}/${friendAttempt}`);
+  if(friend!.correct===friendAttempt)details.push(`Dostluk Hafızası'nda ${friendAttempt} sorunun tamamını bilmişsin. Arkadaş grubunun yürüyen arşivisin; doğum günlerini de hatırlıyorsundur artık.`);
+  else if(friend!.correct===0)details.push(`Dostluk Hafızası'nda ${friendAttempt} denemede doğru çıkmamış. Arkadaşlarınla bir kahve içip 'biz birbirimizi tanıyor muyuz?' toplantısı yapmanız gerekebilir.`);
+  else details.push(`Dostluk Hafızası'nda ${friend!.correct}/${friendAttempt} doğru: Bazı sırları çözmüşsün ama arkadaşlarının hâlâ sürpriz bölümleri var.`);
+ }else facts.push('Dostluk Hafızası: kayıt yok');
+ if(ageTotal>0){
+  facts.push(`Yaş tahmini: ${age!.correct}/${ageTotal}`);
+  if(age!.correct===ageTotal)details.push(`Yaş tahmininde ${ageTotal} isabet! Jüri sana nüfus müdürlüğünden fahri görev teklif ediyor.`);
+  else if(age!.correct===0)details.push(`Yaş tahmininde ${ageTotal} soruda isabet yok. Yaş sormadan önce iki kez düşün; bu yeteneğin arkadaş grubunda diplomatik kriz çıkarabilir.`);
+  else details.push(`Yaş tahmininde ${age!.correct}/${ageTotal} tutturdun. İnsan sarrafı olmak için biraz daha saha çalışması lazım.`);
+ }
+ if(playerMinigameEntries.length){
+  facts.push(`Mini oyun katılımı: ${playerMinigameEntries.length} kayıt`);
+  const reactions=playerMinigameEntries.filter(x=>typeof x.reaction_ms==='number').map(x=>x.reaction_ms as number);
+  if(reactions.length){
+   const best=Math.min(...reactions);
+   details.push(`Refleks kayıtlarında en hızlı tepkin ${best} ms. ${best<350?'Parmakların beyninden önce harekete geçiyor olabilir.':'Bir sonraki tur parmaklara biraz ısınma yaptırmakta fayda var.'}`);
+  }else details.push(`${playerMinigameEntries.length} mini oyun katılım kaydın var. Sahnede bulunmuşsun; jüri katılımı görmezden gelmiyor.`);
+ }
+ if(side&&team&&rival){
+  const diff=team.score-rival.score;
+  facts.push(`Takım: ${team.score} puan · ${pieces.length} parça`);
+  if(results.official_winner===side)details.push(`Takımın ${Math.abs(diff)} puan farkla şampiyon oldu. Kupayı kaldırırken takım arkadaşlarına da yer bırak, tek başına kazanmadın.`);
+  else if(results.official_winner!==null)details.push(`Takımın ${Math.abs(diff)} puan farkla geride kaldı. Yenilgi takımın ortak sonucu; tek kişilik günah keçisi aramıyoruz.`);
+  else details.push('Takımlar berabere kaldı. Jüri bile kimin daha büyük kaos çıkardığına karar veremedi.');
+  if(roundsPlayed>0)details.push(`Takımın ${roundsPlayed} sonuçlanan soru turunun ${roundWins} tanesini kazandı. ${roundWins>roundsPlayed/2?'Sorularda kontrolü ele geçirmişsiniz.':'Sorular size kolay teslim olmamış; mücadele etmişsiniz.'}`);
+  if(playedMinigames>0)details.push(`Mini oyunlarda takımın ${playedMinigames} sonuçlanan karşılaşmanın ${teamMinigameWins} tanesini aldı. ${teamMinigameWins>0?'Arada güzel refleksler ve takım çalışması da var.':'Bir sonraki karşılaşma için antrenman kampı şart olabilir.'}`);
+  if(team.creature_name)details.push(`Ve ortaya çıkan yaratığın adı “${team.creature_name}”. ${team.funny_votes>rival.funny_votes?'Komiklik oylarında da öne çıkmışsınız; jüri kahkahaya teslim.':'İsim iddialı, komiklik jürisi ise biraz daha ikna bekliyor.'}`);
+ }
+ const highlights=[
+  {score:friendAttempt>0?friend!.correct/Math.max(1,friendAttempt)*3:0,text:'🧠 Arkadaş grubunun hafıza kartı'},
+  {score:ageTotal>0?age!.correct/Math.max(1,ageTotal)*3:0,text:'🕵️ Yaş Dedektifi'},
+  {score:correct>0?correct/Math.max(1,correct+wrong)*2:0,text:'🎯 Cevap Avcısı'},
+  {score:playerMinigameEntries.length>0?1:0,text:'🎮 Arena Müdavimi'},
+ ];
+ const best=highlights.sort((a,b)=>b.score-a.score)[0];
+ const headline=best.score>0?best.text:(index%2===0?'🎭 Gizemli Stratejist':'🎪 Sürpriz Faktörü');
+ const verdict=results.official_winner===side&&side?'JÜRİ KARARI: Kupa takımının, hikâyenin başrolü ise hepinizsiniz.':correct>0||friend?.correct||age?.correct?'JÜRİ KARARI: Bu turda hem alkış hem tatlı bir taşlama hak ettin.':'JÜRİ KARARI: İstatistikler sınırlı; efsane bir performans uydurmayacağız. Bir sonraki oyunda sahne senin!';
+ return {headline,details:details.slice(0,7),verdict,facts};
 }
 
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
@@ -118,18 +169,27 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           <RoomExitButton onExit={exitRoom} />
         </View>
 
-        <Card style={{gap:9}}><Title size={22}>🏅 Dostluk Madalyaları</Title><Muted>Dostluk Hafızası doğru cevap sıralaması</Muted>{[...friendScores].sort((a,b)=>Number(b.correct)-Number(a.correct)).map((p,i)=><Text key={p.player_id}>{i+1}. {p.nickname} — {p.correct}/{p.attempts} doğru {i===0&&Number(p.correct)>0?'🥇':''}</Text>)}{ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname} (Tüm yaşlar doğru!)</Text>)}{ageScores.length>0&&ageScores.every(x=>Number(x.correct)!==Number(x.total))&&<Muted>Bu turda tüm yaşları doğru bilen olmadı.</Muted>}</Card>
+        <Card style={{gap:12,backgroundColor:'#12233D',borderColor:'#355275',borderWidth:1}}>
+          <Title size={22}>🏅 Dostluk Madalyaları</Title>
+          <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>Dostluk Hafızası · Doğru cevap sıralaması</Text>
+          {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.</Text>}
+          {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
+        </Card>
 
         {/* ================= OYUNCU FİNAL YORUMLARI ================= */}
-        <Card accent={colors.violet} style={{gap:12}}>
+        <Card accent={colors.violet} style={{gap:14,backgroundColor:'#14213B',borderWidth:1,borderColor:'#634AA0'}}>
           <Title size={23}>🎤 Ucube Jürisi: Final Taşlaması</Title>
-          <Muted>Herkese ufak bir laf, hak edene büyük bir alkış! Yorumlar oyun istatistiklerinden otomatik hazırlanır; gerçek yapay zekâ analizi değildir.</Muted>
-          {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>(
-            <View key={player.id} style={{backgroundColor:colors.inset,borderRadius:14,padding:12,gap:6}}>
-              <Title size={18} color={colors.gold}>🎭 {player.nickname}</Title>
-              <Text style={{color:colors.text,fontSize:15,lineHeight:23}}>{playerFinalComment(player,i,res,friendScores,ageScores)}</Text>
-            </View>
-          ))}
+          <Text style={{color:'#DFE8FF',fontSize:14,lineHeight:23}}>Jüri dosyaları açtı! Her oyuncunun gerçek yanıtları, dostluk hafızası, yaş tahminleri ve takım performansı ayrı ayrı incelendi. Yorumlar oyun verilerinden hazırlanır; yapay zekâ tarafından yazılmaz.</Text>
+          {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>{
+            const report=playerFinalComment(player,i,res,friendScores,ageScores,data);
+            return <View key={player.id} style={{backgroundColor:'#08162B',borderColor:'#334969',borderWidth:1,borderRadius:18,padding:15,gap:11}}>
+              <Title size={20} color={'#FFCF70'}>🎭 {player.nickname}</Title>
+              <Text style={{color:'#91F4D5',fontSize:13,fontWeight:'800'}}>{report.headline}</Text>
+              <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{report.facts.map((fact,j)=><View key={j} style={{backgroundColor:'#203652',borderRadius:9,paddingVertical:6,paddingHorizontal:9}}><Text style={{color:'#EDF6FF',fontSize:12,fontWeight:'700'}}>{fact}</Text></View>)}</View>
+              {report.details.map((line,j)=><Text key={j} style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{line}</Text>)}
+              <View style={{borderTopWidth:1,borderColor:'#3B5374',paddingTop:10}}><Text style={{color:'#FFDA9A',fontSize:13,lineHeight:21,fontWeight:'800'}}>{report.verdict}</Text></View>
+            </View>;
+          })}
         </Card>
 
         {/* ================= RESMİ ŞAMPİYON ================= */}
