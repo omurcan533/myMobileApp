@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {ScrollView,View,TextInput,Modal} from 'react-native';
+import {ScrollView,View,TextInput,Modal,Pressable} from 'react-native';
 import {api} from '../lib/api';
 import {Btn,Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
@@ -7,6 +7,7 @@ const TASKS=['60 saniyede en az iki kişiyi güldür!','Tek ayak üstünde 10 ke
 const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello']] as const;
 const SCENES=[['🌳','🐱','🌞','🚗','🌷','🏠','🐶','🚲','🍎'],['🌳','🐱','🌛','🚗','🌻','🏠','🐶','🛴','🍎']];
 export function PartyBreak({roomId,players,myId,isHost,canStart}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean}){
+const [dismissed,setDismissed]=useState(false);
 const [tick,setTick]=useState(Date.now());
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
 const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null),[ageMedals,setAgeMedals]=useState<any[]>([]);
@@ -24,9 +25,9 @@ const chosen=top.length===1?top[0]:null;
 const threeWinners=event?.prompt?.includes('3 kişi')?[...players].sort((a,b)=>count(b.id)-count(a.id)).slice(0,3):[];
 const submit=(target:string|null,txt:string|null=null)=>run(()=>api.partyEventVote(event.id,target,txt));
 const finish=()=>run(()=>api.partyEventFinish(event.id));
-if(!event&&!canStart)return null;
+if(!event&&(!canStart||dismissed))return null;
 return <View style={{gap:10}}>
-{!event?<Card style={{gap:8}}><Title size={18}>🎉 Eğlence Molası</Title><Muted>Ana oyunun arasında arkadaşlarını şaşırtacak bir etkinlik başlat.</Muted>{isHost&&<Btn title={showMenu?'Etkinlikleri Gizle':'Sürpriz Etkinlik Başlat'} onPress={()=>setShowMenu(v=>!v)}/>}
+{!event?<Card style={{gap:8}}><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><Title size={18}>🎉 Eğlence Molası</Title><Pressable accessibilityRole="button" accessibilityLabel="Eğlence molasını kapat" hitSlop={12} onPress={()=>{setShowMenu(false);setDismissed(true);}} style={{padding:8,borderRadius:18,backgroundColor:'#25344D'}}><Text style={{fontSize:19,fontWeight:'800',color:'#FFFFFF'}}>✕</Text></Pressable></View><Muted>Ana oyunun arasında arkadaşlarını şaşırtacak bir etkinlik başlat.</Muted>{isHost&&<Btn title={showMenu?'Etkinlikleri Gizle':'Sürpriz Etkinlik Başlat'} onPress={()=>setShowMenu(v=>!v)}/>}
 {showMenu&&isHost&&EVENTS.map(([kind,label])=><Btn key={kind} title={label} tone="ghost" disabled={busy||(kind==='eye_duel'&&players.length%2!==0)} onPress={()=>start(kind)}/>)}</Card>:
 <Modal visible transparent animationType="slide"><View style={{flex:1,backgroundColor:'rgba(0,0,0,0.9)',justifyContent:'center',padding:14}}><ScrollView contentContainerStyle={{paddingVertical:25}}><Card style={{gap:12}}><Title size={23}>🎲 {EVENTS.find(x=>x[0]===event.kind)?.[1]}</Title><Text style={{fontSize:17}}>{event.prompt}</Text>
 {event.kind==='challenge'&&<View style={{gap:8}}><Muted>İki takımın bütün oyuncuları oy verir. Kendine oy veremezsin.</Muted>{!mine?players.filter(p=>p.id!==myId).map(p=><Btn key={p.id} title={p.nickname} tone="ghost" onPress={()=>submit(p.id)}/>):<Text>✓ Oyun kaydedildi. {votes.length}/{players.length} oy</Text>}
