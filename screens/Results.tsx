@@ -140,6 +140,56 @@ function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
  return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
 }
 
+type CeremonyAward={id:string;icon:string;title:string;player:string;reason:string;color:string};
+function buildCeremonyAwards(
+ data:Ctx['data'],story:MatchMoment[],
+ friendScores:{player_id:string;correct:number;attempts:number}[],
+ ageScores:{player_id:string;correct:number;total:number}[],
+):CeremonyAward[]{
+ const players=data.players.filter(p=>!p.is_bot);
+ const awards:CeremonyAward[]=[];
+ const add=(id:string,icon:string,title:string,playerId:string,reason:string,color:string)=>{
+  const p=players.find(p=>p.id===playerId);
+  if(p)awards.push({id,icon,title,player:p.nickname,reason,color});
+ };
+ // Each prize requires a measurable achievement; ties are resolved by player id for stable results.
+ const stats=players.map(p=>{
+  const answers=data.answers.filter(a=>a.player_id===p.id&&a.is_correct!==null);
+  const correct=answers.filter(a=>a.is_correct===true).length;
+  const wrong=answers.filter(a=>a.is_correct===false).length;
+  const friend=friendScores.find(x=>x.player_id===p.id);
+  const age=ageScores.find(x=>x.player_id===p.id);
+  const reactions=data.entries.filter(x=>x.player_id===p.id&&typeof x.reaction_ms==='number'&&x.reaction_ms!>0).map(x=>x.reaction_ms as number);
+  return {id:p.id,correct,wrong,friendCorrect:friend?.correct??0,friendAttempts:friend?.attempts??0,ageCorrect:age?.correct??0,ageTotal:age?.total??0,reaction:reactions.length?Math.min(...reactions):null};
+ }).sort((a,b)=>a.id.localeCompare(b.id));
+ const bestCorrect=[...stats].sort((a,b)=>b.correct-a.correct||a.wrong-b.wrong||a.id.localeCompare(b.id))[0];
+ if(bestCorrect?.correct>0)add('hero','👑','Maçın Kahramanı',bestCorrect.id,`${bestCorrect.correct} doğru cevapla soru turlarının en çok isabet sağlayan oyuncusu. Tahtı hak etmiş; tacı düşürmesin!`,'#FFDB8A');
+ const bestBrain=[...stats].filter(x=>x.friendAttempts>0||x.ageTotal>0).sort((a,b)=>(b.friendCorrect+b.ageCorrect)-(a.friendCorrect+a.ageCorrect)||a.id.localeCompare(b.id))[0];
+ if(bestBrain&&(bestBrain.friendCorrect+bestBrain.ageCorrect)>0)add('brain','🧠','Takımın Beyni',bestBrain.id,`Dostluk Hafızası ve yaş tahminlerinde toplam ${bestBrain.friendCorrect+bestBrain.ageCorrect} doğru. Arkadaş grubunun gizli veri tabanı olabilir.`,'#A3E7FF');
+ const fastest=[...stats].filter(x=>x.reaction!==null).sort((a,b)=>(a.reaction??Infinity)-(b.reaction??Infinity)||a.id.localeCompare(b.id))[0];
+ if(fastest&&fastest.reaction!==null)add('reflex','⚡','Refleks Canavarı',fastest.id,`Kaydedilmiş en hızlı tepki: ${fastest.reaction} ms. Parmaklar önden gidiyor, beyin yetişmeye çalışıyor!`,'#B6FFD8');
+ const mistakes=story.filter(x=>x.type==='highlight'&&x.data.kind==='wrong_streak'&&x.data.player_id);
+ if(mistakes.length){
+  const counts=new Map<string,number>();
+  for(const m of mistakes)counts.set(m.data.player_id!,1+(counts.get(m.data.player_id!)??0));
+  const [id,count]=[...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0];
+  add('unlucky','🤡','Maçın Talihsizi',id,`${count} kez üç yanlışlık seri kaydı. Bu bir beceriksizlik hükmü değil, jürinin tatlı şanssızlık madalyası!`,'#FFC3D7');
+ }else{
+  const mostWrong=[...stats].sort((a,b)=>b.wrong-a.wrong||a.id.localeCompare(b.id))[0];
+  if(mostWrong?.wrong>=3)add('unlucky','🤡','Maçın Talihsizi',mostWrong.id,`${mostWrong.wrong} yanlış cevapla jüriye en fazla malzemeyi verdi. Cesaret puanı ise tam!`,'#FFC3D7');
+ }
+ const comeback=story.filter(x=>x.type==='highlight'&&x.data.kind==='tug_lead_change');
+ if(comeback.length){
+  const lead=comeback[comeback.length-1].data.leading;
+  const bestTug=story.filter(x=>x.type==='minigame'&&x.data.kind==='tug_of_war'&&x.data.top_tug_player).map(x=>x.data.top_tug_player!).sort((a,b)=>b.force-a.force)[0];
+  if(bestTug){
+   const player=players.find(p=>p.id===bestTug.id);
+   if(player?.team_side===lead)add('comeback','🔥','Geri Dönüş Ustası',bestTug.id,`Halatta büyük geri dönüş kaydedildi. ${bestTug.force} net kuvvetle öne çıkan isimlerden biri; zafer takımın ortak emeği.`,'#FFBC88');
+  }
+ }
+ return awards;
+}
+
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
@@ -200,6 +250,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   }
 
   const matchMoments=describeMatch(matchStory,data.players);
+  const ceremonyAwards=buildCeremonyAwards(data,matchStory,friendScores,ageScores);
   const isOfficialMine = res.official_winner && me.team_side === res.official_winner;
   const isFunnyMine = res.funny_winner && me.team_side === res.funny_winner;
   const champ = res.official_winner;
@@ -224,6 +275,17 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>Dostluk Hafızası · Doğru cevap sıralaması</Text>
           {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.</Text>}
           {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
+        </Card>
+
+        {/* ================= ÖDÜL TÖRENİ ================= */}
+        <Card accent={colors.gold} style={{gap:13,backgroundColor:'#17253D',borderWidth:1,borderColor:'#8A6B39'}}>
+          <Title size={24}>🏆 Ucube Ödül Töreni</Title>
+          <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:23}}>Jüri kupaları gerçek maç kayıtlarına göre dağıtıyor. Her ödülün altında neden kazanıldığı yazıyor; yeterli veri yoksa ödül uydurulmuyor.</Text>
+          {ceremonyAwards.length?ceremonyAwards.map(award=><View key={award.id} style={{backgroundColor:'#0B192E',borderWidth:1,borderColor:'#425473',borderRadius:16,padding:14,gap:7}}>
+            <Text style={{color:award.color,fontSize:17,fontWeight:'900'}}>{award.icon} {award.title}</Text>
+            <Text style={{color:'#FFFFFF',fontSize:19,fontWeight:'900'}}>{award.player}</Text>
+            <Text style={{color:'#DCEBFF',fontSize:14,lineHeight:23}}>{award.reason}</Text>
+          </View>):<Text style={{color:'#D6E5FA',lineHeight:23}}>Henüz ödül dağıtmak için yeterli doğrulanmış oyuncu performansı bulunmuyor.</Text>}
         </Card>
 
         {/* ================= MAÇIN HİKÂYESİ ================= */}
