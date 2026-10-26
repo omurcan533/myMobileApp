@@ -33,6 +33,9 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
+  const [botBusy,setBotBusy]=useState(false);
+  const botCount=players.filter(p=>(p as any).is_bot).length;
+  const [draftBotCount,setDraftBotCount]=useState<number|null>(null);
   const [factsReady, setFactsReady] = useState(false);
   const [factsReviewed, setFactsReviewed] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
@@ -175,6 +178,8 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         </Reveal>
 
+        {me.is_host && <Card style={{gap:12}}><Title size={20}>🤖 Test Botları</Title><Muted>İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.</Muted><Text>Bot sayısı: {draftBotCount??botCount} · Toplam oyuncu: {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title="Botları Uygula" tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show('Test botları güncellendi.','success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
+
         {/* ================= OYUNCULAR ================= */}
         <Reveal delay={100}>
           <Card style={{ gap: 14 }}>
@@ -202,7 +207,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                     )}
                     <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
                     <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
-                    <Text style={s.pRole}>{p.is_host ? 'KURUCU' : isMe ? 'SEN' : 'OYUNCU'}</Text>
+                    <Text style={s.pRole}>{p.is_host ? 'KURUCU' : (p as any).is_bot ? '🤖 BOT' : isMe ? 'SEN' : 'OYUNCU'}</Text>
                   </View>
                 );
               })}
