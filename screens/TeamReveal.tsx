@@ -789,7 +789,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
 
   const handleImpact = (side: Side) => {
     haptic.heavy();
-    soundFx.click();
+    soundFx.teamLanding();
     const impactVal = side === 'A' ? impactA : impactB;
     const glowVal = side === 'A' ? glowA : glowB;
 
@@ -825,6 +825,17 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
   const activePlayer = activeIndex >= 0 && activeIndex < players.length && elapsed < PLAYER_START_MS + players.length * PLAYER_INTERVAL_MS
     ? players[activeIndex]
     : null;
+
+  // Her oyuncu için hızlanma sesi yalnızca bir kez çalar.
+  // Takım animasyonu ilerlerken veri yenilemeleri sesi yeniden tetiklemez.
+  const lastLaunchKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activePlayer) return;
+    const key = `${phaseStartedAt}:${activePlayer.id}`;
+    if (lastLaunchKey.current === key) return;
+    lastLaunchKey.current = key;
+    soundFx.teamLaunch();
+  }, [activePlayer?.id, phaseStartedAt]);
 
   const captainDuel = ctx.data.room.captain_duel;
   const hasInteractiveDuel = !!captainDuel;
