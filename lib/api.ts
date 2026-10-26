@@ -52,6 +52,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 }
 
 export const api = {
+  botSurvivorStep: (room:string)=>rpc<boolean>('bot_survivor_step',{p_room:room}),
   advanceTestBots: (room:string)=>rpc<{action:string;count?:number}>('advance_test_bots',{p_room:room}),
   setTestBots: (room:string,count:number)=>rpc<number>('set_test_bots',{p_room:room,p_count:count}),
   testBotsVote: (event:string)=>rpc<number>('test_bots_vote',{p_event:event}),
