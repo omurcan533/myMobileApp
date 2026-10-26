@@ -387,6 +387,44 @@ class SoundEngine {
     } catch {}
   }
 
+  /** Kısa bir oyun sesini zamanlanmış notalarla üretir. */
+  private melody(notes: number[], step = 0.11, duration = 0.22, volume = 0.11) {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      notes.forEach((frequency, index) => {
+        if (!frequency) return;
+        const at = ctx.currentTime + index * step;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(frequency, at);
+        gain.gain.setValueAtTime(0.001, at);
+        gain.gain.linearRampToValueAtTime(volume, at + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.001, at + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(at);
+        osc.stop(at + duration + 0.01);
+      });
+    } catch {}
+  }
+
+  diceRoll() { this.melody([160, 195, 230, 270, 310, 355, 400], 0.085, 0.10, 0.075); }
+  diceStop() { this.melody([330, 220], 0.07, 0.18, 0.16); }
+  tiebreak() { this.melody([390, 0, 390, 0, 520], 0.13, 0.16, 0.12); }
+  countdown(seconds: number) {
+    if (seconds < 1 || seconds > 5) return;
+    this.melody([seconds === 1 ? 1050 : 580 + (5 - seconds) * 90], 0.1, 0.10, 0.11);
+  }
+  timeUp() { this.melody([280, 190, 125], 0.10, 0.19, 0.14); }
+  victory() { this.melody([523, 659, 784, 1047, 1318], 0.12, 0.30, 0.12); }
+  defeat() { this.melody([370, 311, 247, 185], 0.16, 0.25, 0.10); }
+  suspense() { this.melody([220, 277, 330, 392, 440, 0, 523], 0.14, 0.16, 0.09); }
+  piecePlace() { this.melody([660, 990], 0.06, 0.17, 0.12); }
+  pieceComplete() { this.melody([523, 659, 784, 1047], 0.12, 0.25, 0.14); }
+
   /** İsimle ses çalma */
   playByName(name: string) {
     switch (name) {
