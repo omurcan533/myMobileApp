@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
   const colW = (width - 36 - 14) / 2;
   const now = useNow();
   const left = secondsLeft(data.room.phase_ends_at, now);
+  useEffect(() => { soundFx.suspense(); }, [data.room.id]);
   const myVote = data.votes.find((v) => v.voter_id === me.id);
   const { toast, show } = useToast();
 
