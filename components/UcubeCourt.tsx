@@ -43,6 +43,19 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
   'Sanık sandalyesinden dramatik bir film repliğiyle kalk.'
  ];
  const sentenceIndex=Array.from(eventId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%sentences.length;
+ const questionCards=[
+  'Sanığın anlattığı hikâyedeki en şüpheli ayrıntı ne?',
+  'Savcı, elinde bu iddiayı destekleyen ne kadar sağlam kanıt var?',
+  'Avukat, bu bahaneyi mantıklı kılan tek ayrıntı ne?',
+  'Sanık, aynı olay tekrar yaşansa yine aynısını yapar mı?',
+  'Bu olayın en komik ama bir o kadar da şüpheli kısmı hangisi?',
+  'Jüriyi ikna etmek için tek bir cümle daha söyleyecek olsan ne derdin?',
+  'Olayı gören bir arkadaş şimdi burada olsa ne anlatırdı?',
+  'Bu suçlama bir film olsaydı adı ne olurdu?'
+ ];
+ // Shared, deterministic prompts: every player sees the same cross-examination cards.
+ const questionStart=Array.from(eventId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%questionCards.length;
+ const visibleQuestions=[0,1,2].map(offset=>questionCards[(questionStart+offset*3)%questionCards.length]);
  return <View style={{gap:13}}>
   <Card style={{backgroundColor:'#251C42',borderWidth:1,borderColor:'#9C77E8',gap:8}}>
    <Title size={21}>⚖️ Ucube Mahkemesi</Title>
@@ -66,6 +79,15 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
    </View>}
    {court.stage==='speeches'&&(!myRole||alreadySpoke)&&<Muted>{court.speeches.length}/3 ifade alındı. Herkes tamamlayınca jüri oylaması başlayacak.</Muted>}
   </Card>
+  {court.stage==='voting'&&<Card style={{gap:10,backgroundColor:'#1D2947'}}>
+   <Title size={20}>🔎 Çapraz Sorgu</Title>
+   <Muted>Oy vermeden önce bu sorulardan birini arkadaşlarına sözlü sorabilirsiniz. Biraz tartışın, sonra kararınızı gizlice verin!</Muted>
+   {visibleQuestions.map((question,index)=><View key={question} style={{padding:10,borderRadius:10,backgroundColor:'#253653',gap:4}}>
+    <Text style={{color:'#E7DFFF',fontWeight:'800'}}>Soru {index+1}</Text>
+    <Text style={{color:'#FFFFFF',lineHeight:21}}>{question}</Text>
+   </View>)}
+   <Muted>Bu sorular herkeste aynı sırada görünür; cevaplar serbest ve eğlence amaçlıdır.</Muted>
+  </Card>}
   {court.stage==='voting'&&<Card style={{gap:10,backgroundColor:'#1D2947'}}>
    <Title size={20}>🗳️ Jüri Kararı</Title>
    {myId===court.defendant_id?<Muted>Sanık kendi davasında oy kullanamaz. Jüri kararını bekle!</Muted>:
