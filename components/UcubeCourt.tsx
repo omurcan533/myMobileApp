@@ -33,6 +33,16 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
  const alreadySpoke=court.speeches.some(s=>s.player_id===myId);
  const verdict=court.stage==='verdict';
  const guilty=court.guilty_votes??0,innocent=court.innocent_votes??0;
+ // Derive the sentence from the shared event ID so every device sees the same result.
+ const sentences=[
+  '20 saniye boyunca kendini üçüncü şahıs olarak savun.',
+  'Bir sonraki cümleye haber spikeri gibi başla.',
+  'Grubun seçtiği bir nesneye 10 saniyelik övgü konuşması yap.',
+  'Kendi suçlamana üç maddelik aşırı ciddi bir açıklama getir.',
+  'Bir sonraki tur boyunca kendine komik bir mahkeme unvanı tak.',
+  'Sanık sandalyesinden dramatik bir film repliğiyle kalk.'
+ ];
+ const sentenceIndex=Array.from(eventId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%sentences.length;
  return <View style={{gap:13}}>
   <Card style={{backgroundColor:'#251C42',borderWidth:1,borderColor:'#9C77E8',gap:8}}>
    <Title size={21}>⚖️ Ucube Mahkemesi</Title>
@@ -70,7 +80,13 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
    <Title size={24}>🔔 KARAR AÇIKLANDI!</Title>
    <Title size={21}>{guilty===innocent?'🤝 Jüri ikiye bölündü!':guilty>innocent?'😂 SUÇLU BULUNDU!':'😇 BERAAT ETTİ!'}</Title>
    <Text style={{color:'#FFFFFF',fontSize:17}}>Suçlu: {guilty} oy · Beraat: {innocent} oy</Text>
-   <Muted>Ceza yok, sadece arkadaş grubunun dilinden düşmeyecek bir karar! 🎉</Muted>
+   {guilty>innocent
+    ?<View style={{padding:12,borderRadius:12,backgroundColor:'#3C2B52',gap:6}}>
+      <Title size={17}>🎭 Mahkemenin Eğlenceli Kararı</Title>
+      <Text style={{color:'#FFFFFF',lineHeight:22}}>{sentences[sentenceIndex]}</Text>
+      <Muted>Bu karar tamamen şaka amaçlıdır; sanık isterse pas geçebilir.</Muted>
+     </View>
+    :<Muted>{guilty===innocent?'Jüri anlaşamadı; bu kez ceza yok!':'Beraat! Sanık özgür, suçlamalar düşürüldü. 🎉'}</Muted>}
   </Card>}
   {!!error&&<Text style={{color:'#FF9BAA'}}>{error}</Text>}
  </View>;
