@@ -44,8 +44,14 @@ const [mission,setMission]=useState<{key:number;status:'active'|'done'|'skipped'
 const [missionOpen,setMissionOpen]=useState(false);
 const [missionBusy,setMissionBusy]=useState(false);
 const refreshMission=()=>api.partyMySecretMission(roomId).then(setMission).catch(()=>{});
-useEffect(()=>{refreshMission();},[roomId]);
-const finishMission=async(status:'done'|'skipped')=>{setMissionBusy(true);try{await api.partySecretMissionFinish(roomId,status);await refreshMission();}finally{setMissionBusy(false);}};
+useEffect(()=>{
+ let active=true;
+ const check=async()=>{try{const result=await api.partyMySecretMission(roomId);if(active)setMission(result);}catch{}};
+ check();
+ const timer=setInterval(()=>{if(!mission)check();},3500);
+ return ()=>{active=false;clearInterval(timer);};
+},[roomId,mission?.key]);
+const finishMission=async(status:'done'|'skipped')=>{setMissionBusy(true);try{await api.partySecretMissionFinish(roomId,status);await refreshMission();}catch(e){setError((e as Error).message);}finally{setMissionBusy(false);}};
 
 const [tick,setTick]=useState(Date.now());
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
