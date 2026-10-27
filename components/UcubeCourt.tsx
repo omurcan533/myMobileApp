@@ -56,12 +56,28 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
  // Shared, deterministic prompts: every player sees the same cross-examination cards.
  const questionStart=Array.from(eventId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%questionCards.length;
  const visibleQuestions=[0,1,2].map(offset=>questionCards[(questionStart+offset*3)%questionCards.length]);
+ const sillyEvidence=[
+  'Olaydan hemen sonra “Ben zaten onu yapacaktım” dediği iddia ediliyor.',
+  'Tanıklar, olay sırasında şüpheli bir özgüven gözlemlediğini söylüyor.',
+  'Olay yerinde açıklanamayan bir atıştırmalık kırıntısı bulundu.',
+  'Sanığın “Bir dakika, açıklayabilirim” cümlesini prova ettiği öne sürülüyor.',
+  'Gruptaki mesajlarda üç adet şüpheli kahkaha emojisi tespit edildi.',
+  'Olaydan sonra sanığın konuyu hızla değiştirdiği iddia ediliyor.',
+  'Bir tanık, sanığın masum görünmek için gereğinden fazla masum göründüğünü söyledi.',
+  'Dosyada yalnızca “Bana mantıklı gelmişti” yazan gizemli bir not var.'
+ ];
+ const evidenceIndex=Array.from(eventId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%sillyEvidence.length;
  return <View style={{gap:13}}>
   <Card style={{backgroundColor:'#251C42',borderWidth:1,borderColor:'#9C77E8',gap:8}}>
    <Title size={21}>⚖️ Ucube Mahkemesi</Title>
    <Text style={{color:'#F3E8FF',fontSize:17,fontWeight:'800'}}>👤 Sanık: {name(court.defendant_id)}</Text>
    {roles.map(r=><Text key={r.id} style={{color:r.id===myId?'#B6FFD8':'#E4DBFF',fontSize:15}}>{r.title}: {name(r.id)}{r.id===myId?' (Sen)':''}</Text>)}
    <Muted>Herkesin söz hakkı var: Savcı suçlar, avukat savunur, sanık son sözünü söyler. Ardından sanık dışındaki herkes gizlice oy verir.</Muted>
+   <View style={{padding:11,borderRadius:12,backgroundColor:'#392B4C',borderWidth:1,borderColor:'#8E6CB7',gap:5}}>
+    <Text style={{color:'#EBD8FF',fontWeight:'900'}}>🕵️ Mahkemenin Absürt Delili</Text>
+    <Text style={{color:'#FFFFFF',lineHeight:22}}>{sillyEvidence[evidenceIndex]}</Text>
+    <Muted>Bu tamamen hayalî ve komik bir ipucu; gerçek bir kanıt değildir. Tartışmayı başlatmak için kullanın!</Muted>
+   </View>
   </Card>
   <Card style={{gap:9,backgroundColor:'#15243D'}}>
    <Title size={19}>🎭 Savunmalar</Title>
