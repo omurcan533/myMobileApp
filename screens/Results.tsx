@@ -95,20 +95,35 @@ function playerFinalComment(
 }
 
 type MatchMoment={at:string;type:'round'|'minigame'|'highlight';data:{player_id?:string|null;leading?:Side;diff?:number;a?:number;b?:number;streak?:number;seconds_to_deadline?:number;round?:number;winner?:Side|null;question?:string;correct_players?:{id:string;name:string;side:Side}[];wrong_players?:{id:string;name:string;side:Side}[];kind?:string;tug_a?:number;tug_b?:number;top_tug_player?:{id:string;name:string;force:number}|null}};
+const MINI_GAME_LABELS:Record<string,string>={
+ reflex:'Refleks Yarışı',social_guess:'Dostluk Hafızası',math_guess:'Hızlı Matematik ve Tahmin',
+ memory:'Hafıza Oyunu',pong:'Pong Düellosu',line_connect:'Çizgi Birleştirme',
+ survivor_memory:'Survivor Hafıza Parkuru',song_complete:'Şarkı Tamamlama',tug_of_war:'Halat Çekme',
+};
 function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
- const moments:{title:string;body:string;people:string[];accent:string}[]=[];
+ type Moment={title:string;body:string;people:string[];accent:string};
+ const moments:Moment[]=[];
  let prevWinner:Side|null=null,streak=0;
+ const finished=story.filter(x=>x.type!=='highlight').sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ const miniGames=finished.filter(x=>x.type==='minigame');
+ const miniTotals=new Map<string,{a:number;b:number;draw:number}>();
+ for(const m of miniGames){
+  const kind=m.data.kind??'unknown';
+  const count=miniTotals.get(kind)??{a:0,b:0,draw:0};
+  if(m.data.winner==='A')count.a++;else if(m.data.winner==='B')count.b++;else count.draw++;
+  miniTotals.set(kind,count);
+ }
+ const namedTeam=(side:Side|null|undefined)=>side==='A'?'Mavi takım':side==='B'?'Kırmızı takım':'İki takım';
  for(const moment of [...story].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
   const d=moment.data;
   if(moment.type==='highlight'){
    if(d.kind==='tug_lead_change'){
-    const lead=d.leading==='A'?'Mavi':'Kırmızı';
-    moments.push({title:'🚀 Halatta müthiş geri dönüş',body:`Önce en az 150 kuvvet farkla geriye düşen takım, halatı ters yöne çevirdi! ${lead} takımının öne geçtiği anda skor ${d.a} - ${d.b} oldu. Tribünlerin tansiyonu yükseldi.`,people:[],accent:'#FFD58A'});
+    moments.push({title:'🚀 Halatta büyük geri dönüş',body:`Önce geriye düşen ${namedTeam(d.leading)}, halatı yeniden kendi tarafına çekti. Öne geçtiği an kuvvetler Mavi ${d.a??0} – Kırmızı ${d.b??0} idi. Arenada dengeler değişti!`,people:[],accent:'#FFD58A'});
    }else if(d.kind==='wrong_streak'){
     const p=players.find(p=>p.id===d.player_id);
-    if(p)moments.push({title:'🙈 Üç yanlışlık seri',body:`${p.nickname} art arda üç değerlendirilmiş yanıtında doğruyu bulamadı. Jüri notu: İstikrar var ama hedef biraz şaşmış!`,people:[p.id],accent:'#FFB6CB'});
+    if(p)moments.push({title:'🙈 Üç yanlışlık seri',body:`${p.nickname} arka arkaya üç değerlendirilmiş cevapta hedefi tutturamadı. Jüri notu: Israrına saygımız sonsuz, cevap anahtarına biraz daha yakın duralım!`,people:[p.id],accent:'#FFB6CB'});
    }else if(d.kind==='last_second_win'){
-    moments.push({title:'⏰ Son saniyede gelen zafer',body:`${d.round}. soru turu bitiş çizgisine en fazla beş saniye kala sonuçlandı. ${d.winner} takımı son anda turu aldı; zamanlama konusunda sinema filmi çekilir.`,people:[],accent:'#A7F4D2'});
+    moments.push({title:'⏰ Son saniye heyecanı',body:`${d.round}. soru turu kapanışa çok az kala sonuçlandı; ${namedTeam(d.winner)} bu turun galibi oldu. Kronometreyle yarışılan anlardan biri!`,people:[],accent:'#A7F4D2'});
    }
    continue;
   }
@@ -116,27 +131,46 @@ function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
    const winners=d.correct_players??[],misses=d.wrong_players??[];
    if(winners.length&&misses.length){
     const hit=winners[0],miss=misses.find(p=>p.side!==hit.side);
-    if(miss)moments.push({title:'🎯 Aynı soruda iki ayrı kader',body:`${hit.name} doğru cevabı bulurken ${miss.name} aynı turda yanıldı. ${hit.name} alkışı topladı, ${miss.name} ise jüriye yeni malzeme verdi.`,people:[hit.id,miss.id],accent:'#B8F7DA'});
+    if(miss)moments.push({title:'🎯 Aynı soruda iki ayrı kader',body:`${hit.name} doğru cevabı bulurken ${miss.name} aynı soruda yanıldı. Jüri bu turda bir alkış, bir de teselli dağıtıyor.`,people:[hit.id,miss.id],accent:'#B8F7DA'});
    }
    if(d.winner){
     streak=d.winner===prevWinner?streak+1:1;
-    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 İpler el değiştirdi',body:`${d.round}. soruda ${d.winner} takımı önceki turun kazananı ${prevWinner} takımının serisini kesti. Maçın ritmi burada değişti.`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
-    if(streak===3)moments.push({title:'🔥 Üç turluk seri',body:`${d.winner} takımı arka arkaya üç soru turunu kazandı. Rakip takımın strateji toplantısı için acil gündem oluştu.`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
+    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 Soru turunda dengeler değişti',body:`${d.round}. turda ${namedTeam(d.winner)}, bir önceki turun kazananı ${namedTeam(prevWinner)} karşısında üstün geldi. Soru tahtasında rüzgâr tersine döndü.`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
+    if(streak===3)moments.push({title:'🔥 Üç soruluk galibiyet serisi',body:`${namedTeam(d.winner)} arka arkaya üç soru turunu kazandı. Rakip ekip için strateji molası vakti!`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
     prevWinner=d.winner;
    }
   }else if(d.kind==='tug_of_war'){
    const a=Number(d.tug_a??0),b=Number(d.tug_b??0),top=d.top_tug_player;
-   moments.push({title:'🪢 Halat arenasında güç gösterisi',body:`Mavi takım ${a}, kırmızı takım ${b} net kuvvet üretti. ${top?`${top.name} tek başına ${top.force} net kuvvetle öne çıktı.`:'Bireysel kuvvet kaydı bulunmuyor.'} ${a===b?'Halatın ortasında tam bir düğüm yaşandı.':'Kazanan tarafı en çok toplam kuvvet farkı belirledi.'}`,people:top?[top.id]:[],accent:'#99E6FF'});
-  }else if(d.winner){
-   moments.push({title:'🎮 Mini oyunda sahne değişti',body:`${d.kind??'Mini oyun'} karşılaşmasını ${d.winner} takımı kazandı. Soru turlarından farklı bir alanda puan toplamak, rakibe küçük bir hatırlatma oldu: Bu maç tek bir beceriyle kazanılmıyor.`,people:[],accent:'#D3B8FF'});
+   moments.push({title:'🪢 Halat Çekme: kuvvet savaşı',body:`Halatın iki ucunda Mavi ${a}, Kırmızı ${b} net kuvvet topladı. ${top?`${top.name}, ${top.force} kuvvetle bireysel katkıda öne çıktı.`:'Bu turda bireysel kuvvet verisi bulunamadı.'} ${a===b?'Kuvvetler eşitlendi!':`${namedTeam(d.winner)} karşılaşmayı kazandı.`}`,people:top?[top.id]:[],accent:'#99E6FF'});
   }
  }
- const finished=story.filter(x=>x.type!=='highlight').sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ // Each minigame type gets a single meaningful recap, rather than repeating a generic line per match.
+ for(const [kind,score] of miniTotals){
+  if(kind==='tug_of_war')continue;
+  const label=MINI_GAME_LABELS[kind]??'Mini oyun';
+  const count=score.a+score.b+score.draw;
+  const winner=score.a>score.b?'A':score.b>score.a?'B':null;
+  const scoreLine=`Mavi ${score.a} – Kırmızı ${score.b}${score.draw?` · ${score.draw} beraberlik`:''}`;
+  const descriptions:Record<string,string>={
+   reflex:'Milisaniyelerin konuştuğu refleks mücadelesinde parmaklar yarıştı.',
+   social_guess:'Arkadaşları ne kadar iyi tanıdıkları bu oyunda sınandı.',
+   math_guess:'Hızlı hesaplar ve yakın tahminler bu turda belirleyiciydi.',
+   memory:'Hafızası kuvvetli olanların avantaj sağladığı bir mücadele yaşandı.',
+   pong:'Topun peşinde geçen Pong düellosunda raketler iş başındaydı.',
+   line_connect:'Çizgileri doğru bağlamak ve bulmacayı çözmek takımların hedefiydi.',
+   survivor_memory:'Survivor parkurunda hafıza ve doğru kare seçimleri yarıştı.',
+   song_complete:'Eksik şarkı adlarını tamamlamak için müzik bilgisi devreye girdi.',
+  };
+  const detail=descriptions[kind]??'Bu mini oyunda takımlar karşı karşıya geldi.';
+  moments.push({title:`🎮 ${label}`,body:`${count} karşılaşma oynandı. ${detail} Sonuç: ${scoreLine}. ${winner?`Bu oyunda ${namedTeam(winner)} daha fazla galibiyet aldı.`:'Takımlar bu oyunda galibiyet sayısını eşitledi.'}`,people:[],accent:'#D3B8FF'});
+ }
  if(finished.length>=2){
   const last=finished[finished.length-1];
-  moments.push({title:'🎬 Final düdüğü',body:`Maçın kayıtlı son karşılaşması ${last.type==='round'?'soru turu':'mini oyun'} oldu. ${finished.length} sonuçlanmış karşılaşma üzerinden bu hikâye oluşturuldu; anlatılmayan olaylar uydurulmadı.`,people:[],accent:'#FFD99C'});
+  const lastGame=last.data.kind?MINI_GAME_LABELS[last.data.kind]??'mini oyun':'soru turu';
+  const rounds=finished.filter(x=>x.type==='round').length;
+  moments.push({title:'🎬 Final düdüğü',body:`Maçın son kayıtlı karşılaşması ${lastGame} oldu. Toplam ${rounds} soru turu ve ${miniGames.length} mini oyun tamamlandı. Jüri, bu gece yalnızca kayıtlara geçenleri anlattı.`,people:[],accent:'#FFD99C'});
  }
- const special=moments.filter(m=>/geri dönüş|yanlışlık seri|Son saniyede/.test(m.title));
+ const special=moments.filter(m=>/geri dönüş|yanlışlık seri|Son saniye/.test(m.title));
  return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
 }
 
