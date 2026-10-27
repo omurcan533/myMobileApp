@@ -7,6 +7,7 @@ import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, Muted, Pulse, Reveal, RoomExitButton, Screen, SectionLabel, Title, Text, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
+import { PARTY_MISSIONS } from '../lib/partyMissions';
 import { teamMascot } from '../lib/art';
 import { recordGame } from '../lib/profile';
 import { alpha, colors, gradients, teamColor, teamName } from '../lib/theme';
@@ -332,6 +333,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const colW = (width - 36 - 14) / 2; // sütun genişliği
   const [res, setRes] = useState<GameResults | null>(null);
   const [matchStory,setMatchStory]=useState<MatchMoment[]>([]);
+  const [secretResults,setSecretResults]=useState<{player_id:string;key:number;status:string}[]>([]);
   const [revealing, setRevealing] = useState(false);
   const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
   const [ceremonyDismissed,setCeremonyDismissed]=useState(false);
@@ -366,7 +368,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     return () => { active = false; if (revealTimer) clearTimeout(revealTimer); };
   }, [data.room.id, me.team_side]);
 
-  useEffect(()=>{api.matchStory(data.room.id).then(setMatchStory).catch(()=>{});},[data.room.id]);
+  useEffect(()=>{api.matchStory(data.room.id).then(setMatchStory).catch(()=>{});api.partySecretMissionResults(data.room.id).then(setSecretResults).catch(()=>{});},[data.room.id]);
   useEffect(()=>{const timer=setTimeout(()=>setCeremonyReady(true),1300);return ()=>clearTimeout(timer);},[data.room.id]);
 
   useEffect(()=>{api.friendMemoryLeaderboard(data.room.id).then(setFriendScores).catch(()=>{});api.partyLastAgeEvent(data.room.id).then(id=>id?api.partyAgeResults(id).then(setAgeScores):undefined).catch(()=>{});},[data.room.id]);
@@ -429,6 +431,20 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
             <Text style={{color:'#FFFFFF',fontSize:19,fontWeight:'900'}}>{award.player}</Text>
             <Text style={{color:'#DCEBFF',fontSize:14,lineHeight:23}}>{award.reason}</Text>
           </View>):<Text style={{color:'#D6E5FA',lineHeight:23}}>Henüz ödül dağıtmak için yeterli doğrulanmış oyuncu performansı bulunmuyor.</Text>}
+        </Card>
+
+        {/* ================= GİZLİ GÖREV İFŞASI ================= */}
+        <Card accent={colors.violet} style={{gap:12,backgroundColor:'#1B2142',borderWidth:1,borderColor:'#7054A9'}}>
+          <Title size={23}>🕵️ Gizli Görevler Açıklanıyor!</Title>
+          <Text style={{color:'#E6DEFF',fontSize:14,lineHeight:23}}>Herkesin maç boyunca sakladığı görevler şimdi ortaya çıkıyor. Tamamlama oyuncunun kendi beyanına dayanır.</Text>
+          {secretResults.length?secretResults.map(m=>{
+            const player=data.players.find(p=>p.id===m.player_id);
+            return <View key={m.player_id} style={{backgroundColor:'#111D38',borderRadius:12,padding:13,gap:6,borderWidth:1,borderColor:'#4E547D'}}>
+              <Text style={{color:'#FFFFFF',fontSize:16,fontWeight:'900'}}>{m.status==='done'?'🏅':m.status==='skipped'?'⏭️':'🔒'} {player?.nickname??'Oyuncu'}</Text>
+              <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:22}}>{PARTY_MISSIONS[m.key]??'Gizli görev'}</Text>
+              <Text style={{color:m.status==='done'?'#9BF0C6':'#CAD3EB',fontWeight:'800'}}>{m.status==='done'?'Başardığını bildirdi':m.status==='skipped'?'Pas geçti':'Tamamlandığı bildirilmedi'}</Text>
+            </View>;
+          }):<Text style={{color:'#CBD8EF'}}>Bu maç için gizli görev kaydı bulunmuyor.</Text>}
         </Card>
 
         {/* ================= MAÇIN HİKÂYESİ ================= */}
