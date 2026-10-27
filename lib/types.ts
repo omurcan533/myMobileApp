@@ -143,7 +143,7 @@ export interface TeamPiece {
   source: 'question' | 'steal' | 'joker' | 'minigame';
 }
 
-export type MinigameKind = 'reflex' | 'social_guess' | 'math_guess' | 'memory' | 'pong' | 'line_connect' | 'survivor_memory' | 'song_complete';
+export type MinigameKind = 'reflex' | 'social_guess' | 'math_guess' | 'memory' | 'pong' | 'line_connect' | 'survivor_memory' | 'song_complete' | 'tug_of_war';
 
 export interface Minigame {
   id: string;
