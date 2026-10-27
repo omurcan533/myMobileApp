@@ -71,6 +71,7 @@ export interface Player {
   avatar_id?: string | null;
   team_side: Side | null;
   is_host: boolean;
+  is_bot?: boolean;
   is_captain: boolean;
   is_architect: boolean;
   locked_until: string | null;
