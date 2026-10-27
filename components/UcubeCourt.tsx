@@ -30,6 +30,30 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
   {id:court.defender_id,title:'🛡️ Avukat',tip:'Sanığı savunacak yaratıcı bir bahane bul.'},
   {id:court.defendant_id,title:'🙋 Sanık',tip:'Son sözünü söyle, jüriyi ikna et!'}];
  const myRole=roles.find(r=>r.id===myId);
+ const roleTips:Record<string,string[]> = {
+  prosecutor:[
+   'İddianı bir dedektif gibi anlat ama kanıtın komik olsun.',
+   'Jüriyi güldürecek kadar dramatik bir giriş yap.',
+   'Suçlamanı tek bir aşırı şüpheli ayrıntıya bağla.'
+  ],
+  defender:[
+   'Savunmanda beklenmedik ama zararsız bir bahane bul.',
+   'Olayı sanığın açısından anlatıp herkesi şaşırt.',
+   'Savcıya nazikçe “itiraz ediyorum” diyecek bir an yakala.'
+  ],
+  defendant:[
+   'Son sözünde olayı daha da absürt bir şekilde açıklamayı dene.',
+   'Jüriye kendini savunurken aşırı ciddi davran.',
+   'Suçlamayı beklenmedik bir yanlış anlaşılmaya bağla.'
+  ],
+  jury:[
+   'İfadelerdeki en komik çelişkiyi yakalamaya çalış.',
+   'Oylamadan önce çapraz sorgu sorularından birini kullan.',
+   'Karar verirken en ikna edici bahaneyi değil, en komik açıklamayı da düşün.'
+  ]
+ };
+ const roleKey=myRole?.id===court.prosecutor_id?'prosecutor':myRole?.id===court.defender_id?'defender':myRole?.id===court.defendant_id?'defendant':'jury';
+ const roleTipIndex=Array.from(eventId+myId).reduce((sum,char)=>sum+char.charCodeAt(0),0)%roleTips[roleKey].length;
  const alreadySpoke=court.speeches.some(s=>s.player_id===myId);
  const verdict=court.stage==='verdict';
  const guilty=court.guilty_votes??0,innocent=court.innocent_votes??0;
@@ -78,6 +102,11 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
     <Text style={{color:'#FFFFFF',lineHeight:22}}>{sillyEvidence[evidenceIndex]}</Text>
     <Muted>Bu tamamen hayalî ve komik bir ipucu; gerçek bir kanıt değildir. Tartışmayı başlatmak için kullanın!</Muted>
    </View>
+  </Card>
+  <Card style={{gap:8,backgroundColor:'#20334A',borderWidth:1,borderColor:'#668CB0'}}>
+   <Title size={17}>🎯 {myRole?'Sana Özel Mahkeme Taktiği':'Jüri Notun'}</Title>
+   <Text style={{color:'#FFFFFF',lineHeight:22}}>{roleTips[roleKey][roleTipIndex]}</Text>
+   <Muted>Bu küçük ipucu yalnızca senin ekranında görünür. İstersen kullan, istersen kendi tarzını konuştur!</Muted>
   </Card>
   <Card style={{gap:9,backgroundColor:'#15243D'}}>
    <Title size={19}>🎭 Savunmalar</Title>
