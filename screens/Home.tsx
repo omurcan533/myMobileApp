@@ -38,7 +38,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [mode, setMode] = useState<GameMode>('standard');
   const [modeIndex, setModeIndex] = useState(1);
   const { width: windowWidth } = useWindowDimensions();
-  const modeSlideWidth = Math.max(220, windowWidth - 72);
+  const [modeCarouselWidth, setModeCarouselWidth] = useState(0);
+  const modeSlideWidth = modeCarouselWidth || Math.max(220, windowWidth - 72);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [profile, setProfile] = useState<Profile>({ games: 0, wins: 0, lastRoom: null });
   const [sound, setSound] = useState(soundFx.isEnabled());
@@ -174,8 +175,10 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     scrollEventThrottle={16}
                     showsHorizontalScrollIndicator={false}
                     style={{ width: '100%' }}
+                    onLayout={(event) => setModeCarouselWidth(event.nativeEvent.layout.width)}
                     onMomentumScrollEnd={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-                      const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / modeSlideWidth)));
+                      const pageWidth = event.nativeEvent.layoutMeasurement.width || modeSlideWidth;
+                      const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / pageWidth)));
                       setModeIndex(nextIndex);
                       const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
                       setMode(modes[nextIndex]);
