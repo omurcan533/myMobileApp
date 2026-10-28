@@ -135,7 +135,7 @@ const chosen=top.length===1?top[0]:null;
 const threeWinners=event?.prompt?.includes('3 kişi')?[...players].sort((a,b)=>count(b.id)-count(a.id)).slice(0,3):[];
 const submit=(target:string|null,txt:string|null=null)=>run(()=>api.partyEventVote(event.id,target,txt));
 const finish=()=>run(()=>api.partyEventFinish(event.id));
-const secretCard=mission?(missionOpen
+const secretCard=mission?(missionOpen ?
  <Card style={{gap:9,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',width:'100%'}}>
   <Pressable accessibilityRole="button" onPress={()=>setMissionOpen(false)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5}}>
    <Text style={{color:'#F1E5FF',fontSize:17,fontWeight:'900'}}>🕵️ Gizli Görevin {mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
