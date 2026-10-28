@@ -134,19 +134,24 @@ const chosen=top.length===1?top[0]:null;
 const threeWinners=event?.prompt?.includes('3 kişi')?[...players].sort((a,b)=>count(b.id)-count(a.id)).slice(0,3):[];
 const submit=(target:string|null,txt:string|null=null)=>run(()=>api.partyEventVote(event.id,target,txt));
 const finish=()=>run(()=>api.partyEventFinish(event.id));
-const secretCard=mission?<Card style={{gap:9,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6'}}>
- <Pressable accessibilityRole="button" onPress={()=>setMissionOpen(v=>!v)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5}}>
-  <Text style={{color:'#F1E5FF',fontSize:17,fontWeight:'900'}}>🕵️ Gizli Görevin {mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
-  <Text style={{color:'#D4B8FF',fontWeight:'800'}}>{missionOpen?'Gizle ▲':'Göster ▼'}</Text>
+const secretCard=mission?(missionOpen
+ <Card style={{gap:9,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',width:'100%'}}>
+  <Pressable accessibilityRole="button" onPress={()=>setMissionOpen(false)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5}}>
+   <Text style={{color:'#F1E5FF',fontSize:17,fontWeight:'900'}}>🕵️ Gizli Görevin {mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
+   <Text style={{color:'#D4B8FF',fontWeight:'800'}}>Gizle ▲</Text>
+  </Pressable>
+  <View style={{gap:10}}>
+   <Text style={{color:'#FFFFFF',fontSize:15,lineHeight:23}}>{PARTY_MISSIONS[mission.key]??'Gizli görev'}</Text>
+   <Muted>Görevini kimseye gösterme! Oyun boyunca deneyebilirsin. Başardığını kendin işaretlersin; puan verilmez, finalde açıklanır. İstediğin zaman pas geçebilirsin.</Muted>
+   {mission.status==='active'?<View style={{gap:8}}><Btn title={missionBusy?'Kaydediliyor…':'✓ Görevi Başardım'} disabled={missionBusy} onPress={()=>finishMission('done')}/><Btn title="Pas Geç" tone="ghost" disabled={missionBusy} onPress={()=>finishMission('skipped')}/></View>:<Text style={{color:'#B8FFD9',fontWeight:'800'}}>{mission.status==='done'?'🎉 Tamamlandı! Finalde herkes öğrenecek.':'Görev pas geçildi.'}</Text>}
+  </View>
+ </Card>
+ :<Pressable accessibilityRole="button" accessibilityLabel="Gizli görevi göster" onPress={()=>setMissionOpen(true)} style={{alignSelf:'flex-end',flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:12,paddingVertical:9,borderRadius:22,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',shadowColor:'#000',shadowOpacity:0.22,shadowRadius:8,elevation:6}}>
+  <Text style={{fontSize:14}}>🕵️</Text>
+  <Text style={{color:'#F1E5FF',fontSize:12,fontWeight:'900'}}>Gizli Görev</Text>
+  <Text style={{color:'#D4B8FF',fontSize:12,fontWeight:'900'}}>{mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
  </Pressable>
- {missionOpen&&<View style={{gap:10}}>
-  <Text style={{color:'#FFFFFF',fontSize:15,lineHeight:23}}>{PARTY_MISSIONS[mission.key]??'Gizli görev'}</Text>
-  <Muted>Görevini kimseye gösterme! Oyun boyunca deneyebilirsin. Başardığını kendin işaretlersin; puan verilmez, finalde açıklanır. İstediğin zaman pas geçebilirsin.</Muted>
-  {mission.status==='active'?<View style={{gap:8}}><Btn title={missionBusy?'Kaydediliyor…':'✓ Görevi Başardım'} disabled={missionBusy} onPress={()=>finishMission('done')}/><Btn title="Pas Geç" tone="ghost" disabled={missionBusy} onPress={()=>finishMission('skipped')}/></View>:<Text style={{color:'#B8FFD9',fontWeight:'800'}}>{mission.status==='done'?'🎉 Tamamlandı! Finalde herkes öğrenecek.':'Görev pas geçildi.'}</Text>}
- </View>}
- </Card>:null;
-// Eski/önceden başlatılmış bir Mahkeme etkinliği de kullanıcı arayüzünde gösterilmez.
-if(event?.kind==='ucube_court')return secretCard;
+):null;
 if(!event&&(!canStart||dismissed))return secretCard;
 return <View style={{gap:10}}>
 {secretCard}
