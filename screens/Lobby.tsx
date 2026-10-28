@@ -38,6 +38,8 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const botCount=players.filter(p=>(p as any).is_bot).length;
   const [draftBotCount,setDraftBotCount]=useState<number|null>(null);
   const [factsReady, setFactsReady] = useState(false);
+  const [factsToggleBusy, setFactsToggleBusy] = useState(false);
+  const factsEnabled = room.friend_facts_enabled === true;
   const [factsReviewed, setFactsReviewed] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
@@ -96,7 +98,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   };
 
   const assignTeams = async () => {
-    if (!factsReady || !factsReviewed) { show('Önce herkes kişisel sorularını tamamlamalı.', 'error'); return; }
+    if (factsEnabled && (!factsReady || !factsReviewed)) { show('Önce herkes kişisel sorularını tamamlamalı ve cevapları okumalı.', 'error'); return; }
     if (room.mode === 'custom' && !gamesLocked) {
       show('Önce oyun seçimlerini yapıp kilitlemelisin.', 'error');
       return;
@@ -108,6 +110,21 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
       show((e as Error).message, 'error');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleFriendFacts = async () => {
+    if (!me.is_host || factsToggleBusy || busy) return;
+    setFactsToggleBusy(true);
+    try {
+      await api.setFriendFactsEnabled(room.id, !factsEnabled);
+      setFactsReady(false);
+      setFactsReviewed(false);
+      show(!factsEnabled ? 'Beni Ne Kadar Tanıyorsun? etkinleştirildi.' : 'Kişisel sorular kapatıldı; doldurmak gerekmiyor.', 'success');
+    } catch (e) {
+      show((e as Error).message, 'error');
+    } finally {
+      setFactsToggleBusy(false);
     }
   };
 
@@ -225,9 +242,18 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         </Reveal>
 
-        <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />
+        <Reveal delay={130}>
+          <Card style={{ gap: 10 }}>
+            <Title size={19}>🧠 Beni Ne Kadar Tanıyorsun?</Title>
+            <Muted>{factsEnabled ? 'Etkin. Herkes kişisel soruları cevaplar; cevaplar okunduktan sonra hafıza soruları oyunlarda kullanılabilir.' : 'İsteğe bağlıdır. Kapalıyken kişisel sorular gösterilmez ve doldurmak gerekmez.'}</Muted>
+            {me.is_host && <Btn title={factsEnabled ? 'Kişisel Soruları Kapat' : 'Kişisel Soruları Etkinleştir'} icon={factsEnabled ? 'toggle' : 'toggle-outline'} tone={factsEnabled ? 'success' : 'ghost'} loading={factsToggleBusy} disabled={factsToggleBusy || busy} onPress={toggleFriendFacts} />}
+            {!me.is_host && <Muted>{factsEnabled ? 'Oda kurucusu bu özelliği etkinleştirdi.' : 'Bu özellik oda kurucusu tarafından etkinleştirilmedi.'}</Muted>}
+          </Card>
+        </Reveal>
 
-        {factsReady && me.is_host && <Btn title={factsReviewed ? 'Cevaplar İncelendi ✓' : 'Herkes Cevapları Okudu, Devam Et'} icon="book" tone="success" onPress={() => setFactsReviewed(true)} disabled={factsReviewed} />}
+        {factsEnabled && <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />}
+
+        {factsEnabled && factsReady && me.is_host && <Btn title={factsReviewed ? 'Cevaplar İncelendi ✓' : 'Herkes Cevapları Okudu, Devam Et'} icon="book" tone="success" onPress={() => setFactsReviewed(true)} disabled={factsReviewed} />}
 
         {/* ================= BAŞLAT / AYRIL ================= */}
         <Reveal delay={180} style={{ gap: 12 }}>
@@ -235,7 +261,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Btn
               title={canStart ? 'Takımları Belirle' : 'En az 2 kişi gerekli'}
               icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart || savingGames || !gamesLocked || !factsReady || !factsReviewed}
+              disabled={!canStart || savingGames || (room.mode === 'custom' && !gamesLocked) || (factsEnabled && (!factsReady || !factsReviewed))}
               loading={busy}
               tone="success"
               onPress={assignTeams}
