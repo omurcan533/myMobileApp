@@ -167,6 +167,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Muted>Hızlı, Standart ve Epik modlarda oyunlar rastgele seçilir. Özel modda oyunları sen belirlersin.</Muted>
                     </View>
                   </View>
+                  <View style={{ position: 'relative', width: '100%' }}>
                   <ScrollView
                     ref={modeCarouselRef}
                     horizontal
@@ -226,6 +227,35 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       );
                     })}
                   </ScrollView>
+                  {modeIndex > 0 && (
+                    <Tap
+                      onPress={() => {
+                        const nextIndex = modeIndex - 1;
+                        const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                        setModeIndex(nextIndex);
+                        setMode(modes[nextIndex]);
+                        modeCarouselRef.current?.scrollTo({ x: nextIndex * modeSlideWidth, animated: true });
+                      }}
+                      style={{ position: 'absolute', left: 7, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(10,16,32,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}
+                    >
+                      <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+                    </Tap>
+                  )}
+                  {modeIndex < 3 && (
+                    <Tap
+                      onPress={() => {
+                        const nextIndex = modeIndex + 1;
+                        const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                        setModeIndex(nextIndex);
+                        setMode(modes[nextIndex]);
+                        modeCarouselRef.current?.scrollTo({ x: nextIndex * modeSlideWidth, animated: true });
+                      }}
+                      style={{ position: 'absolute', right: 7, top: '50%', marginTop: -19, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(10,16,32,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}
+                    >
+                      <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
+                    </Tap>
+                  )}
+                  </View>
                   <View style={s.modeDots}>
                     {(['quick', 'standard', 'long', 'custom'] as GameMode[]).map((m, i) => (
                       <Tap
