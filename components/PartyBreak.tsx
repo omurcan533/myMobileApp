@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ScrollView,View,TextInput,Modal,Pressable} from 'react-native';
 import {api} from '../lib/api';
 import {PARTY_MISSIONS} from '../lib/partyMissions';
-import {UcubeCourt} from './UcubeCourt';
+// import {UcubeCourt} from './UcubeCourt'; // Ucube Mahkemesi şimdilik devre dışı.
 import {Btn,Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
 const UCUBE_QUESTIONS=[
@@ -39,7 +39,7 @@ const TASKS=[
 'Güvenli ve uygun bir ortamdaysanız, tanımadığın birine nazikçe bir soru sor. İstemiyorsan pas geçebilirsin.',
 'En çok oy alan 3 kişi el ele tutuşup sesli bir şekilde Selana’yı çağırsın!'
 ];
-const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?'],['ucube_court','Ucube Mahkemesi']] as const;
+const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?'] // ['ucube_court','Ucube Mahkemesi'] — şimdilik devre dışı] as const;
 // Aynı olay kimliğinde herkes aynı bulmacayı görür; doğru cevap bulmacadan hesaplanır.
 const SCENE_PAIRS = [
   [['🌳','🐱','🌞','🚗','🌷','🏠','🐶','🚲','🍎'],['🌳','🐱','🌛','🚗','🌻','🏠','🐶','🛴','🍎']],
@@ -71,11 +71,12 @@ const refresh=async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent
 useEffect(()=>{refresh();const t=setInterval(refresh,2500);return()=>clearInterval(t);},[roomId]);
 const run=async(fn:()=>Promise<any>)=>{setBusy(true);setError('');try{await fn();await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const start=(kind:string)=>run(async()=>{
-if(kind==='ucube_court'){
- const charge=COURT_CHARGES[Math.floor(Math.random()*COURT_CHARGES.length)];
- await api.partyCourtStart(roomId,charge);
- setShowMenu(false);return;
-}
+// Ucube Mahkemesi başlatma akışı şimdilik devre dışı:
+// if(kind==='ucube_court'){
+//  const charge=COURT_CHARGES[Math.floor(Math.random()*COURT_CHARGES.length)];
+//  await api.partyCourtStart(roomId,charge);
+//  setShowMenu(false);return;
+// }
 const prompt=kind==='who_is_ucube'?UCUBE_QUESTIONS[Math.floor(Math.random()*UCUBE_QUESTIONS.length)]:kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?'Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!':kind==='age_guess'?'Herkes diğer oyuncuların yaşını tahmin etsin!':kind==='spot_diff'?'İki resimde kaç fark var?' :'Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!';const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='who_is_ucube'||kind==='age_guess'||kind==='spot_diff')await api.testBotsVote(eventId);setShowMenu(false);setAnswer('');setAge({});setWinner(null);});
 // Bir mini oyun sonrası tek seferlik, ev sahibi kontrollü sürpriz etkinlik.
 const autoBusy = useRef(false);
@@ -150,7 +151,7 @@ return <View style={{gap:10}}>
 {!event?<Card style={{gap:8}}><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><Title size={18}>🎉 Eğlence Molası</Title><Pressable accessibilityRole="button" accessibilityLabel="Eğlence molasını kapat" hitSlop={12} onPress={()=>{setShowMenu(false);setDismissed(true);}} style={{padding:8,borderRadius:18,backgroundColor:'#25344D'}}><Text style={{fontSize:19,fontWeight:'800',color:'#FFFFFF'}}>✕</Text></Pressable></View><Muted>Ana oyunun arasında arkadaşlarını şaşırtacak bir etkinlik başlat.</Muted>{isHost&&<Btn title={showMenu?'Etkinlikleri Gizle':'Sürpriz Etkinlik Başlat'} onPress={()=>setShowMenu(v=>!v)}/>}
 {showMenu&&isHost&&EVENTS.map(([kind,label])=><Btn key={kind} title={label} tone="ghost" disabled={busy||(kind==='eye_duel'&&players.length%2!==0)||(kind==='ucube_court'&&players.filter(p=>!p.is_bot).length<3)} onPress={()=>start(kind)}/>)}</Card>:
 <Modal visible transparent animationType="slide"><View style={{flex:1,backgroundColor:'rgba(0,0,0,0.9)',justifyContent:'center',padding:14}}><ScrollView contentContainerStyle={{paddingVertical:25}}><Card style={{gap:12}}><Title size={23}>🎲 {EVENTS.find(x=>x[0]===event.kind)?.[1]}</Title><Text style={{fontSize:17,color:'#E8F1FF',lineHeight:24}}>{event.prompt}</Text>
-{event.kind==='ucube_court'&&<UcubeCourt eventId={event.id} players={players} myId={myId}/>}
+{/* Ucube Mahkemesi ekranı şimdilik devre dışı: <UcubeCourt eventId={event.id} players={players} myId={myId}/> */}
 {event.kind==='who_is_ucube'&&<View style={{gap:10}}>
  <Muted>Herkes en uygun arkadaşını seçsin. Kendine oy veremezsin. Sonuçlar bütün oylar geldikten sonra açılır.</Muted>
  {!mine?players.filter(p=>p.id!==myId).map(p=><Btn key={p.id} title={p.nickname} tone="ghost" disabled={busy} onPress={()=>submit(p.id)}/>):<Text style={{color:'#B6FFE5',fontWeight:'800'}}>✓ Oyun kaydedildi. Diğerleri bekleniyor: {voteCount}/{players.length}</Text>}
