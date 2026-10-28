@@ -176,6 +176,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     showsHorizontalScrollIndicator={false}
                     style={{ width: '100%' }}
                     onLayout={(event) => setModeCarouselWidth(event.nativeEvent.layout.width)}
+                    onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                      const pageWidth = event.nativeEvent.layoutMeasurement.width || modeSlideWidth;
+                      const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / pageWidth)));
+                      setModeIndex((current) => current === nextIndex ? current : nextIndex);
+                      const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                      setMode((current) => current === modes[nextIndex] ? current : modes[nextIndex]);
+                    }}
                     onMomentumScrollEnd={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
                       const pageWidth = event.nativeEvent.layoutMeasurement.width || modeSlideWidth;
                       const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / pageWidth)));
