@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -65,7 +65,13 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
     onLeave();
   }, [roomId, onLeave]);
 
-  useEffect(() => { if (gone) onLeave(); }, [gone, onLeave]);
+  useEffect(() => {
+    if (gone) { onLeave(); return; }
+    if (data && !me) {
+      onLeave();
+      Alert.alert('Odadan Çıkarıldın', 'Oda kurucusu seni bekleme odasından çıkardı.');
+    }
+  }, [gone, data, me, onLeave]);
 
   if (!data || !me) {
     return <Loading text="Odaya bağlanılıyor…" />;
