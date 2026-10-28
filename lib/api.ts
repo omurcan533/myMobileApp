@@ -67,6 +67,7 @@ export const api = {
   setRoomGames: (room: string, games: string[]) => rpc<void>('set_room_games', { p_room: room, p_games: games }),
   unlockRoomGames: (room: string) => rpc<void>('unlock_room_games', { p_room: room }),
   assignTeams: (room: string) => rpc<void>('assign_teams', { p_room: room }),
+  setFriendFactsEnabled: (room: string, enabled: boolean) => rpc<void>('set_room_friend_facts_enabled', { p_room: room, p_enabled: enabled }),
   shuffleTeams: (room: string) => rpc<void>('shuffle_teams', { p_room: room }),
   startCaptainDuel: (room: string) => rpc<any>('start_captain_duel', { p_room: room }),
   rollCaptainDice: (room: string) => rpc<any>('roll_captain_dice', { p_room: room }),
