@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,11 +36,15 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [nick, setNick] = useState('');
   const [code, setCode] = useState('');
   const [mode, setMode] = useState<GameMode>('standard');
+  const [modeIndex, setModeIndex] = useState(1);
+  const { width: windowWidth } = useWindowDimensions();
+  const modeSlideWidth = Math.max(220, windowWidth - 104);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [profile, setProfile] = useState<Profile>({ games: 0, wins: 0, lastRoom: null });
   const [sound, setSound] = useState(soundFx.isEnabled());
   const { toast, show } = useToast();
   const scrollRef = useRef<ScrollView>(null);
+  const modeCarouselRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     AsyncStorage.getItem('nickname').then((v) => v && setNick(v));
@@ -162,39 +166,71 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Muted>Hızlı, Standart ve Epik modlarda oyunlar rastgele seçilir. Özel modda oyunları sen belirlersin.</Muted>
                     </View>
                   </View>
-                  <View style={s.modes}>
+                  <ScrollView
+                    ref={modeCarouselRef}
+                    horizontal
+                    pagingEnabled
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={false}
+                    style={{ width: '100%' }}
+                    onMomentumScrollEnd={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                      const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / modeSlideWidth)));
+                      setModeIndex(nextIndex);
+                      const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                      setMode(modes[nextIndex]);
+                    }}
+                  >
                     {([
                       ['quick', 'flash', 'Hızlı', '8 Soru • ~5 dk', colors.yellow],
                       ['standard', 'trophy', 'Standart', '14 Soru • ~10 dk', colors.cyan],
                       ['long', 'flame', 'Epik', '20 Soru • ~18 dk', colors.violet],
                       ['custom', 'options', 'Özel', 'Oyunları sen seç', colors.mint],
-                    ] as const).map(([m, icon, label, sub, c]) => {
+                    ] as const).map(([m, icon, label, sub, c], index) => {
                       const on = mode === m;
                       return (
-                        <Tap
-                          key={m}
-                          color={alpha(c, 0.32)}
-                          accent={c}
-                          scaleTo={0.93}
-                          onPress={() => { soundFx.click(); setMode(m); }}
-                          style={[
-                            s.mode,
-                            on && { borderColor: c, backgroundColor: alpha(c, 0.14), shadowColor: c, shadowOpacity: 0.45, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
-                          ]}
-                        >
-                          <View style={[s.modeIcon, { backgroundColor: alpha(c, on ? 0.22 : 0.1) }]}>
-                            <Ionicons name={icon} size={22} color={on ? c : colors.muted} />
-                          </View>
-                          <Text display style={[s.modeLabel, on && { color: colors.text }]}>{label}</Text>
-                          <Text style={[s.modeSub, on && { color: c }]}>{sub}</Text>
-                          {on && (
-                            <View style={[s.modeCheck, { backgroundColor: c }]}>
-                              <Ionicons name="checkmark" size={12} color="#0A1020" />
+                        <View key={m} style={{ width: modeSlideWidth, paddingHorizontal: 2 }}>
+                          <Tap
+                            color={alpha(c, 0.32)}
+                            accent={c}
+                            scaleTo={0.98}
+                            onPress={() => { soundFx.click(); setMode(m); setModeIndex(index); }}
+                            style={[
+                              s.modeSlide,
+                              on && { borderColor: c, backgroundColor: alpha(c, 0.14), shadowColor: c, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+                            ]}
+                          >
+                            <View style={[s.modeIcon, { width: 54, height: 54, borderRadius: 27, backgroundColor: alpha(c, on ? 0.22 : 0.1) }]}>
+                              <Ionicons name={icon} size={28} color={on ? c : colors.muted} />
                             </View>
-                          )}
-                        </Tap>
+                            <Text display style={[s.modeLabel, { fontSize: 20 }, on && { color: colors.text }]}>{label}</Text>
+                            <Text style={[s.modeSub, { fontSize: 12 }, on && { color: c }]}>{sub}</Text>
+                            {on && (
+                              <View style={[s.modeCheck, { backgroundColor: c }]}>
+                                <Ionicons name="checkmark" size={12} color="#0A1020" />
+                              </View>
+                            )}
+                            <Text style={{ color: colors.subtle, fontSize: 11, marginTop: 8 }}>Yana kaydırarak modları keşfet</Text>
+                          </Tap>
+                        </View>
                       );
                     })}
+                  </ScrollView>
+                  <View style={s.modeDots}>
+                    {(['quick', 'standard', 'long', 'custom'] as GameMode[]).map((m, i) => (
+                      <Tap
+                        key={m}
+                        onPress={() => {
+                          const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                          setMode(modes[i]);
+                          setModeIndex(i);
+                          // Kartı noktalardan seçmek için carousel konumunu aynı indekse kaydır.
+                          modeCarouselRef.current?.scrollTo({ x: i * modeSlideWidth, animated: true });
+                        }}
+                        style={[s.modeDot, modeIndex === i && s.modeDotActive]}
+                      >
+                        <View style={[s.modeDotInner, modeIndex === i && s.modeDotInnerActive]} />
+                      </Tap>
+                    ))}
                   </View>
                   <Btn title="Oda Kur" tone="success" icon="rocket" loading={busy === 'create'} onPress={() => run('create')} />
                 </Card>
@@ -382,7 +418,12 @@ const s = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardIcon: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
-  modes: { flexDirection: 'row', gap: 8 },
+  modeSlide: { minHeight: 164, paddingVertical: 18, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.inset, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  modeDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9, paddingTop: 1 },
+  modeDot: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  modeDotActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
+  modeDotInner: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
+  modeDotInnerActive: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#FFFFFF' },
   mode: {
     flex: 1,
     paddingVertical: 12,
