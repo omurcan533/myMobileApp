@@ -145,6 +145,8 @@ const secretCard=mission?<Card style={{gap:9,backgroundColor:'#18253D',borderWid
   {mission.status==='active'?<View style={{gap:8}}><Btn title={missionBusy?'Kaydediliyor…':'✓ Görevi Başardım'} disabled={missionBusy} onPress={()=>finishMission('done')}/><Btn title="Pas Geç" tone="ghost" disabled={missionBusy} onPress={()=>finishMission('skipped')}/></View>:<Text style={{color:'#B8FFD9',fontWeight:'800'}}>{mission.status==='done'?'🎉 Tamamlandı! Finalde herkes öğrenecek.':'Görev pas geçildi.'}</Text>}
  </View>}
  </Card>:null;
+// Eski/önceden başlatılmış bir Mahkeme etkinliği de kullanıcı arayüzünde gösterilmez.
+if(event?.kind==='ucube_court')return secretCard;
 if(!event&&(!canStart||dismissed))return secretCard;
 return <View style={{gap:10}}>
 {secretCard}
