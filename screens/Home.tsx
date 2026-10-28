@@ -38,7 +38,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [mode, setMode] = useState<GameMode>('standard');
   const [modeIndex, setModeIndex] = useState(1);
   const { width: windowWidth } = useWindowDimensions();
-  const modeSlideWidth = Math.max(220, windowWidth - 104);
+  const modeSlideWidth = Math.max(220, windowWidth - 72);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
   const [profile, setProfile] = useState<Profile>({ games: 0, wins: 0, lastRoom: null });
   const [sound, setSound] = useState(soundFx.isEnabled());
