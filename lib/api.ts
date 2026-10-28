@@ -7,6 +7,8 @@ const MESSAGES: Record<string, string> = {
   nickname_taken: 'Bu takma ad odada alınmış.',
   invalid_nickname: 'Takma ad 1-20 karakter olmalı.',
   game_in_progress: 'Oyun çoktan başlamış.',
+  friend_facts_disabled: 'Kişisel sorular bu odada kapalı.',
+  friend_facts_incomplete: 'Takımları belirlemeden önce herkes kişisel soruları tamamlamalı.',
   room_full: 'Oda dolu (en fazla 12 kişi).',
   need_two_players: 'Başlamak için en az 2 kişi gerekli.',
   not_host: 'Bunu sadece oda kurucusu yapabilir.',
