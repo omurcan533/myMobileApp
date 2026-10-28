@@ -245,7 +245,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                         setMode(modes[nextIndex]);
                         modeCarouselRef.current?.scrollTo({ x: nextIndex * modeSlideWidth, animated: true });
                       }}
-                      style={{ position: 'absolute', left: 4, top: '50%', marginTop: -15, width: 26, height: 30, borderRadius: 15, backgroundColor: 'rgba(10,16,32,0.34)', alignItems: 'center', justifyContent: 'center', zIndex: 5, opacity: 0.72 }}
+                      style={{ position: 'absolute', left: 12, top: '50%', marginTop: -15, width: 26, height: 30, borderRadius: 15, backgroundColor: 'rgba(10,16,32,0.34)', alignItems: 'center', justifyContent: 'center', zIndex: 5, opacity: 0.72 }}
                     >
                       <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.78)" />
                     </Tap>
@@ -259,7 +259,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                         setMode(modes[nextIndex]);
                         modeCarouselRef.current?.scrollTo({ x: nextIndex * modeSlideWidth, animated: true });
                       }}
-                      style={{ position: 'absolute', right: 4, top: '50%', marginTop: -15, width: 26, height: 30, borderRadius: 15, backgroundColor: 'rgba(10,16,32,0.34)', alignItems: 'center', justifyContent: 'center', zIndex: 5, opacity: 0.72 }}
+                      style={{ position: 'absolute', right: 12, top: '50%', marginTop: -15, width: 26, height: 30, borderRadius: 15, backgroundColor: 'rgba(10,16,32,0.34)', alignItems: 'center', justifyContent: 'center', zIndex: 5, opacity: 0.72 }}
                     >
                       <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.78)" />
                     </Tap>
