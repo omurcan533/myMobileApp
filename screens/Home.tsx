@@ -169,10 +169,19 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   <ScrollView
                     ref={modeCarouselRef}
                     horizontal
-                    pagingEnabled
                     nestedScrollEnabled
+                    snapToInterval={modeSlideWidth}
+                    decelerationRate="fast"
+                    snapToAlignment="start"
+                    scrollEventThrottle={16}
                     showsHorizontalScrollIndicator={false}
                     style={{ width: '100%' }}
+                    onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+                      const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / modeSlideWidth)));
+                      setModeIndex(current => current === nextIndex ? current : nextIndex);
+                      const modes: GameMode[] = ['quick', 'standard', 'long', 'custom'];
+                      setMode(current => current === modes[nextIndex] ? current : modes[nextIndex]);
+                    }}
                     onMomentumScrollEnd={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
                       const nextIndex = Math.max(0, Math.min(3, Math.round(event.nativeEvent.contentOffset.x / modeSlideWidth)));
                       setModeIndex(nextIndex);
