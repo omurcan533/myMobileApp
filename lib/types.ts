@@ -11,6 +11,7 @@ export interface Room {
   mode: GameMode;
   selected_games?: string[];
   selected_games_locked?: boolean;
+  friend_facts_enabled?: boolean;
   phase: Phase;
   jokers_per_team: number;
   paused: boolean;
