@@ -74,6 +74,7 @@ export const api = {
   startCaptainDuel: (room: string) => rpc<any>('start_captain_duel', { p_room: room }),
   rollCaptainDice: (room: string) => rpc<any>('roll_captain_dice', { p_room: room }),
   leaveRoom: (room: string) => rpc<void>('leave_room', { p_room: room }),
+  kickRoomPlayer: (room: string, player: string) => rpc<void>('kick_room_player', { p_room: room, p_player: player }),
   startGame: (room: string) => rpc<void>('start_game', { p_room: room }),
   advance: (room: string) => rpc<{ phase: string; advanced: boolean }>('advance_game', { p_room: room }),
   advanceHost: (room: string) => rpc<{ phase: string; advanced: boolean }>('advance_game_host', { p_room: room }),
