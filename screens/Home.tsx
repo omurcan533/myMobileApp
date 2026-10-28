@@ -379,7 +379,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                             <Ionicons name={waiting ? 'people' : 'game-controller'} size={20} color={waiting ? colors.mint : colors.violet} />
                           </View>
                           <View style={{ flex: 1, gap: 3 }}>
-                            <Text display style={{ fontSize: 15 }}>{room.host_nickname}'ın Odası</Text>
+                            <Text display style={{ fontSize: 15, color: colors.text, fontWeight: '700' }}>{room.host_nickname}'ın Odası</Text>
                             <Muted>{modeLabel[room.mode] ?? room.mode} mod · {room.player_count}/12 oyuncu</Muted>
                           </View>
                           <Chip label={waiting ? 'Bekliyor' : 'Devam ediyor'} color={waiting ? colors.mint : colors.violet} size="sm" />
