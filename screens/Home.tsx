@@ -52,6 +52,15 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     getProfile().then(setProfile);
   }, []);
 
+  // İlk açılışta standart mod ikinci kartta görünmeli; carousel konumunu
+  // seçili mod ve pagination noktasıyla eşleştir.
+  useEffect(() => {
+    if (modeCarouselWidth <= 0) return;
+    modeCarouselRef.current?.scrollTo({ x: modeCarouselWidth, animated: false });
+    setModeIndex(1);
+    setMode('standard');
+  }, [modeCarouselWidth]);
+
   const lvl = levelOf(profile);
   const displayName = nick.trim() || 'Yeni Oyuncu';
 
