@@ -51,7 +51,10 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   return data as T;
 }
 
+export type OpenRoom = { code: string; mode: string; phase: string; player_count: number; host_nickname: string; created_at: string };
+
 export const api = {
+  openRooms: () => rpc<OpenRoom[]>('list_open_rooms'),
   botSurvivorStep: (room:string)=>rpc<boolean>('bot_survivor_step',{p_room:room}),
   advanceTestBots: (room:string)=>rpc<{action:string;count?:number}>('advance_test_bots',{p_room:room}),
   setTestBots: (room:string,count:number)=>rpc<number>('set_test_bots',{p_room:room,p_count:count}),
