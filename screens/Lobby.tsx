@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -34,6 +34,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
+  const [kickingId, setKickingId] = useState<string | null>(null);
   const [botBusy,setBotBusy]=useState(false);
   const botCount=players.filter(p=>(p as any).is_bot).length;
   const [draftBotCount,setDraftBotCount]=useState<number|null>(null);
@@ -126,6 +127,29 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
     } finally {
       setFactsToggleBusy(false);
     }
+  };
+
+  const confirmKick = (playerId: string, nickname: string) => {
+    if (!me.is_host || room.phase !== 'lobby' || kickingId) return;
+    Alert.alert(
+      'Oyuncuyu Çıkar',
+      `${nickname} adlı oyuncuyu odadan çıkarmak istediğinize emin misiniz?`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Odadan Çıkar', style: 'destructive', onPress: async () => {
+          setKickingId(playerId);
+          try {
+            await api.kickRoomPlayer(room.id, playerId);
+            setFactsReviewed(false);
+            show(`${nickname} odadan çıkarıldı.`, 'success');
+          } catch (e) {
+            show((e as Error).message, 'error');
+          } finally {
+            setKickingId(null);
+          }
+        } },
+      ],
+    );
   };
 
   const leave = async () => {
@@ -226,6 +250,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                     <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
                     <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
                     <Text style={s.pRole}>{p.is_host ? 'KURUCU' : (p as any).is_bot ? '🤖 BOT' : isMe ? 'SEN' : 'OYUNCU'}</Text>
+                    {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title="Çıkar" icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
                   </View>
                 );
               })}
