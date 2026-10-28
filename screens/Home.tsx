@@ -74,8 +74,11 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => { void refreshRooms(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void refreshRooms(); })
       .subscribe();
+    // Public room metadata is also refreshed for visitors who are not room members.
+    const refreshInterval = setInterval(() => { void refreshRooms(); }, 5000);
     return () => {
       active = false;
+      clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
     };
   }, []);
