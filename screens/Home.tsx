@@ -7,7 +7,8 @@ import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
   SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
-import { api } from '../lib/api';
+import { api, type OpenRoom } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
 import { soundFx } from '../lib/soundEffects';
@@ -35,6 +36,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [tab, setTab] = useState<Tab>('play');
   const [nick, setNick] = useState('');
   const [code, setCode] = useState('');
+  const [openRooms, setOpenRooms] = useState<OpenRoom[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
   const [mode, setMode] = useState<GameMode>('standard');
   const [modeIndex, setModeIndex] = useState(1);
   const { width: windowWidth } = useWindowDimensions();
@@ -52,6 +55,31 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     getProfile().then(setProfile);
   }, []);
 
+  // Açık odaları ilk yüklemede al ve oda/oyuncu değişikliklerini gerçek zamanlı izle.
+  useEffect(() => {
+    let active = true;
+    const refreshRooms = async () => {
+      try {
+        const rooms = await api.openRooms();
+        if (active) setOpenRooms(rooms);
+      } catch (error) {
+        console.warn('Açık odalar yüklenemedi:', error);
+      } finally {
+        if (active) setRoomsLoading(false);
+      }
+    };
+    void refreshRooms();
+    const channel = supabase
+      .channel('public-open-rooms')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => { void refreshRooms(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void refreshRooms(); })
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
   // İlk açılışta standart mod ikinci kartta görünmeli; carousel konumunu
   // seçili mod ve pagination noktasıyla eşleştir.
   useEffect(() => {
@@ -64,14 +92,15 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const lvl = levelOf(profile);
   const displayName = nick.trim() || 'Yeni Oyuncu';
 
-  const run = async (kind: 'create' | 'join') => {
+  const run = async (kind: 'create' | 'join', selectedRoomCode?: string) => {
     const name = nick.trim();
     if (!name) { show('Önce bir takma ad yaz', 'error'); setTab('play'); return; }
-    if (kind === 'join' && code.trim().length < 4) return show('Oda kodunu yaz.', 'error');
+    const joinCode = (selectedRoomCode ?? code).trim();
+    if (kind === 'join' && joinCode.length < 4) return show('Oda kodunu yaz.', 'error');
     setBusy(kind);
     try {
       await AsyncStorage.setItem('nickname', name);
-      const res = kind === 'create' ? await api.createRoom(name, mode) : await api.joinRoom(code.trim(), name);
+      const res = kind === 'create' ? await api.createRoom(name, mode) : await api.joinRoom(joinCode, name);
       onEnter(res.room_id);
     } catch (e) {
       show((e as Error).message, 'error');
@@ -308,6 +337,62 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     style={s.codeInput}
                   />
                   <Btn title="Odaya Giriş Yap" tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
+                </Card>
+              </Reveal>
+
+              {/* ================= AÇIK ODALAR ================= */}
+              <Reveal delay={280}>
+                <Card accent={colors.mint} style={{ gap: 14 }}>
+                  <View style={s.cardHead}>
+                    <View style={[s.cardIcon, { backgroundColor: alpha(colors.mint, 0.14), borderColor: alpha(colors.mint, 0.4) }]}>
+                      <Ionicons name="earth" size={22} color={colors.mint} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Title size={20}>Açık Odalar</Title>
+                      <Muted>Herkese açık bekleyen ve devam eden oyunlar.</Muted>
+                    </View>
+                    <View style={{ minWidth: 28, height: 28, borderRadius: 14, backgroundColor: alpha(colors.mint, 0.14), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
+                      <Text style={{ color: colors.mint, fontWeight: '700', fontSize: 12 }}>{openRooms.length}</Text>
+                    </View>
+                  </View>
+                  {roomsLoading ? (
+                    <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                      <Muted>Açık odalar yükleniyor…</Muted>
+                    </View>
+                  ) : openRooms.length === 0 ? (
+                    <View style={{ paddingVertical: 12, alignItems: 'center', gap: 5 }}>
+                      <Ionicons name="game-controller-outline" size={28} color={colors.muted} />
+                      <Text style={{ color: colors.textSoft, fontWeight: '600' }}>Şimdilik açık oda yok</Text>
+                      <Muted>Bir oda kurduğunda burada görünecek.</Muted>
+                    </View>
+                  ) : openRooms.map((room) => {
+                    const waiting = room.phase === 'lobby';
+                    const full = room.player_count >= 12;
+                    const modeLabel: Record<string, string> = { quick: 'Hızlı', standard: 'Standart', long: 'Epik', custom: 'Özel' };
+                    return (
+                      <View key={room.code} style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inset, padding: 12, gap: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: alpha(waiting ? colors.mint : colors.violet, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name={waiting ? 'people' : 'game-controller'} size={20} color={waiting ? colors.mint : colors.violet} />
+                          </View>
+                          <View style={{ flex: 1, gap: 3 }}>
+                            <Text display style={{ fontSize: 15 }}>{room.host_nickname}'ın Odası</Text>
+                            <Muted>{modeLabel[room.mode] ?? room.mode} mod · {room.player_count}/12 oyuncu</Muted>
+                          </View>
+                          <Chip label={waiting ? 'Bekliyor' : 'Devam ediyor'} color={waiting ? colors.mint : colors.violet} size="sm" />
+                        </View>
+                        <Btn
+                          title={waiting && !full ? 'Katıl' : full && waiting ? 'Oda dolu' : 'Oyun başladı'}
+                          icon={waiting && !full ? 'log-in' : undefined}
+                          tone={waiting && !full ? 'success' : 'ghost'}
+                          size="md"
+                          disabled={!waiting || full || busy === 'join'}
+                          loading={busy === 'join' && code === room.code}
+                          onPress={() => { setCode(room.code); void run('join', room.code); }}
+                        />
+                      </View>
+                    );
+                  })}
                 </Card>
               </Reveal>
             </>
