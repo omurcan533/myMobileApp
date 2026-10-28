@@ -39,7 +39,8 @@ const TASKS=[
 'Güvenli ve uygun bir ortamdaysanız, tanımadığın birine nazikçe bir soru sor. İstemiyorsan pas geçebilirsin.',
 'En çok oy alan 3 kişi el ele tutuşup sesli bir şekilde Selana’yı çağırsın!'
 ];
-const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?'] // ['ucube_court','Ucube Mahkemesi'] — şimdilik devre dışı] as const;
+// Ucube Mahkemesi şimdilik menüde gösterilmiyor.
+const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?']] as const;
 // Aynı olay kimliğinde herkes aynı bulmacayı görür; doğru cevap bulmacadan hesaplanır.
 const SCENE_PAIRS = [
   [['🌳','🐱','🌞','🚗','🌷','🏠','🐶','🚲','🍎'],['🌳','🐱','🌛','🚗','🌻','🏠','🐶','🛴','🍎']],
