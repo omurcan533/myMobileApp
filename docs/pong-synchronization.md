@@ -51,3 +51,25 @@ travels through RPC, and slow or suspended hosts can stall physics until failove
 If measured latency or input fairness remains unacceptable, move authoritative
 physics to a continuously running game service while retaining Supabase for
 accounts, rooms, and persisted results.
+
+## Short tap regression
+
+The server now settles the previous controls at each input transition before
+changing the held flag. Sub-70 ms steps are no longer discarded, so a short tap
+between host ticks is recorded. Physics samples its time after acquiring the
+row lock, and input timestamps share that settled physics boundary. Existing
+RPC signatures and execute grants are preserved.
+
+The local renderer requires a newer control timestamp and a physics tick at or
+after that timestamp before correcting a released paddle. An old `false` flag
+cannot acknowledge a new press/release pair. Held motion remains local and
+constant speed; idle corrections remain speed limited.
+
+`scripts/pong-input-regression.sql` tests a 40 ms down tap, release stability,
+an up tap, and outsider rejection against the real RPC functions. Fixtures and
+temporary JWT configuration are rolled back inside a subtransaction. The test
+ran both as an assertion during migration and again afterward. Eleven client
+tests and the web build also pass; physical-device testing remains necessary.
+
+If reverting the input-boundary server change is needed, the previous function
+definitions are preserved in `docs/rollback-pong-input-transitions.sql`.

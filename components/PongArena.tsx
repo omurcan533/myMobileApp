@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { alpha, colors } from '../lib/theme';
 import { serverNow } from '../lib/serverTime';
-import { appendSnapshot, clamp, paddleTarget, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
+import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
@@ -16,8 +16,19 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  const rightY=useRef(new Animated.Value(height/2-paddleHeight/2)).current;
  const history=useRef<PongSnapshot[]>([]);
  const paddles=useRef({A:0.5,B:0.5});
+ const fence=useRef({up:-Infinity,down:-Infinity});
  const params=useRef({playing,mySide,allowedDirections,held});
- useEffect(()=>{params.current={playing,mySide,allowedDirections,held};},[playing,mySide,allowedDirections,held]);
+ useEffect(()=>{
+  const prior=params.current.held;
+  const latest=history.current[history.current.length-1]?.state;
+  for(const direction of ['up','down'] as const){
+   if(prior[direction]===held[direction]||!mySide)continue;
+   const key=`hold${mySide}${direction==='up'?'Up':'Down'}At` as 'holdAUpAt'|'holdADownAt'|'holdBUpAt'|'holdBDownAt';
+   const at=Date.parse(latest?.[key]??'');
+   fence.current[direction]=Number.isFinite(at)?at:0;
+  }
+  params.current={playing,mySide,allowedDirections,held};
+ },[playing,mySide,allowedDirections,held]);
  useEffect(()=>{
   if(!state)return;
   const next=appendSnapshot(history.current,state);
@@ -46,8 +57,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      // In duo mode, the teammate still controls the other direction.
      const up=local&&(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
      const down=local&&(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
-     const acknowledged=(!cfg.allowedDirections.includes(-1)||serverUp===cfg.held.up)
-      &&(!cfg.allowedDirections.includes(1)||serverDown===cfg.held.down);
+     const acknowledged=controlAcknowledged(latest.state,side,cfg.held,cfg.allowedDirections,fence.current);
      const target=local?paddleTarget(latest.state,side,now):(side==='A'?sampled.ay:sampled.by);
      const prior=paddles.current[side];
      paddles.current[side]=local?stepLocalPaddle(prior,dt,up,down,target,acknowledged):target;

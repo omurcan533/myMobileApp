@@ -1,11 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendSnapshot, sampleTimeline, paddleTarget, stepLocalPaddle } from '../lib/pongTimeline.ts';
+import { appendSnapshot, sampleTimeline, paddleTarget, stepLocalPaddle, controlAcknowledged } from '../lib/pongTimeline.ts';
 
 const baseTime = Date.parse('2026-10-29T12:00:00Z');
 const state = (ms, changes = {}) => ({ x: 0.5, y: 0.5, vx: 0.46, vy: 0.23, ay: 0.5, by: 0.5,
   scoreA: 0, scoreB: 0, tick: new Date(baseTime + ms).toISOString(), ...changes });
 const history = (...states) => states.reduce(appendSnapshot, []);
+
+test('a short down tap ignores old release packets and waits for physics after the new release', () => {
+  const idle={up:false,down:false};
+  const fence={up:-Infinity,down:baseTime};
+  const old=state(0,{holdADown:false,holdADownAt:new Date(baseTime).toISOString()});
+  assert.equal(controlAcknowledged(old,'A',idle,[1],fence),false);
+  const press=state(50,{holdADown:true,holdADownAt:new Date(baseTime+50).toISOString()});
+  assert.equal(controlAcknowledged(press,'A',idle,[1],fence),false);
+  const release=state(50,{holdADown:false,holdADownAt:new Date(baseTime+90).toISOString()});
+  assert.equal(controlAcknowledged(release,'A',idle,[1],fence),false);
+  const settled=state(100,{ay:0.536,holdADown:false,holdADownAt:new Date(baseTime+90).toISOString()});
+  assert.equal(controlAcknowledged(settled,'A',idle,[1],fence),true);
+  let position=0.536;
+  for(const packet of [old,press,release]){
+    position=stepLocalPaddle(position,1/60,false,false,packet.ay,controlAcknowledged(packet,'A',idle,[1],fence));
+    assert.equal(position,0.536);
+  }
+  assert.equal(stepLocalPaddle(position,1/60,false,false,settled.ay,true),0.536);
+});
 
 test('held paddle moves at constant speed despite stale server positions at 60 and 120 FPS', () => {
   for (const fps of [60, 120]) {

@@ -9,6 +9,22 @@ export const PONG_RENDER_DELAY_MS = 200;
 const MAX_EXTRAPOLATION_MS = 100;
 export const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+export type PaddleControlFence = { up: number; down: number };
+export function controlAcknowledged(state: PongFrameState, side: 'A' | 'B', held: {up:boolean;down:boolean}, directions: number[], fence: PaddleControlFence): boolean {
+  const tick = Date.parse(state.tick ?? '');
+  return ([-1, 1] as const).every(direction => {
+    if (!directions.includes(direction)) return true;
+    const name = direction === -1 ? 'Up' : 'Down';
+    const key = `hold${side}${name}` as 'holdAUp'|'holdADown'|'holdBUp'|'holdBDown';
+    const at = Date.parse(state[`${key}At`] ?? '');
+    const expected = direction === -1 ? held.up : held.down;
+    const after = direction === -1 ? fence.up : fence.down;
+    // Matching booleans alone do not acknowledge a rapid press followed by release.
+    if (after === -Infinity) return (state[key] === true) === expected;
+    return Number.isFinite(at) && at > after && tick >= at && (state[key] === true) === expected;
+  });
+}
+
 export function stepLocalPaddle(position: number, dt: number, up: boolean, down: boolean, target: number, acknowledged: boolean): number {
   const seconds = clamp(dt, 0, 0.05);
   // A held control owns local motion. Stale snapshots must not brake each frame.
