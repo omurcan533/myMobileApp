@@ -348,7 +348,7 @@ function PlayerSpotlight({
   );
 }
 
-function PlayerRowItem({ player, color }: { player: Player; color: string }) {
+function PlayerRowItem({ player, color, rolls }: { player: Player; color: string; rolls?: CaptainDuelRoll[] }) {
   const scale = useRef(new Animated.Value(0.72)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -366,7 +366,12 @@ function PlayerRowItem({ player, color }: { player: Player; color: string }) {
         size={30}
         ring={player.is_captain ? colors.gold : alpha(color, 0.75)}
       />
-      <Text numberOfLines={1} style={s.playerName}>{player.nickname}</Text>
+      <View style={{ flex: 1, paddingVertical: 6, gap: 3 }}>
+        <Text numberOfLines={1} style={[s.playerName, { flex: 0 }]}>{player.nickname}</Text>
+        {rolls && <Text style={{ color: colors.gold, fontSize: 12, fontWeight: '800' }}>
+          Zar: {rolls.length ? rolls.map((roll) => roll.total).join(' → ') : 'Atılmadı'}
+        </Text>}
+      </View>
       {player.is_captain && <Ionicons name="star" size={13} color={colors.gold} />}
     </Animated.View>
   );
@@ -378,12 +383,14 @@ function TeamColumn({
   visibleAt,
   impactScale,
   impactGlow,
+  rolls,
 }: {
   side: Side;
   players: Player[];
   visibleAt?: (player: Player) => boolean;
   impactScale?: Animated.Value;
   impactGlow?: Animated.Value;
+  rolls?: CaptainDuelRoll[];
 }) {
   const color = teamColor(side);
 
@@ -438,7 +445,7 @@ function TeamColumn({
         {players.map((player) => {
           const isVisible = !visibleAt || visibleAt(player);
           if (!isVisible) return null;
-          return <PlayerRowItem key={player.id} player={player} color={color} />;
+          return <PlayerRowItem key={player.id} player={player} color={color} rolls={rolls?.filter((roll) => roll.player_id === player.id)} />;
         })}
       </ScrollView>
     </Animated.View>
@@ -458,7 +465,7 @@ function CaptainCard({ player, side, winningRoll }: { player: Player; side: Side
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
             <Text style={{ fontSize: 11 }}>🎲</Text>
             <Text style={{ color: colors.gold, fontSize: 11, fontWeight: '800' }}>
-              Zar: {winningRoll.d1} + {winningRoll.d2} = {winningRoll.total}
+              {winningRoll.total}
             </Text>
           </View>
         )}
@@ -1057,8 +1064,8 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
           /* 3. AŞAMA: KAPTANLAR BELLİ OLDU (Oyun başlatmaya hazır) */
           <View style={{ gap: 10 }}>
             <View style={[s.teams, { height: Math.max(160, Math.min(260, height - 440)) }]}>
-              <TeamColumn side="A" players={playersBySide.A} />
-              <TeamColumn side="B" players={playersBySide.B} />
+              <TeamColumn side="A" players={playersBySide.A} rolls={captainDuel?.rolls} />
+              <TeamColumn side="B" players={playersBySide.B} rolls={captainDuel?.rolls} />
             </View>
 
             <View style={s.captainsSection}>
@@ -1369,3 +1376,4 @@ const s = StyleSheet.create({
   hostWaiting: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   hostWaitingText: { color: colors.muted, fontSize: 11, fontWeight: '700', textAlign: 'center' },
 });
+
