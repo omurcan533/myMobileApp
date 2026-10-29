@@ -7,19 +7,6 @@ const state = (ms, changes = {}) => ({ x: 0.5, y: 0.5, vx: 0.46, vy: 0.23, ay: 0
   scoreA: 0, scoreB: 0, tick: new Date(baseTime + ms).toISOString(), ...changes });
 const history = (...states) => states.reduce(appendSnapshot, []);
 
-test('goal serve stays at centre until serve time, including extrapolation and interpolation', () => {
-  const serveAt=new Date(baseTime+600).toISOString();
-  const centre=state(0,{serveAt});
-  assert.equal(sampleTimeline(history(centre),baseTime+700).x,0.5);
-  const moving=state(700,{serveAt,x:0.55,y:0.52});
-  assert.equal(sampleTimeline(history(centre,moving),baseTime+700).x,0.5);
-  assert.ok(sampleTimeline(history(centre,moving),baseTime+850).x>0.5);
-  const held=state(0,{serveAt,holdADown:true,holdADownAt:new Date(baseTime).toISOString()});
-  const sampled=sampleTimeline(history(held),baseTime+250);
-  assert.equal(sampled.x,0.5);
-  assert.ok(sampled.ay>0.5);
-});
-
 test('a short down tap ignores old release packets and waits for physics after the new release', () => {
   const idle={up:false,down:false};
   const fence={up:-Infinity,down:baseTime};

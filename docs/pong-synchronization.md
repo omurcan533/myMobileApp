@@ -73,18 +73,3 @@ tests and the web build also pass; physical-device testing remains necessary.
 
 If reverting the input-boundary server change is needed, the previous function
 definitions are preserved in `docs/rollback-pong-input-transitions.sql`.
-
-## Goal restart
-
-Every goal places the ball at (0.5, 0.5) for a 600 ms serve pause. Paddles remain
-controllable during the pause. Each total goal adds 8% of the initial serve speed
-to the next serve: multipliers 1.08, 1.16, 1.24, etc. Both velocity components
-scale together, preserving the serve angle and existing serve direction. The
-existing rally acceleration on paddle hits remains in place. A new match starts
-with its normal initial speed because the serve multiplier uses that match's score.
-
-The renderer respects `serveAt` during interpolation and short extrapolation;
-it cannot start the ball early. `scripts/pong-goal-regression.sql` checks both
-goal sides, centre reset, the first two speed increments, pause stability, and
-serve resumption using rolled-back test fixtures. The previous server function
-is saved in `docs/rollback-pong-goal-serve-speed.sql`.

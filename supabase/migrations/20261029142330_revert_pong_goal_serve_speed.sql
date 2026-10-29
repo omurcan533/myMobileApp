@@ -1,3 +1,4 @@
+-- Revert goal serve/speed change after reports of divergent client displays.
 CREATE OR REPLACE FUNCTION public.pong_tick(p_minigame uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
