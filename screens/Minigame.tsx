@@ -390,6 +390,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>Mini oyun sonuçları</Eyebrow>
+            {mg.kind==='survivor_memory'&&(me.is_host?
+              <Btn title="Tekrar Oyna" icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
+                onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
+              :<Muted>Oda kurucusu yeni bir parkurla tekrar oynatabilir.</Muted>)}
             {me.is_host ? (
               <Btn
                 title={continueReady ? 'Sonraki Oyuna Geç' : `Sonuçları İncele · ${continueWait} sn`}
