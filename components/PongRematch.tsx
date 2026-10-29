@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { forwardRef,useEffect,useImperativeHandle,useRef,useState } from 'react';
 import { View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
@@ -9,12 +9,16 @@ import type { Ctx, Minigame } from '../lib/types';
 type Vote = { player_id: string; yes: boolean };
 type PongState = Record<string, any>;
 
-export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
+export type PongShortcutState={id:string;available:boolean;busy:boolean};
+export type PongRematchHandle={continueGame:()=>Promise<void>};
+type Props={ctx:Ctx;mg:Minigame;continueReady:boolean;continueWait:number;anchorRef?:React.RefObject<View|null>;onAnchorLayout?:()=>void;onShortcutStateChange?:(state:PongShortcutState)=>void};
+export const PongRematch=forwardRef<PongRematchHandle,Props>(function PongRematch({ctx,mg,continueReady,continueWait,anchorRef,onAnchorLayout,onShortcutStateChange},ref){
  const { me, data } = ctx;
  const [votes, setVotes] = useState<Vote[]>([]);
  const [state, setState] = useState<PongState>((mg as Minigame & { pong_state?: PongState }).pong_state ?? {});
  const [busy, setBusy] = useState(false);
- const [approved, setApproved] = useState(false);
+ const [approved, setApproved] = useState(!!mg.rematch_approved_at);
+ const advancing=useRef<string|null>(null);
  const { toast, show } = useToast();
  const myVote = votes.find(v => v.player_id === me.id);
  const yes = votes.filter(v => v.yes).length;
@@ -22,7 +26,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
  const myRole = (['a1','a2','b1','b2'] as const).find(k => state[k] === me.id);
  const mySide = myRole?.startsWith('a') ? 'A' : 'B';
  const occupied = new Set(['a1','a2','b1','b2'].map(k => state['rematch_' + k] ?? state[k]));
- const candidates = useMemo(() => data.players.filter(p => p.team_side === mySide && p.id !== me.id && !occupied.has(p.id)), [data.players, mySide, state, me.id]);
+ const candidates = data.players.filter(p => p.team_side === mySide && p.id !== me.id && !occupied.has(p.id));
  useEffect(() => {
   let alive = true;
   const refresh = async () => {
@@ -61,9 +65,10 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   setBusy(false);
  };
  const continueAfterVote = async () => {
-  if (!me.is_host || busy || approved) return;
+  if (!me.is_host || busy || approved || !continueReady || data.room.paused || advancing.current===mg.id) return;
+  advancing.current=mg.id;
   setBusy(true);
-  try { await api.advanceHost(data.room.id); } catch (e) { show((e as Error).message,'error'); }
+  try { const result=await api.advanceHost(data.room.id);if(!result.advanced)advancing.current=null; } catch (e) { advancing.current=null;show((e as Error).message,'error'); }
   setBusy(false);
  };
  const start = async () => {
@@ -73,6 +78,8 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
   if (error) show(error.message,'error');
   setBusy(false);
  };
+ useImperativeHandle(ref,()=>({continueGame:continueAfterVote}));
+ useEffect(()=>{onShortcutStateChange?.({id:mg.id,available:me.is_host&&!approved,busy})},[mg.id,me.is_host,approved,busy,onShortcutStateChange]);
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 12 }}>
@@ -89,7 +96,7 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
      </View>
     )}
    </Card>
-   {me.is_host && !approved && <Btn title="Rövanşı Atla · Sonraki Oyuna Geç" tone="primary" disabled={busy} onPress={continueAfterVote} />}
+   {me.is_host && !approved && <View ref={anchorRef} collapsable={false} onLayout={onAnchorLayout}><Btn title={continueReady?'Rövanşı Atla · Sonraki Oyuna Geç':`Sonuçları İncele · ${continueWait} sn`} tone="primary" disabled={busy||!continueReady||data.room.paused} onPress={continueAfterVote} /></View>}
    {myRole && (
     <Card style={{ gap: 10 }}>
      <Title size={18}>Rolü Devret</Title>
@@ -103,4 +110,4 @@ export function PongRematch({ ctx, mg }: { ctx: Ctx; mg: Minigame }) {
    {toast}
   </View>
  );
-}
+});

@@ -10,7 +10,8 @@ import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
 import { LineConnectGame } from '../components/LineConnectGame';
 import { SongCompleteGame } from '../components/SongCompleteGame';
 import { FriendMemoryQuiz } from '../components/FriendMemoryQuiz';
-import { PongRematch } from '../components/PongRematch';
+import { PongRematch,PongRematchHandle,PongShortcutState } from '../components/PongRematch';
+import {NextShortcut,useNextShortcut} from '../components/NextShortcut';
 import {PlayHeader,PlayArea,usePlaySize} from '../components/PlayHeader';
 import { Scoreboard } from '../components/Scoreboard';
 import {
@@ -30,6 +31,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const { data, me } = ctx;
   const originalMg = latestMinigame(data.minigames);
+  const [pongShortcut,setPongShortcut]=useState<PongShortcutState|null>(null);
+  const pongRematchRef=useRef<PongRematchHandle>(null);
+  const shortcut=useNextShortcut(me.is_host&&originalMg?.status==='done'&&(originalMg.kind!=='pong'||(pongShortcut?.id===originalMg.id&&pongShortcut.available&&!originalMg.rematch_approved_at)),originalMg?.id);
+  const advancing=useRef<string|null>(null);
   const now = useNow(originalMg?.kind === 'pong' || originalMg?.kind === 'survivor_memory' ? 1000 : 100);
   const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
   const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
@@ -131,12 +136,15 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   };
 
   const continueGame = async () => {
-    if (!me.is_host || !continueReady || busy) return;
+    if (!me.is_host || !continueReady || busy || data.room.paused || advancing.current===mg.id) return;
+    advancing.current=mg.id;
     setBusy(true);
     try {
       if(mg.kind==='tug_of_war')await api.minigameTugContinue(mg.id);
-      await api.advanceHost(data.room.id);
+      const result=await api.advanceHost(data.room.id);
+      if(!result.advanced)advancing.current=null;
     } catch (error) {
+      advancing.current=null;
       show((error as Error).message, 'error');
     } finally {
       setBusy(false);
@@ -193,8 +201,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   return (
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
-      <PlayArea active={live&&!isPreparing}>
-      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+      <PlayArea active={live&&!isPreparing} viewportRef={shortcut.viewportRef} onLayout={shortcut.measure}>
+      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={shortcut.measure} onContentSizeChange={shortcut.measure} scrollEventThrottle={16} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
       {(isPreparing||!live)&&<View style={s.headerRow}>
@@ -329,7 +337,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {mg.kind === 'social_guess' && !isPreparing && <><Btn size="sm" tone="ghost" title="Dostluk Hafızası" onPress={()=>setFriendQuizOpen(true)}/><Sheet visible={friendQuizOpen} onClose={()=>setFriendQuizOpen(false)}><FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused}/><Btn title="Oyuna Dön" onPress={()=>setFriendQuizOpen(false)}/></Sheet></>}
 
-        {!live && mg.kind === 'pong' && <PongRematch ctx={ctx} mg={mg} />}
+        {!live && mg.kind === 'pong' && <PongRematch ref={pongRematchRef} ctx={ctx} mg={mg} continueReady={continueReady} continueWait={continueWait} anchorRef={shortcut.anchorRef} onAnchorLayout={shortcut.measure} onShortcutStateChange={setPongShortcut}/>}
 
         {mg.kind === 'line_connect' && lineResult && (
           <View style={[s.lineResultOverlay, { borderColor: lineResultColor }]}>
@@ -395,6 +403,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
               :<Muted>Oda kurucusu yeni bir parkurla tekrar oynatabilir.</Muted>)}
             {me.is_host ? (
+             <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
               <Btn
                 title={continueReady ? 'Sonraki Oyuna Geç' : `Sonuçları İncele · ${continueWait} sn`}
                 icon={continueReady ? 'play-forward' : 'hourglass'}
@@ -404,6 +413,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
                 loading={busy}
                 onPress={continueGame}
               />
+             </View>
             ) : (
               <Muted style={{ textAlign: 'center' }}>Sonraki oyun için kurucu bekleniyor.</Muted>
             )}
@@ -411,6 +421,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         )}
       </ScrollView>
       </PlayArea>
+      <NextShortcut visible={shortcut.show&&!data.room.paused} ready={continueReady} wait={continueWait} busy={mg.kind==='pong'?!!pongShortcut?.busy:busy}
+        onPress={()=>{if(mg.kind==='pong')void pongRematchRef.current?.continueGame();else void continueGame()}}/>
       {data.room.paused && (
         <View style={s.paused}>
           <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>

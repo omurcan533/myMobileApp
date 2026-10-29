@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {PlayHeader,PlayArea} from '../components/PlayHeader';
 import { Scoreboard } from '../components/Scoreboard';
+import {NextShortcut,useNextShortcut} from '../components/NextShortcut';
 import {
   Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, Tap, Title, Text, useToast,
 } from '../components/ui';
@@ -22,6 +23,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   const { room } = data;
   const now = effNow(room, useNow());
   const round = useMemo(() => currentRound(data.rounds), [data.rounds]);
+  const shortcut=useNextShortcut(me.is_host&&round?.status==='resolved',round?.id);
+  const advancing=useRef<string|null>(null);
   const totalQuestions = useMemo(() => totalQuestionsForRoom(room.mode, data.rounds.length), [room.mode, data.rounds.length]);
   const [areaHeight,setAreaHeight]=useState(500);
   const [suggestionsOpen,setSuggestionsOpen]=useState(false);
@@ -220,7 +223,11 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
       show('Joker kullanıldı! Soru çözüldü ve parça kazanıldı.', 'success');
     });
   const pause = () => run(async () => { await api.togglePause(room.id); });
-  const continueGame = () => run(async () => { await api.advanceHost(room.id); });
+  const continueGame = () => {
+    if(!me.is_host||!continueReady||busy||room.paused||advancing.current===round.id)return;
+    advancing.current=round.id;
+    return run(async()=>{try{const result=await api.advanceHost(room.id);if(!result.advanced)advancing.current=null}catch(error){advancing.current=null;throw error}});
+  };
 
   const iWon = round.winner_side === me.team_side;
   const resultColor = round.winner_side ? (iWon ? colors.mint : colors.red) : colors.muted;
@@ -233,8 +240,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
     <Screen key={round.id+String(isOpen)} active={isOpen}>
       {isOpen&&<PlayHeader ctx={ctx} left={left} label={`Soru ${round.idx+1}/${totalQuestions}`} instructions="Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin." onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
       <KeyboardAvoidingView onLayout={e=>setAreaHeight(e.nativeEvent.layout.height)} style={{ flex: 1,minHeight:0 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-       <PlayArea active={isOpen}>
-        <ScrollView key={round.id+':'+String(isOpen)} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+       <PlayArea active={isOpen} viewportRef={shortcut.viewportRef} onLayout={shortcut.measure}>
+        <ScrollView key={round.id+':'+String(isOpen)} onScroll={shortcut.measure} onContentSizeChange={shortcut.measure} scrollEventThrottle={16} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {!isOpen&&<Scoreboard ctx={ctx} />}
 
           {/* ================= ROZET & TUR BİLGİSİ ================= */}
@@ -543,6 +550,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             <Card accent={colors.cyan} style={s.advanceCard}>
               <Eyebrow icon="eye" color={colors.cyan}>Tur sonucu</Eyebrow>
               {me.is_host ? (
+               <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
                 <Btn
                   title={continueReady ? 'Sonraki Aşamaya Geç' : `Sonucu İncele · ${continueWait} sn`}
                   icon={continueReady ? 'play-forward' : 'hourglass'}
@@ -552,6 +560,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                   loading={busy}
                   onPress={continueGame}
                 />
+               </View>
               ) : (
                 <Muted style={{ textAlign: 'center' }}>Sonraki aşama için kurucu bekleniyor.</Muted>
               )}
@@ -576,6 +585,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
         </ScrollView>
        </PlayArea>
       </KeyboardAvoidingView>
+      <NextShortcut visible={shortcut.show&&!room.paused} ready={continueReady} wait={continueWait} busy={busy} onPress={continueGame}/>
 
       {/* ================= OYUN DURAKLATILDI ================= */}
       {room.paused && (
