@@ -1,6 +1,8 @@
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,StyleSheet,View,Pressable,TextInput,Animated} from 'react-native';
-import {api} from '../lib/api';
+import {ActivityIndicator,StyleSheet,View,Pressable,TextInput,Animated,Keyboard,Platform,ViewStyle} from 'react-native';
+import {api,GameError} from '../lib/api';
+import {serverNow} from '../lib/serverTime';
+import {haptic} from '../lib/haptics';
 import {Card,Muted,Title,Text,Btn,Sheet} from './ui';
 import {usePlaySize} from './PlayLayout';
 
@@ -13,35 +15,48 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
 }){
  const area=usePlaySize();
  const [chatOpen,setChatOpen]=useState(false);
- const tileSize=Math.max(28,Math.min(58,Math.floor((area.width-60)/5),Math.floor((area.height-190)/7)));
+ const tileSize=Math.max(28,Math.min(58,Math.floor((area.width-60)/5),Math.floor((area.height-220)/7)));
  const [preview,setPreview]=useState<Preview|null>(null);
- const [clock,setClock]=useState(Date.now());
- const [busy,setBusy]=useState(false);
+ const [clock,setClock]=useState(serverNow);
+ const [pending,setPending]=useState<{row:number;col:number}|null>(null);
+ const busy=pending!==null;
  const [feedback,setFeedback]=useState('');
  const [localProgress,setLocalProgress]=useState<Progress|null>(null);
  const [flipped,setFlipped]=useState<Reveal|null>(null);
  const [revealedRows,setRevealedRows]=useState<Record<number,Reveal>>({});
  const requestBusy=React.useRef(false);
+ const mounted=React.useRef(true);
+ const playState=React.useRef({live,paused});
+ useEffect(()=>{playState.current={live,paused}},[live,paused]);
  const flash=React.useRef(new Animated.Value(0)).current;
  const animationRef=React.useRef<ReturnType<typeof setTimeout>|null>(null);
- useEffect(()=>()=>{if(animationRef.current)clearTimeout(animationRef.current)},[]);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;if(animationRef.current)clearTimeout(animationRef.current)}},[]);
  const [messages,setMessages]=useState<{id:number;nickname:string;body:string}[]>([]);
  const [draft,setDraft]=useState('');
  const [sending,setSending]=useState(false);
  useEffect(()=>{
-  if(!side)return;
+  if(!side||!chatOpen)return;
   let active=true;
   const refresh=()=>api.survivorReadMessages(id).then(rows=>{if(active)setMessages(rows)}).catch(()=>{});
   refresh();const timer=setInterval(refresh,1500);
   return()=>{active=false;clearInterval(timer)};
- },[id,side]);
+ },[id,side,chatOpen]);
+ const closeChat=()=>{Keyboard.dismiss();setChatOpen(false)};
  const send=async()=>{
   if(!draft.trim()||sending)return;
   setSending(true);
   try{await api.survivorSendMessage(id,draft.trim());setDraft('');setMessages(await api.survivorReadMessages(id))}
   catch(e){onError?.((e as Error).message)}finally{setSending(false)}
  };
- useEffect(()=>{const t=setInterval(()=>setClock(Date.now()),200);return()=>clearInterval(t)},[]);
+ // Match the shared server clock. Wake at the exact start boundary, then stop
+ // ticking the board; a live match needs no countdown-driven grid renders.
+ useEffect(()=>{
+  if(!live||!startsAt)return;
+  const remaining=Date.parse(startsAt)-serverNow();
+  const tick=remaining>0?setInterval(()=>setClock(serverNow()),100):undefined;
+  const boundary=setTimeout(()=>{if(tick)clearInterval(tick);setClock(serverNow())},Math.max(0,remaining)+1);
+  return()=>{if(tick)clearInterval(tick);clearTimeout(boundary)};
+ },[live,startsAt]);
  const previewing=!!startsAt&&clock<Date.parse(startsAt)&&live;
  useEffect(()=>{
   if(!previewing)return;
@@ -64,12 +79,24 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    });
   }
  },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
- const choose=async(col:number)=>{
-  if(!live||paused||previewing||!isCaptain||requestBusy.current||(own?.row??0)>=7)return;
+ const choose=async(row:number,col:number)=>{
+  if(!live||paused||!startsAt||serverNow()<Date.parse(startsAt)||!isCaptain||requestBusy.current||row!==(own?.row??0)||row>=7)return;
   requestBusy.current=true;
-  setBusy(true);
+  setPending({row,col});
+  void haptic.selection();
   try{
-   const result=await api.survivorChoose(id,col);
+   const result=await (async()=>{
+    try{return await api.survivorChoose(id,col)}catch(error){
+     // A clock estimate can be a little early. Only retry a server-rejected
+     // start-boundary request; never retry an ambiguous network failure.
+     const elapsed=serverNow()-Date.parse(startsAt);
+     if(!(error instanceof GameError)||error.code!=='game_not_live'||elapsed<0||elapsed>750)throw error;
+     await new Promise(resolve=>setTimeout(resolve,150));
+     if(!mounted.current||!playState.current.live||playState.current.paused)throw error;
+     return api.survivorChoose(id,col);
+    }
+   })();
+   if(!mounted.current)return;
    setLocalProgress(result);
    const reveal=result.reveal;
    if(reveal){
@@ -86,12 +113,12 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     if(animationRef.current)clearTimeout(animationRef.current);
     animationRef.current=setTimeout(()=>setFlipped(null),200);
    }
-  }catch(e){onError?.((e as Error).message)}finally{requestBusy.current=false;setBusy(false)}
+  }catch(e){if(mounted.current&&playState.current.live){setFeedback((e as Error).message);onError?.((e as Error).message)}}finally{requestBusy.current=false;if(mounted.current)setPending(null)}
  };
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
   <Title size={area.active?18:23}>Survivor Hafıza Parkuru</Title>
   {!area.active&&<Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.</Muted>}
-  {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!startsAt?'Başlaması bekleniyor':isCaptain?'Sıra sende, kaptan!':'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
+  {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!live?'Parkur tamamlandı':paused?'Oyun duraklatıldı':!startsAt?'Başlaması bekleniyor':isCaptain?`Sıra ${Math.min(7,(own?.row??0)+1)} / 7 · Dokun ve ilerle`:'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
   <View style={[styles.grid,area.active&&{width:tileSize*5+24}]}>
    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'#A82D41',opacity:flash}]}/>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
@@ -101,19 +128,22 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     const revealRow=!!rowReveal;
     const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):wrongSelection?(rowReveal?.selectedCol===col?(rowReveal.outcome==='white'?'#F4F6FA':'#E65869'):'#2D4262'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
-    return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||!live||paused}
-      onPressIn={()=>choose(col)}
-      style={[styles.tile,area.active&&{width:tileSize,height:tileSize}, {backgroundColor:color,borderColor:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?'#B9FF68':current&&!previewing?'#9BE7FF':'#4B6382',borderWidth:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?4:2,opacity:1}]}>
-      {revealRow&&rowReveal?.selectedCol===col?<Text style={[styles.symbol,{color:rowReveal?.outcome==='white'?'#15233B':'#fff'}]}>{rowReveal?.outcome==='green'?'✓':'✕'}</Text>:null}
+    const selected=pending?.row===row&&pending.col===col;
+    return <Pressable key={row+'-'+col} testID={`survivor-tile-${row}-${col}`} accessibilityRole="button" accessibilityLabel={`Sıra ${row+1}, kutu ${col+1}`} accessibilityState={{busy:selected}}
+      disabled={!current||previewing||!startsAt||!isCaptain||busy||!live||paused}
+      // RN Web uses delayPressIn (50ms by default); native uses unstable_pressDelay.
+      {...(Platform.OS==='web'?{delayPressIn:0}:{unstable_pressDelay:0})}
+      hitSlop={2} pressRetentionOffset={8} onPressIn={()=>void choose(row,col)}
+      style={[styles.tile,webTouchStyle,area.active&&{width:tileSize,height:tileSize}, {backgroundColor:selected?'#FFD166':color,borderColor:selected?'#FFFFFF':rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?'#B9FF68':current&&!previewing?'#9BE7FF':'#4B6382',borderWidth:selected||rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?3:2,opacity:1}]}>
+      {selected?<ActivityIndicator size="small" color="#15233B"/>:revealRow&&rowReveal?.selectedCol===col?<Text style={[styles.symbol,{color:rowReveal?.outcome==='white'?'#15233B':'#fff'}]}>{rowReveal?.outcome==='green'?'✓':'✕'}</Text>:null}
       {previewing&&preview?.whiteRow===row&&preview.whiteCol===col?<Text style={{color:'#102039',fontWeight:'bold'}}>★</Text>:null}
     </Pressable>
    }))}
   </View>
   <Text style={styles.notice}>Takımın: {Math.min(7,own?.row??0)}/7 · Rakip: {Math.min(7,opponent?.row??0)}/7</Text>
-  {feedback?<Text numberOfLines={2} style={[styles.notice,{color:flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{feedback}</Text>:null}
-  {busy?<ActivityIndicator/>:null}
+  <View style={styles.feedback}><Text accessibilityLiveRegion="polite" numberOfLines={2} style={[styles.notice,{fontSize:12,color:busy?'#FFD166':flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{busy?'Dokunuşun alındı · Sonuç bekleniyor…':feedback||' '}</Text></View>
   <Btn title="Takım Sohbeti" size="sm" tone="ghost" onPress={()=>setChatOpen(true)}/>
-  <Sheet visible={chatOpen} onClose={()=>setChatOpen(false)}>
+  <Sheet visible={chatOpen} onClose={closeChat}>
   <Title size={18}>Takım Sohbeti</Title>
   <Muted>Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!</Muted>
   <View style={styles.messages}>{messages.slice(-8).map(m=><Text key={m.id} style={styles.message}><Text style={styles.nickname}>{m.nickname}: </Text>{m.body}</Text>)}</View>
@@ -121,11 +151,12 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    <TextInput value={draft} onChangeText={setDraft} placeholder="Takımına yaz..." placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
    <Btn title="Gönder" size="sm" disabled={!live||!draft.trim()||sending} onPress={send}/>
   </View>
-  <Btn title="Oyuna Dön" size="sm" onPress={()=>setChatOpen(false)}/>
+  <Btn title="Oyuna Dön" size="sm" onPress={closeChat}/>
   </Sheet>
  </Card>;
 }
 const styles=StyleSheet.create({
+ feedback:{minHeight:32,justifyContent:'center'},
  notice:{color:'#BCEEFF',fontWeight:'700',textAlign:'center'},
  grid:{flexDirection:'row',flexWrap:'wrap',gap:6,alignSelf:'center',width:'100%',maxWidth:360,justifyContent:'center'},
  tile:{width:'18%',aspectRatio:1,borderRadius:9,borderWidth:2,alignItems:'center',justifyContent:'center'},
@@ -135,3 +166,4 @@ const styles=StyleSheet.create({
  compose:{flexDirection:'row',gap:8,alignItems:'center'},
  input:{flex:1,minHeight:42,borderWidth:1,borderColor:'#4B6382',borderRadius:9,paddingHorizontal:10,color:'#fff'}
 });
+const webTouchStyle:ViewStyle|undefined=Platform.OS==='web'?({touchAction:'manipulation',userSelect:'none',WebkitUserSelect:'none'} as unknown as ViewStyle):undefined;

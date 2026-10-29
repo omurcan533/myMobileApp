@@ -30,7 +30,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const { data, me } = ctx;
   const originalMg = latestMinigame(data.minigames);
-  const now = useNow(originalMg?.kind === 'pong' ? 1000 : 100);
+  const now = useNow(originalMg?.kind === 'pong' || originalMg?.kind === 'survivor_memory' ? 1000 : 100);
   const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
   const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
     ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
@@ -194,7 +194,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
       <PlayArea active={live&&!isPreparing}>
-      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} scrollEnabled={!pongHolding} style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
       {(isPreparing||!live)&&<View style={s.headerRow}>
