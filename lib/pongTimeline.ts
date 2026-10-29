@@ -1,6 +1,6 @@
 export type PongFrameState = {
   x: number; y: number; vx: number; vy: number; ay: number; by: number;
-  scoreA: number; scoreB: number; tick?: string;
+  scoreA: number; scoreB: number; tick?: string; serveAt?: string;
   holdAUp?: boolean; holdADown?: boolean; holdBUp?: boolean; holdBDown?: boolean;
   holdAUpAt?: string; holdADownAt?: string; holdBUpAt?: string; holdBDownAt?: string;
 };
@@ -71,11 +71,16 @@ export function sampleTimeline(history: PongSnapshot[], now: number): PongFrameS
     // Goals are discontinuities: don't draw the ball travelling back to centre.
     if (before.state.scoreA !== after.state.scoreA || before.state.scoreB !== after.state.scoreB) return before.state;
     const mix = (a: number, b: number) => a + (b - a) * (target - before.at) / (after.at - before.at);
-    return { ...before.state, x: mix(before.state.x, after.state.x), y: mix(before.state.y, after.state.y),
+    const serveAt = Date.parse(before.state.serveAt ?? '');
+    const ballStart = Number.isFinite(serveAt) ? Math.max(before.at, serveAt) : before.at;
+    const ballMix = (a: number, b: number) => ballStart >= after.at ? a : a + (b-a) * clamp((target-ballStart)/(after.at-ballStart),0,1);
+    return { ...before.state, x: ballMix(before.state.x, after.state.x), y: ballMix(before.state.y, after.state.y),
       ay: mix(before.state.ay, after.state.ay), by: mix(before.state.by, after.state.by) };
   }
   const last = history[history.length - 1];
-  const dt = clamp(target - last.at, 0, MAX_EXTRAPOLATION_MS) / 1000;
+  const serveAt = Date.parse(last.state.serveAt ?? '');
+  const ballStart = Number.isFinite(serveAt) ? Math.max(last.at, serveAt) : last.at;
+  const dt = clamp(target - ballStart, 0, MAX_EXTRAPOLATION_MS) / 1000;
   const s = last.state;
   let x = s.x + s.vx * dt;
   // Wait at the paddle plane until the authoritative hit/miss arrives.
@@ -86,5 +91,5 @@ export function sampleTimeline(history: PongSnapshot[], now: number): PongFrameS
   const folded = ((y - 0.025) % 1.9 + 1.9) % 1.9;
   y = 0.025 + (folded <= 0.95 ? folded : 1.9 - folded);
   return { ...s, x: clamp(x, -0.08, 1.08), y,
-    ay: paddleTarget(s, 'A', last.at + dt * 1000), by: paddleTarget(s, 'B', last.at + dt * 1000) };
+    ay: paddleTarget(s, 'A', target), by: paddleTarget(s, 'B', target) };
 }
