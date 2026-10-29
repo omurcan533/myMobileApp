@@ -1,11 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendSnapshot, sampleTimeline, paddleTarget } from '../lib/pongTimeline.ts';
+import { appendSnapshot, sampleTimeline, paddleTarget, stepLocalPaddle } from '../lib/pongTimeline.ts';
 
 const baseTime = Date.parse('2026-10-29T12:00:00Z');
 const state = (ms, changes = {}) => ({ x: 0.5, y: 0.5, vx: 0.46, vy: 0.23, ay: 0.5, by: 0.5,
   scoreA: 0, scoreB: 0, tick: new Date(baseTime + ms).toISOString(), ...changes });
 const history = (...states) => states.reduce(appendSnapshot, []);
+
+test('held paddle moves at constant speed despite stale server positions at 60 and 120 FPS', () => {
+  for (const fps of [60, 120]) {
+    let position = 0.7;
+    for (let i = 0; i < fps / 2; i++) {
+      const previous = position;
+      position = stepLocalPaddle(position, 1 / fps, true, false, 0.7, false);
+      assert.ok(Math.abs(previous - position - 0.9 / fps) < 1e-9);
+    }
+    assert.ok(Math.abs(position - 0.25) < 1e-9);
+  }
+});
+test('release waits for acknowledgement, then corrects without a position jump', () => {
+  assert.equal(stepLocalPaddle(0.3, 1 / 60, false, false, 0.6, false), 0.3);
+  assert.ok(Math.abs(stepLocalPaddle(0.3, 1 / 60, false, false, 0.6, true) - 0.31) < 1e-9);
+  assert.equal(stepLocalPaddle(0.3, 1 / 60, true, true, 0.6, true), 0.3);
+});
+test('paddle reversal is immediate and long frames cannot escape the arena', () => {
+  assert.ok(stepLocalPaddle(0.5, 1 / 60, false, true, 0.2, false) > 0.5);
+  assert.equal(stepLocalPaddle(0.106, 5, true, false, 0.8, false), 0.105);
+  assert.equal(stepLocalPaddle(0.894, 5, false, true, 0.2, false), 0.895);
+});
 
 test('reordered, duplicate and malformed packets cannot rewind a timeline', () => {
   const frames = history(state(100), state(200));

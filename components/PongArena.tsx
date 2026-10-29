@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { alpha, colors } from '../lib/theme';
 import { serverNow } from '../lib/serverTime';
-import { appendSnapshot, clamp, paddleTarget, sampleTimeline } from '../lib/pongTimeline';
+import { appendSnapshot, clamp, paddleTarget, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
@@ -37,14 +37,20 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    if(sampled&&latest){
     for(const side of ['A','B'] as const){
      const local=cfg.playing&&cfg.mySide===side;
-     const up=local&&cfg.allowedDirections.includes(-1)&&cfg.held.up;
-     const down=local&&cfg.allowedDirections.includes(1)&&cfg.held.down;
-     const target=local?paddleTarget(latest.state,side,serverNow()):(side==='A'?sampled.ay:sampled.by);
+     const now=serverNow();
+     const heldOnServer=(direction:'Up'|'Down')=>{
+      const key=`hold${side}${direction}` as 'holdAUp'|'holdADown'|'holdBUp'|'holdBDown';
+      return latest.state[key]===true&&now-Date.parse(latest.state[`${key}At`]??'')<2500;
+     };
+     const serverUp=heldOnServer('Up'),serverDown=heldOnServer('Down');
+     // In duo mode, the teammate still controls the other direction.
+     const up=local&&(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
+     const down=local&&(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
+     const acknowledged=(!cfg.allowedDirections.includes(-1)||serverUp===cfg.held.up)
+      &&(!cfg.allowedDirections.includes(1)||serverDown===cfg.held.down);
+     const target=local?paddleTarget(latest.state,side,now):(side==='A'?sampled.ay:sampled.by);
      const prior=paddles.current[side];
-     // Predict only our own controls; always reconcile to authoritative positions.
-     const predicted=clamp(prior+(Number(down)-Number(up))*0.9*dt,0.105,0.895);
-     const blend=1-Math.exp(-12*dt);
-     paddles.current[side]=local?predicted+(target-predicted)*blend:target;
+     paddles.current[side]=local?stepLocalPaddle(prior,dt,up,down,target,acknowledged):target;
     }
     ballX.setValue(sampled.x*width-6);ballY.setValue(sampled.y*height-6);
     leftY.setValue(paddles.current.A*height-paddleHeight/2);

@@ -9,6 +9,18 @@ export const PONG_RENDER_DELAY_MS = 200;
 const MAX_EXTRAPOLATION_MS = 100;
 export const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+export function stepLocalPaddle(position: number, dt: number, up: boolean, down: boolean, target: number, acknowledged: boolean): number {
+  const seconds = clamp(dt, 0, 0.05);
+  // A held control owns local motion. Stale snapshots must not brake each frame.
+  if (up || down) return clamp(position + (Number(down) - Number(up)) * 0.9 * seconds, 0.105, 0.895);
+  // Wait for release acknowledgement before reconciling; otherwise an old held
+  // packet moves the paddle again after the user has lifted their finger.
+  if (!acknowledged) return position;
+  const error = target - position;
+  if (Math.abs(error) < 0.002) return position;
+  return clamp(position + clamp(error, -0.6 * seconds, 0.6 * seconds), 0.105, 0.895);
+}
+
 export function appendSnapshot(history: PongSnapshot[], state: PongFrameState): PongSnapshot[] {
   const at = Date.parse(state.tick ?? '');
   if (!Number.isFinite(at) || ![state.x, state.y, state.vx, state.vy, state.ay, state.by, state.scoreA, state.scoreB].every(Number.isFinite)) return history;
