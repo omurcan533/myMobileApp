@@ -71,7 +71,7 @@ const screenClockStyles = StyleSheet.create({
   text: { color: '#FFFFFF', fontSize: 12, fontVariant: ['tabular-nums'], fontFamily: 'Sora_600SemiBold' },
 });
 
-export function Screen({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+export function Screen({ children, style, active=false }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; active?:boolean }) {
   const insets = useSafeAreaInsets();
   const [outerH, setOuterH] = useState(0);
   const [vv, setVv] = useState<{ h: number; top: number } | null>(null);
@@ -138,7 +138,7 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
           style,
         ]}
       >
-        <ScreenClock />
+        {!active&&<ScreenClock />}
         {children}
       </View>
     </View>

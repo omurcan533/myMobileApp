@@ -11,9 +11,10 @@ import { LineConnectGame } from '../components/LineConnectGame';
 import { SongCompleteGame } from '../components/SongCompleteGame';
 import { FriendMemoryQuiz } from '../components/FriendMemoryQuiz';
 import { PongRematch } from '../components/PongRematch';
+import {PlayHeader,PlayArea,usePlaySize} from '../components/PlayHeader';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, TimerBar, Title, Text, useToast,
+  Avatar, Btn, Card, Chip, Sheet, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api, GameError } from '../lib/api';
@@ -33,6 +34,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
   const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
     ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
+  const [friendQuizOpen,setFriendQuizOpen]=useState(false);
   const [pongHolding, setPongHolding] = useState(false);
   const pongWebStyle = Platform.OS === 'web' && originalMg?.kind === 'pong'
     ? ({ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as any)
@@ -189,11 +191,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const briefingSeconds = Math.max(1, Math.ceil((goAt - now) / 1000));
 
   return (
-    <Screen>
-      <ScrollView ref={scrollRef} scrollEnabled={!pongHolding} style={[{ flex: 1 }, pongWebStyle]} contentContainerStyle={[s.scroll, pongWebStyle]} showsVerticalScrollIndicator={false}>
-        {!(mg.kind === 'pong' && !isPreparing && live) && <Scoreboard ctx={ctx} />}
+    <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
+      {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
+      <PlayArea active={live&&!isPreparing}>
+      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} scrollEnabled={!pongHolding} style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+        {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
-      {!(mg.kind === 'pong' && !isPreparing && live) && <View style={s.headerRow}>
+      {(isPreparing||!live)&&<View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
           <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : mg.kind === 'tug_of_war' ? 'Halat Çekme' : 'Devre Arası'}</Title>
@@ -208,16 +212,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         />
       </View>}
 
-        {mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
+        {(isPreparing||!live)&&mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
 
-        {live && !isPreparing && mg.kind !== 'pong' && mg.kind !== 'tug_of_war' && (
-          <TimerBar
-            left={left}
-            total={mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'social_guess' ? 40 : 30}
-            label="Kalan Süre"
-            color={mode.color}
-          />
-        )}
 
         {isPreparing ? (
           <Card accent={mode.color} style={s.briefingCard}>
@@ -331,7 +327,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           />
         )}
 
-        {mg.kind === 'social_guess' && !isPreparing && <FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused} />}
+        {mg.kind === 'social_guess' && !isPreparing && <><Btn size="sm" tone="ghost" title="Dostluk Hafızası" onPress={()=>setFriendQuizOpen(true)}/><Sheet visible={friendQuizOpen} onClose={()=>setFriendQuizOpen(false)}><FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused}/><Btn title="Oyuna Dön" onPress={()=>setFriendQuizOpen(false)}/></Sheet></>}
 
         {!live && mg.kind === 'pong' && <PongRematch ctx={ctx} mg={mg} />}
 
@@ -410,6 +406,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         )}
       </ScrollView>
+      </PlayArea>
       {data.room.paused && (
         <View style={s.paused}>
           <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
@@ -790,6 +787,7 @@ function SocialGuess({
   mineTarget: string | null; tap: (target?: string) => void; busy: boolean;
 }) {
   const { data, me } = ctx;
+  const area=usePlaySize();
   const mgEntries = data.entries.filter((e) => e.minigame_id === data.minigames[data.minigames.length - 1]?.id);
   const counts = data.players.map((p) => ({ p, n: mgEntries.filter((e) => e.target_player_id === p.id).length }));
   const totalVotes = Math.max(1, mgEntries.length);
@@ -802,16 +800,16 @@ function SocialGuess({
 
   return (
     <View style={{ gap: 14 }}>
-      <Card accent={colors.violet} style={s.promptCard}>
+      <Card accent={colors.violet} style={[s.promptCard,area.active&&{padding:10,gap:6}]}>
         <Chip icon="chatbubbles" label="Grup oylaması" color={colors.violet} />
-        <Text display style={s.prompt}>{prompt}</Text>
+        <ScrollView nestedScrollEnabled style={{maxHeight:Math.max(70,Math.min(140,area.height-330))}}><Text display style={[s.prompt,area.active&&{fontSize:18,lineHeight:24}]}>{prompt}</Text></ScrollView>
         <Muted style={{ textAlign: 'center' }}>
           Kendin dahil herkese oy verebilirsin.
         </Muted>
       </Card>
 
       {live ? (
-        <View style={{ gap: 10 }}>
+<ScrollView nestedScrollEnabled style={{maxHeight:Math.max(140,area.height-300)}} contentContainerStyle={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
           {data.players.map((p) => {
             const isSelected = mineTarget === p.id;
             const isMe = p.id === me.id;
@@ -827,14 +825,14 @@ function SocialGuess({
                 accent={tColor}
                 scaleTo={0.96}
                 style={[
-                  s.playerVoteCard,
+                  s.playerVoteCard,area.active&&{width:'48%',padding:6,minHeight:64,gap:5},
                   isSelected && s.playerVoteCardSelected,
                 ]}
               >
-                <Avatar source={avatarFor(p.nickname)} size={46} ring={tColor} glow={isSelected} />
+                <Avatar source={avatarFor(p.nickname)} size={area.active?24:46} ring={tColor} glow={isSelected} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={s.playerNickText}>
+                    <Text numberOfLines={2} style={[s.playerNickText,area.active&&{fontSize:12}]}>
                       {p.nickname}{isMe ? ' (Sen)' : ''}
                     </Text>
                     {pHasVoted && (
@@ -858,7 +856,7 @@ function SocialGuess({
               </Tap>
             );
           })}
-        </View>
+        </ScrollView>
       ) : (
         <Card style={{ gap: 14 }}>
           <Title size={20}>Oylama Sonuçları</Title>
@@ -894,6 +892,8 @@ function MathGuessGame({
   mineGuess: number | null; onSubmit: (val: number) => void; busy: boolean;
 }) {
   const { data, me } = ctx;
+  const area=usePlaySize();
+  const compact=area.active;
   const [val, setVal] = useState('');
 
   const pressDigit = (d: string) => {
@@ -934,14 +934,14 @@ function MathGuessGame({
   const bestDiff = validDiffs.length > 0 ? Math.min(...validDiffs) : null;
 
   return (
-    <View style={{ gap: 16 }}>
+    <View style={{ gap: compact?6:16 }}>
       {/* Soru Kartı */}
-      <Card accent={colors.cyan} style={s.promptCard}>
-        <View style={[s.bigIcon, { width: 56, height: 56, borderRadius: 28, marginBottom: 0, backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
+      <Card accent={colors.cyan} style={[s.promptCard,compact&&{padding:10,gap:6}]}>
+        {!compact&&<View style={[s.bigIcon, { width: 56, height: 56, borderRadius: 28, marginBottom: 0, backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
           <Ionicons name="calculator" size={28} color={colors.cyan} />
-        </View>
+        </View>}
         <Text display style={s.prompt}>{prompt}</Text>
-        <Muted>Doğru yanıta en yakın tahmini yapan takım bonus kazanır!</Muted>
+        {!compact&&<Muted>Doğru yanıta en yakın tahmini yapan takım bonus kazanır!</Muted>}
       </Card>
 
       {/* Sonuç açıklandığında doğru yanıt tüm oyuncular için en üstte görünür. */}
@@ -978,9 +978,9 @@ function MathGuessGame({
           </Muted>
         </Card>
       ) : live ? (
-        <Card style={{ gap: 14 }}>
+        <Card style={{ gap: compact?6:14,padding:compact?10:16 }}>
           {/* Giriş Ekranı */}
-          <View style={s.mathDisplay}>
+          <View style={[s.mathDisplay,compact&&{padding:6,minHeight:44}]}>
             <Text display style={s.mathDisplayText}>
               {val || <Text style={{ color: colors.muted }}>Tahminini gir…</Text>}
             </Text>
@@ -996,7 +996,7 @@ function MathGuessGame({
                 scaleTo={0.88}
                 onPress={() => (k === 'C' ? clear() : k === '⌫' ? backspace() : pressDigit(k))}
                 style={[
-                  s.numPadKey,
+                  s.numPadKey,compact&&{height:44,borderRadius:10},
                   (k === 'C' || k === '⌫') && s.numPadActionKey,
                 ]}
               >
@@ -1008,7 +1008,7 @@ function MathGuessGame({
           </View>
 
           <Btn
-            title="Tahmini Gönder"
+            size="sm" title="Tahmini Gönder"
             icon="send"
             tone="success"
             disabled={!val}

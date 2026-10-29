@@ -2,14 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Hint } from '../components/Hint';
+import {PlayHeader,PlayArea} from '../components/PlayHeader';
 import { Scoreboard } from '../components/Scoreboard';
 import {
-  Avatar, Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, Tap, TimerBar, Title, Text, useToast,
+  Btn, Card, Chip, CoinPill, Eyebrow, IconName, Input, Muted, Pulse, Screen, Sheet, Tap, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
-import { avatarFor } from '../lib/art';
 import { currentRound, effNow, secondsLeft, totalQuestionsForRoom } from '../lib/selectors';
 import { alpha, colors, gradients, teamColor, teamName, tierLabel } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
@@ -24,6 +23,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   const now = effNow(room, useNow());
   const round = useMemo(() => currentRound(data.rounds), [data.rounds]);
   const totalQuestions = useMemo(() => totalQuestionsForRoom(room.mode, data.rounds.length), [room.mode, data.rounds.length]);
+  const [areaHeight,setAreaHeight]=useState(500);
+  const [suggestionsOpen,setSuggestionsOpen]=useState(false);
   const [text, setText] = useState('');
   const [final, setFinal] = useState('');
   const [confirmAnswer, setConfirmAnswer] = useState<string | null>(null);
@@ -229,13 +230,15 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   return (
-    <Screen>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Scoreboard ctx={ctx} />
+    <Screen key={round.id+String(isOpen)} active={isOpen}>
+      {isOpen&&<PlayHeader ctx={ctx} left={left} label={`Soru ${round.idx+1}/${totalQuestions}`} instructions="Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin." onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
+      <KeyboardAvoidingView onLayout={e=>setAreaHeight(e.nativeEvent.layout.height)} style={{ flex: 1,minHeight:0 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+       <PlayArea active={isOpen}>
+        <ScrollView key={round.id+':'+String(isOpen)} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {!isOpen&&<Scoreboard ctx={ctx} />}
 
           {/* ================= ROZET & TUR BİLGİSİ ================= */}
-          <View style={s.metaRow}>
+          {!isOpen&&<View style={s.metaRow}>
             <View style={s.metaLeft}>
               <Chip color={tColor} icon="shield" label={teamName(me.team_side)} />
               {me.is_captain && <Chip color={colors.gold} icon="ribbon" label="Kaptan" />}
@@ -245,13 +248,11 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               <Chip color={colors.cyan} icon="help-circle" label={`Soru ${round.idx + 1} / ${totalQuestions}`} />
               <Chip color={tierColor} label={tierLabel[round.tier as Tier]} />
             </View>
-          </View>
-
-          {isOpen && <TimerBar left={left} total={total} label="Soru Süresi" />}
+          </View>}
 
           {/* ================= SORU KARTI ================= */}
-          <Card accent={tierColor} style={s.questionCard}>
-            <View style={s.questionHeader}>
+          <Card accent={tierColor} style={[s.questionCard,isOpen&&{padding:10,gap:8}]}>
+            {!isOpen&&<View style={s.questionHeader}>
               <Chip
                 color={tierColor}
                 icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
@@ -263,8 +264,9 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                   <Text style={s.prizeName}>{prize.name_tr}</Text>
                 </View>
               )}
-            </View>
+            </View>}
 
+            <ScrollView nestedScrollEnabled style={{maxHeight:isOpen?Math.max(70,Math.min(180,areaHeight-300)):undefined,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center'}} keyboardShouldPersistTaps="handled">
             {round.kind === 'anagram' ? (
               <View style={s.tiles}>
                 {Array.from(round.prompt.toLocaleUpperCase('tr-TR')).map((ch, i) =>
@@ -282,6 +284,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               <Text display style={s.riddle}>{round.prompt}</Text>
             )}
 
+            </ScrollView>
             {isOpen && round.kind !== 'social' && slots.length > 0 && (
               <View style={s.slotsWrap}>
                 <Text style={s.slotsLabel}>CEVAP</Text>
@@ -328,15 +331,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             )}
           </Card>
 
-          {round.kind === 'riddle' && isOpen && (
-            <Hint id="riddle" text="Takım arkadaşların tahmin yazar, Kaptan onaylayıp gönderir." />
-          )}
-          {round.kind === 'social' && isOpen && (
-            <Hint id="social" text="Şıklar odadaki oyunculardır. Takım olarak bir oyuncuyu seçin!" />
-          )}
-          {me.is_captain && isOpen && myTeam && myTeam.jokers_left > 0 && (
-            <Hint id="joker" text="Joker: soruyu çözmeden direkt bonus parça kazandırır. Dikkatli kullan!" />
-          )}
+
 
           {/* ================= CEVAP GİRİŞİ ================= */}
           {isOpen ? (
@@ -344,7 +339,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               <View style={{ gap: 12 }}>
                 <Card style={{ gap: 12 }}>
                   <Eyebrow icon="people" color={colors.violet}>Odadaki Oyuncular (Şıklar)</Eyebrow>
-                  <View style={{ gap: 8 }}>
+                  <ScrollView nestedScrollEnabled style={{maxHeight:Math.max(120,areaHeight-330)}} contentContainerStyle={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
                     {data.players.map((p) => {
                       const isSelected = (me.is_captain ? final : text) === p.nickname;
                       const pColor = teamColor(p.team_side);
@@ -374,14 +369,14 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                             }
                           }}
                           style={[
-                            s.socialPlayerCard,
+                            s.socialPlayerCard,{width:'48%',padding:6,minHeight:60,gap:5},
                             isSelected && s.socialPlayerCardSelected,
                           ]}
                         >
-                          <Avatar source={avatarFor(p.nickname)} size={44} ring={pColor} glow={isSelected} />
+                          
                           <View style={{ flex: 1, gap: 2 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text style={s.socialNickText}>{p.nickname}{p.id === me.id ? ' (Sen)' : ''}</Text>
+                              <Text numberOfLines={2} style={[s.socialNickText,{fontSize:12,flexShrink:1}]}>{p.nickname}{p.id === me.id ? ' (Sen)' : ''}</Text>
                               {pSuggestions > 0 && (
                                 <Chip label={`${pSuggestions} öneri`} color={colors.cyan} size="sm" icon="chatbubbles" />
                               )}
@@ -394,7 +389,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                         </Tap>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                   {me.is_captain ? (
                     <Muted style={{ textAlign: 'center', fontSize: 13, marginTop: 4 }}>
                       Bir oyuncuya dokunup takımının nihai cevabı olarak onayla.
@@ -430,7 +425,9 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               </View>
             ) : (
               <View style={{ gap: 12 }}>
+                {suggestions.length>0&&<Btn size="sm" title={`Takım Önerileri (${suggestions.length})`} onPress={()=>setSuggestionsOpen(true)}/>}
                 {suggestions.length > 0 && (
+                 <Sheet visible={suggestionsOpen} onClose={()=>setSuggestionsOpen(false)}>
                   <Card style={{ gap: 10 }}>
                     <Eyebrow icon="chatbubbles" color={colors.muted}>Takım tahminleri</Eyebrow>
                     <View style={s.chips}>
@@ -443,7 +440,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                             color={alpha(colors.cyan, 0.32)}
                             accent={colors.cyan}
                             scaleTo={0.93}
-                            onPress={() => sendFinal(a.body)}
+                            onPress={() => {setSuggestionsOpen(false);sendFinal(a.body);}}
                             style={[s.chip, me.is_captain && { borderColor: alpha(colors.cyan, 0.5) }]}
                           >
                             <Text style={s.chipText}>{a.body}</Text>
@@ -456,6 +453,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                       <Muted style={{ fontSize: 12 }}>Bir tahmine dokun → takım adına gönder.</Muted>
                     )}
                   </Card>
+                  <Btn title="Oyuna Dön" onPress={()=>setSuggestionsOpen(false)}/>
+                 </Sheet>
                 )}
 
                 <Input
@@ -560,7 +559,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
           )}
 
           {/* ================= TAKIM AKSİYONLARI (JOKER & MOLA) ================= */}
-          <View style={s.captainRow}>
+          {!isOpen&&<View style={s.captainRow}>
             <Btn
               title={`Joker (${myTeam?.jokers_left ?? 0})`}
               icon="sparkles"
@@ -573,8 +572,9 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             {me.is_captain && (
               <Btn title="Mola" icon="pause" tone="ghost" size="md" onPress={pause} style={{ flex: 1 }} />
             )}
-          </View>
+          </View>}
         </ScrollView>
+       </PlayArea>
       </KeyboardAvoidingView>
 
       {/* ================= OYUN DURAKLATILDI ================= */}
@@ -669,8 +669,8 @@ const s = StyleSheet.create({
 
   tiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 7, paddingVertical: 4 },
   tile: {
-    width: 40,
-    height: 50,
+    width: 30,
+    height: 38,
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
@@ -684,7 +684,7 @@ const s = StyleSheet.create({
     elevation: 5,
   },
   tileSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.28)' },
-  tileText: { color: '#4A2A00', fontSize: 25, fontWeight: '900' },
+  tileText: { color: '#4A2A00', fontSize: 21, fontWeight: '900' },
   riddle: { color: colors.text, fontSize: 21, fontWeight: '800', textAlign: 'center', lineHeight: 30, paddingHorizontal: 4 },
 
   hintBox: {

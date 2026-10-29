@@ -26,7 +26,7 @@ function Fighter({x,side,step,effort,slip}:{x:number;side:'A'|'B';step:number;ef
   <Path d="M -20 90 Q 0 80 20 90" fill="none" stroke="#FFFFFF" opacity=".45" strokeWidth="2"/>
  </G></G>;
 }
-export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:number;wide:boolean}){
+export function TugArena({blue,red,time,wide,height}:{blue:number;red:number;time:number;wide:boolean;height?:number}){
  const diff=blue-red;
  const magnitude=Math.abs(blue)+Math.abs(red);
  // Kuvvet farkı büyüdükçe ilerleme yavaşlar; 200-300 puanda arena dolmaz.
@@ -43,7 +43,7 @@ export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:numbe
  const tugWave=Math.sin(time/110)*Math.min(2.5,0.5+strength*2);
  const tension=2+strength*5;
  const intensity=Math.abs(advantage);
- return <Svg width="100%" height={wide?290:215} viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet">
+ return <Svg width="100%" height={height??(wide?290:215)} viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet">
   <Defs>
    <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#101D39"/><Stop offset="1" stopColor="#355073"/></LinearGradient>
    <LinearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#344A4A"/><Stop offset="1" stopColor="#142A31"/></LinearGradient>

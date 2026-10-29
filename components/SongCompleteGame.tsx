@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { api } from '../lib/api';
 import { Btn, Card, Muted, Text, Title } from './ui';
+import {usePlaySize} from './PlayLayout';
 import type { Side } from '../lib/types';
 
 export function SongCompleteGame({ id, prompt, live, canPlay, paused, winner, side, onError }: {
   id: string; prompt: string; live: boolean; canPlay: boolean; paused: boolean;
   winner: Side | null; side: Side | null; onError: (message: string) => void;
 }) {
+  const compact=usePlaySize().active;
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -28,10 +30,10 @@ export function SongCompleteGame({ id, prompt, live, canPlay, paused, winner, si
   };
   const result = !live ? winner === side && !!winner ? 'won' : winner ? 'lost' : 'draw' : null;
   return (
-    <Card style={styles.card}>
-      <Title size={24} style={{ textAlign: 'center' }}>🎵 Şarkı Tamamlama</Title>
-      <Muted style={{ textAlign: 'center' }}>Sanatçıyı ve eksik şarkı adını incele. Sınırsız deneme hakkın var. İlk doğru yanıt veren takım kazanır!</Muted>
-      <View style={styles.question}><Text style={styles.prompt}>{prompt}</Text></View>
+    <Card style={[styles.card,compact&&{padding:10,gap:8}]}>
+      <Title size={compact?18:24} style={{ textAlign: 'center' }}>🎵 Şarkı Tamamlama</Title>
+      {!compact&&<Muted style={{ textAlign: 'center' }}>Sanatçıyı ve eksik şarkı adını incele. Sınırsız deneme hakkın var. İlk doğru yanıt veren takım kazanır!</Muted>}
+      <View style={[styles.question,compact&&{padding:10}]}><Text style={styles.prompt}>{prompt}</Text></View>
       {result ? (
         <View style={[styles.result, { borderColor: result === 'won' ? '#42DDA7' : result === 'lost' ? '#F27889' : '#E3BC70' }]}>
           <Title size={24} style={{ textAlign: 'center', color: result === 'won' ? '#42DDA7' : result === 'lost' ? '#F27889' : '#E3BC70' }}>

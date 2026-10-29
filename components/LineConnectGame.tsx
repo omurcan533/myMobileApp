@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import { Card, Muted, Title, Btn } from './ui';
+import {usePlaySize} from './PlayLayout';
 
 type Point=[number,number];
 export type LineBoard={version:number;level:number;difficulty?:string;pairs:Point[][]};
@@ -29,6 +30,8 @@ const complete=(paths:Point[][],board:LineBoard)=>paths.every((p,i)=>p.length>=2
 export function LineConnectGame({onWin,disabled=false,board:given}:{
  onWin?:(paths:Point[][])=>void|Promise<void>;disabled?:boolean;board?:LineBoard|null;
 }) {
+ const area=usePlaySize();
+ const boardSize=Math.max(150,Math.min(390,area.width-32,area.height-160));
  const board=given?.version===2&&given.pairs?.length===6?given:DEMO;
  const [paths,setPaths]=useState<Point[][]>(()=>board.pairs.map(()=>[]));
  const [active,setActive]=useState<number|null>(null);
@@ -140,11 +143,11 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   onPanResponderTerminationRequest:()=>false,
  })).current;
  const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastTouch.current=null;};
- return <Card style={{gap:12}}>
-  <Title size={22}>Çizgi Birleştirme · Bölüm {board.level}</Title>
+ return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
+  <Title size={area.active?18:22}>Çizgi Birleştirme · Bölüm {board.level}</Title>
   <Muted>{board.difficulty ? `Zorluk: ${board.difficulty} · ` : ''}{paths.filter((p,i)=>p.length>=2&&dist(p[p.length-1],board.pairs[i][0])<1||p.length>=2&&dist(p[p.length-1],board.pairs[i][1])<1).length} / 6 renk tamamlandı</Muted>
-  <Muted>6 renkli nokta çiftini boş alanda birleştir. Çizgiler birbirini kesemez ve başka renkteki noktalardan geçemez. Parmağını sürükle; gerekirse bir renge yeniden başla.</Muted>
-  <View {...pan.panHandlers} onLayout={e=>setBoardWidth(e.nativeEvent.layout.width)} style={styles.board}>
+  {!area.active&&<Muted>6 renkli nokta çiftini boş alanda birleştir. Çizgiler birbirini kesemez ve başka renkteki noktalardan geçemez. Parmağını sürükle; gerekirse bir renge yeniden başla.</Muted>}
+  <View {...pan.panHandlers} onLayout={e=>setBoardWidth(e.nativeEvent.layout.width)} style={[styles.board,area.active&&{width:boardSize}]}>
    <Svg pointerEvents="none" width="100%" height="100%" viewBox="0 0 1000 1000">
     {paths.map((path,i)=>path.length>1?<Polyline key={i} points={path.map(p=>p.join(',')).join(' ')} fill="none" stroke={COLORS[i]} strokeWidth={24} strokeLinecap="round" strokeLinejoin="round"/>:null)}
     {board.pairs.map((pair,i)=>pair.map((p,j)=><React.Fragment key={i+'-'+j}>
@@ -154,7 +157,7 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
    </Svg>
   </View>
   <Muted>{completed?'Tebrikler, tüm renkler birleşti!':active===null?'Bir renkli noktaya dokunup sürükle.':'Çizgiyi sürükleyerek tamamla. Başka bir renge dokunarak değiştirebilirsin.'}</Muted>
-  <Btn title="Sıfırla" tone="ghost" icon="refresh" onPress={reset}/>
+  <Btn size="sm" title="Sıfırla" tone="ghost" icon="refresh" onPress={reset}/>
  </Card>;
 }
 const styles=StyleSheet.create({board:{width:'100%',maxWidth:390,aspectRatio:1,alignSelf:'center',borderRadius:16,overflow:'hidden',backgroundColor:'#0C1930',borderWidth:1,borderColor:'#36415A',...({touchAction:'none'} as unknown as ViewStyle)}});

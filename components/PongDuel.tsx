@@ -6,6 +6,7 @@ import { serverNow } from '../lib/serverTime';
 import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { alpha, colors } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
+import {usePlaySize} from './PlayLayout';
 import { createPongDiagnostics } from '../lib/pongDiagnostics';
 
 type State = PongFrameState & {
@@ -21,8 +22,9 @@ const dirs=[-1,1];
 export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:Props){
  const {data,me}=ctx;
  const {width:screenWidth,height:screenHeight}=useWindowDimensions();
- const width=Math.min(520,Math.max(225,screenWidth-94));
- const height=Math.max(165,Math.min(320,Math.round(width*0.78),Math.round(screenHeight*0.34)));
+ const area=usePlaySize();
+ const width=Math.min(520,Math.max(180,area.active?area.width-24:screenWidth-94));
+ const height=area.active?Math.max(100,Math.min(320,Math.round(width*0.78),area.height-250)):Math.max(165,Math.min(320,Math.round(width*0.78),Math.round(screenHeight*0.34)));
  const compactControls=screenHeight<780;
  const matchSeconds=Math.max(0,Math.ceil((Date.parse(data.room.phase_ends_at??'')-serverNow())/1000));
  const [state,setState]=useState<State|null>((mg.pong_state as State|null)??null);
@@ -225,7 +227,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const high=goals[0]?.[1]??0;
  const top=goals.filter(([,n])=>n===high);
  return <View style={styles.wrapper}>
-  <Card accent={colors.cyan} style={styles.gameCard}>
+  <Card accent={colors.cyan} style={[styles.gameCard,area.active&&{padding:8,gap:5}]}>
    <View style={styles.matchHeading}>
     <Eyebrow color={colors.cyan}>PONG DÜELLOSU</Eyebrow>
     {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} sn</Text>}
@@ -252,7 +254,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
     </View>
    ) : !state ? <Muted>Maç hazırlanıyor…</Muted> : null}
-   <View style={styles.teams}>
+   {!area.active&&<View style={styles.teams}>
     <View style={{flex:1}}>
      <Text style={styles.teamA}> {state?.modeA==='solo'?'▲▼':'▲'} {playerName(state?.a1)}</Text>
      {state?.modeA!=='solo'&&<Text style={styles.teamA}>▼ {playerName(state?.a2)}</Text>}
@@ -261,10 +263,10 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      <Text style={styles.teamB}>{state?.modeB==='solo'?'▲▼':'▲'} {playerName(state?.b1)}</Text>
      {state?.modeB!=='solo'&&<Text style={styles.teamB}>▼ {playerName(state?.b2)}</Text>}
     </View>
-   </View>
+   </View>}
    {mySlot&&live&&mg.starts_at?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
     <Title size={16} style={{textAlign:'center'}}>{solo?'İki yön de sende ▲ ▼':directions[0]===-1?'YUKARI yönü sende ▲':'AŞAĞI yönü sende ▼'}</Title>
-    <View style={styles.paddleControls}>
+    <View style={[styles.paddleControls,area.active&&{flexDirection:'row',gap:8}]}>
      {directions.map(direction=><Pressable
       key={direction}
       onPressIn={()=>startHold(direction)}
@@ -273,7 +275,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       pressRetentionOffset={160}
       onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
       disabled={!active}
-      style={[styles.paddleControl,compactControls&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
+      style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
      ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
     </View>
@@ -289,8 +291,8 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     <Text style={styles.starText}>{(state.savesA??0)===(state.savesB??0)?'Takımlar eşit savunma yaptı.':(state.savesA??0)>(state.savesB??0)?'Takım A: '+playerName(state.a1)+(state.a1===state.a2?'':' ve '+playerName(state.a2)):'Takım B: '+playerName(state.b1)+(state.b1===state.b2?'':' ve '+playerName(state.b2))}</Text>
    </View>}
   </Card>
-  <Card style={{gap:10}}>
-   <Title size={16}>Canlı Tepkiler {reaction??''}</Title>
+  <Card style={{gap:area.active?4:10,padding:area.active?6:16}}>
+   {!area.active&&<Title size={16}>Canlı Tepkiler {reaction??''}</Title>}
    <View style={styles.reactions}>{emojiList.map(emoji=><Tap key={emoji} onPress={()=>cheer(emoji)} style={styles.reaction}><Text style={{fontSize:24}}>{emoji}</Text></Tap>)}</View>
   </Card>
  </View>;
