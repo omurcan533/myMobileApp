@@ -6,6 +6,7 @@ import { serverNow } from '../lib/serverTime';
 import { Card, Eyebrow, Muted, Text, Title, Tap } from './ui';
 import { alpha, colors } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
+import { createPongDiagnostics } from '../lib/pongDiagnostics';
 
 type State = PongFrameState & {
  a1:string; a2:string; b1:string; b2:string;
@@ -39,6 +40,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const heartbeats=useRef<Record<number,ReturnType<typeof setInterval>>>({});
  const sendQueue=useRef<Record<number,Promise<void>>>({});
  const stopped=useRef(false);
+ const timing=useRef(createPongDiagnostics());
  const players=useMemo(()=>data.players,[data.players]);
  const playerName=(id?:string)=>players.find(p=>p.id===id)?.nickname??'Oyuncu';
 
@@ -49,7 +51,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  if(!myIds.includes(me.id))myIds.push(me.id);
  const mySlot=state?(['a1','a2','b1','b2'] as const).find(k=>myIds.includes(state[k])):undefined;
  const mySide=mySlot?.startsWith('a')?'A':mySlot?.startsWith('b')?'B':null;
- const solo=!!mySide&&state?.['mode'+mySide]==='solo';
+ const solo=!!mySide&&state?.[mySide==='A'?'modeA':'modeB']==='solo';
  const directions=useMemo(()=>mySlot?(solo?dirs:[mySlot.endsWith('1')?-1:1]):[],[mySlot,solo]);
  const teamSize=players.filter(p=>p.team_side===me.team_side).length;
  const needsModeChoice=live&&!mg.starts_at&&teamSize===2&&players.length===3;
@@ -94,6 +96,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   channel.on('broadcast',{event:'pong_frame'},({payload})=>{
    const frame=payload?.state as State|undefined;
    if(!frame||typeof frame.x!=='number'||typeof frame.tick!=='string')return;
+   timing.current('broadcastSnapshotAge',serverNow()-Date.parse(frame.tick));
    setState(previous=>{
     if(previous&&Date.parse(frame.tick!)<=Date.parse(previous.tick??''))return previous;
     return frame;
@@ -121,7 +124,9 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    inFlight=true;
    try{
     if(me.is_host&&mg.starts_at){
+     const sentAt=performance.now();
      const {data:updated,error}=await supabase.rpc('pong_tick',{p_minigame:mg.id});
+     timing.current('tickRoundTrip',performance.now()-sentAt);
      if(!mounted)return;
      if(error){
       failures++;
@@ -163,8 +168,12 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  // İstek sırası aynı düğme için korunur: basma ardından bırakma sunucuya ters sırada gitmez.
  const sendHeld=(direction:number,pressed:boolean)=>{
   const prev=sendQueue.current[direction]??Promise.resolve();
+  const queuedAt=performance.now();
   const next=prev.catch(()=>{}).then(async()=>{
+   const sentAt=performance.now();
+   timing.current('controlQueueWait',sentAt-queuedAt);
    const {error}=await supabase.rpc('pong_set_held',{p_minigame:mg.id,p_direction:direction,p_pressed:pressed});
+   timing.current('controlRoundTrip',performance.now()-sentAt);
    if(error){
     setControlError(error.message);
     console.warn('Pong control:',error.message);
@@ -238,7 +247,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
-     <PongArena state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
+     <PongArena key={mg.id} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
      {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>Hazır ol! Maç başlıyor…</Muted></View>}
      {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
     </View>
