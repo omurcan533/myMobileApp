@@ -768,267 +768,423 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
             paddingVertical: Platform.OS === 'ios' ? 15 : 12,
             ...(Platform.OS === 'web' ? ({ outlineStyle: 'none', outlineWidth: 0, outlineColor: 'transparent' } as any) : {}),
           },
-          center && { textAlign: '…21388 tokens truncated…? '(Sen)' : ''}
-                  </Text>
-                  <Text style={{ color: tColor, fontSize: 11, fontWeight: '600' }}>
-                    {teamName(p.team_side)}
-                  </Text>
-                </View>
-
-                {guess !== null && live && !isMe ? (
-                  <Chip label="Tahmin gönderildi" color={colors.mint} size="sm" icon="checkmark-circle" />
-                ) : guess !== null ? (
-                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                    <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
-                      <Text display style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
-                        {guess}
-                      </Text>
-                    </View>
-                    {!live && targetNum !== null && diff !== null && (
-                      <Text style={{ color: isWinner ? colors.gold : colors.muted, fontSize: 11, fontWeight: '700' }}>
-                        {isWinner ? `🏆 En Yakın (Fark: ${diff})` : `Fark: ${diff}`}
-                      </Text>
-                    )}
-                  </View>
-                ) : (
-                  <Chip label="Düşünüyor..." color={colors.muted} size="sm" icon="time-outline" />
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Card>
+          center && { textAlign: 'center' },
+          style,
+          Platform.OS === 'web' && { fontSize: webFontSize },
+        ]}
+      />
     </View>
   );
 }
 
+// ============================================================================
+// Alt sekme çubuğu (Tap-2-Earn tarzı yüzen cam hap)
+// ============================================================================
+export interface TabItem<K extends string> { key: K; label: string; icon: IconName; iconActive?: IconName }
+
+const TAB_ITEM_WIDTH = 100;
+
+/** Sekme ikonu: aktif olunca yaylanarak büyür ve hafifçe sallanır. */
+function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: number }) {
+  const [v] = useState(() => new Animated.Value(on ? 1 : 0));
+  useEffect(() => {
+    if (!on) { v.setValue(0); return; }
+    v.setValue(0);
+    Animated.spring(v, { toValue: 1, friction: 3.4, tension: 150, useNativeDriver: true }).start();
+  }, [on, v]);
+  return (
+    <Animated.View
+      style={{
+        transform: [
+          { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [5, -1] }) },
+          { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.12] }) },
+          { rotate: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-14deg', '8deg', '0deg'] }) },
+        ],
+      }}
+    >
+      <Ionicons name={name} size={size} color={on ? colors.cyan : colors.muted} />
+    </Animated.View>
+  );
+}
+
+export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
+  const insets = useSafeAreaInsets();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const activeIdx = Math.max(0, items.findIndex((it) => it.key === active));
+  const [slideAnim] = useState(() => new Animated.Value(activeIdx));
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: activeIdx,
+        useNativeDriver: false,
+        tension: 65,
+        friction: 8,
+      }),
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 0.93, duration: 80, useNativeDriver: false }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: false }),
+      ]),
+    ]).start();
+  }, [activeIdx, slideAnim, scaleAnim]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && typeof window !== 'undefined') {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+
+      let baselineHeight = Math.max(window.innerHeight, viewport.height);
+      let keyboardVisible = false;
+      const updateFromViewport = () => {
+        const visibleHeight = viewport.height;
+        if (!keyboardVisible && visibleHeight > baselineHeight) baselineHeight = visibleHeight;
+        keyboardVisible = baselineHeight - visibleHeight > 120;
+        setIsKeyboardOpen(keyboardVisible);
+      };
+      const onFocusIn = (e: FocusEvent) => {
+        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') {
+          keyboardVisible = true;
+          setIsKeyboardOpen(true);
+        }
+      };
+      const onFocusOut = () => {
+        keyboardVisible = false;
+        setIsKeyboardOpen(false);
+      };
+      viewport.addEventListener('resize', updateFromViewport);
+      window.addEventListener('resize', updateFromViewport);
+      document.addEventListener('focusin', onFocusIn);
+      document.addEventListener('focusout', onFocusOut);
+      return () => {
+        viewport.removeEventListener('resize', updateFromViewport);
+        window.removeEventListener('resize', updateFromViewport);
+        document.removeEventListener('focusin', onFocusIn);
+        document.removeEventListener('focusout', onFocusOut);
+      };
+    }
+  }, []);
+
+  const [tabOpacity] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    Animated.timing(tabOpacity, {
+      toValue: isKeyboardOpen ? 0 : 1,
+      duration: isKeyboardOpen ? 180 : 340,
+      easing: isKeyboardOpen ? Easing.out(Easing.quad) : Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [isKeyboardOpen, tabOpacity]);
+
+  const leftPos = slideAnim.interpolate({
+    inputRange: [0, Math.max(1, items.length - 1)],
+    outputRange: [6, 6 + (items.length - 1) * (TAB_ITEM_WIDTH + 6)],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        s.tabWrap,
+        {
+          bottom: Math.max(insets.bottom, 12) + 6,
+          opacity: tabOpacity,
+          transform: [
+            {
+              translateY: tabOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [24, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+      pointerEvents={isKeyboardOpen ? 'none' : 'box-none'}
+    >
+      <View style={s.tabBar}>
+        <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+        <LinearGradient
+          colors={['rgba(10,22,46,0.92)', 'rgba(6,12,28,0.98)']}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Akıcı Kayan Gösterge (Sliding Glow Pill) */}
+        <Animated.View
+          style={[
+            s.tabIndicator,
+            {
+              left: leftPos,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={['rgba(0, 229, 255, 0.35)', 'rgba(168, 85, 247, 0.22)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={s.indicatorSheen} />
+        </Animated.View>
+
+        {items.map((it) => {
+          const on = it.key === active;
+          return (
+            <Tap
+              key={it.key}
+              color={alpha(colors.cyan, 0.3)}
+              accent={colors.cyan}
+              scaleTo={0.9}
+              onPress={() => {
+                if (!on) {
+                  soundFx.click();
+                  haptic.light();
+                  onChange(it.key);
+                }
+              }}
+              style={s.tabItem}
+            >
+              <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} />
+              <Text
+                style={[
+                  s.tabLabel,
+                  on ? { color: colors.text, fontWeight: '800' } : { color: colors.subtle },
+                ]}
+              >
+                {it.label}
+              </Text>
+            </Tap>
+          );
+        })}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// Modal / alt sayfa
+// ============================================================================
+export function Sheet({ visible, onClose, children, centered }: {
+  visible: boolean; onClose: () => void; children: React.ReactNode; centered?: boolean;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType={centered ? 'fade' : 'slide'} onRequestClose={onClose}>
+      <View style={[s.backdrop, centered ? { justifyContent: 'center', padding: 24 } : { justifyContent: 'flex-end' }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[centered ? s.dialog : s.sheet,{maxHeight:'90%',minHeight:0,flexShrink:1}]}>
+          {!centered && <View style={s.handle} />}
+          <ScrollView style={{flexShrink:1,minHeight:0}} contentContainerStyle={{gap:12,paddingBottom:12}} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+export function RoomExitButton({ onExit }: { onExit: () => Promise<void> }) {
+  const [visible, setVisible] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const { toast, show } = useToast();
+
+  const leave = async () => {
+    setBusy(true);
+    try {
+      await onExit();
+      setVisible(false);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <IconBtn icon="exit-outline" size={38} color={colors.red} onPress={() => setVisible(true)} />
+      <Sheet visible={visible} centered onClose={() => setVisible(false)}>
+        <View style={{ gap: 14 }}>
+          <Title size={22}>Oyundan ayrıl?</Title>
+          <Muted>Odadan çıkacaksın. Kurucuysan oda başka bir oyuncuya devredilir.</Muted>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+            <Btn title="Vazgeç" tone="ghost" size="md" onPress={() => setVisible(false)} />
+            <Btn title="Odadan Ayrıl" tone="danger" size="md" loading={busy} onPress={leave} />
+          </View>
+        </View>
+      </Sheet>
+      {toast}
+    </>
+  );
+}
+
+// ============================================================================
+// Toast
+// ============================================================================
+export type ToastKind = 'info' | 'success' | 'error';
+const TOAST_ICON: Record<ToastKind, { icon: IconName; color: string }> = {
+  info: { icon: 'information-circle', color: colors.cyan },
+  success: { icon: 'checkmark-circle', color: colors.mint },
+  error: { icon: 'alert-circle', color: colors.red },
+};
+
+function ToastView({ msg, kind }: { msg: string; kind: ToastKind }) {
+  const insets = useSafeAreaInsets();
+  const [v] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(v, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 8 }).start();
+  }, [v]);
+  const t = TOAST_ICON[kind];
+  return (
+    <Animated.View
+      style={[
+        s.toast,
+        { top: insets.top + 10, borderColor: alpha(t.color, 0.45), shadowColor: t.color },
+        { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] }) }] },
+      ]}
+      pointerEvents="none"
+    >
+      <Ionicons name={t.icon} size={20} color={t.color} />
+      <Text style={s.toastText}>{msg}</Text>
+    </Animated.View>
+  );
+}
+
+/** Ekranın üstünde kısa süre beliren bildirim. */
+export function useToast() {
+  const [t, setT] = useState<{ msg: string; kind: ToastKind; id: number } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const counter = useRef(0);
+  const show = (m: string, kind: ToastKind = 'info') => {
+    setT({ msg: m, kind, id: ++counter.current });
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setT(null), 2400);
+  };
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const node = t ? <ToastView key={t.id} msg={t.msg} kind={t.kind} /> : null;
+  return { toast: node, show };
+}
+
+// ============================================================================
+// Stiller
+// ============================================================================
 const s = StyleSheet.create({
-  lineResultOverlay: { marginTop: 14, borderWidth: 2, borderRadius: 24, paddingVertical: 30, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', gap: 14, overflow: 'hidden', minHeight: 280 },
-  lineResultIcon: { width: 84, height: 84, borderRadius: 42, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0A1727' },
-  lineResultText: { color: '#F1F5FF', fontSize: 17, lineHeight: 25, fontWeight: '700', textAlign: 'center' },
-  lineResultTeam: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
-
-  scroll: { gap: 14, paddingBottom: 36, paddingTop: 6 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  header: { gap: 4, marginTop: 2 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  bigIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: alpha(colors.magenta, 0.12),
-    borderWidth: 1,
-    borderColor: alpha(colors.magenta, 0.4),
+  btn: {
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-  },
-  briefingCard: { alignItems: 'center', gap: 12, paddingVertical: 24, paddingHorizontal: 16 },
-  briefingCountdown: { color: colors.text, fontSize: 58, fontWeight: '900', lineHeight: 66 },
-
-  // Refleks
-  reflexWrap: { alignItems: 'center', gap: 20, paddingVertical: 10 },
-  ringOuter: { padding: 10 },
-  ringMid: { width: 270, height: 270, borderRadius: 135, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  reflexBtn: {
-    width: 218,
-    height: 218,
-    borderRadius: 109,
     overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.35)',
-    shadowOpacity: 0.7,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 14,
-  },
-  reflexFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  reflexSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.18)' },
-  reflexText: { color: '#FFFFFF', fontSize: 38, fontWeight: '900', letterSpacing: 1 },
-  reflexMs: { color: colors.text, fontSize: 32, fontWeight: '900' },
-
-  // Genel oyun konteyneri
-  gameContainer: { alignItems: 'center', gap: 16, padding: 20 },
-  gameInstruction: { color: colors.textSoft, fontSize: 15, fontWeight: '700', textAlign: 'center', paddingHorizontal: 12 },
-  statusBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 100,
-    borderWidth: 1,
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-  },
-  statusBannerText: { fontSize: 13, fontWeight: '700' },
-  memoryResultRow: { minHeight: 28, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.inset },
-  paused: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'rgba(5, 10, 20, 0.95)', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
-
-  // Hafıza grid
-  memoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', width: '100%' },
-  memoryCard: {
-    width: '30%',
-    backgroundColor: colors.inset,
     borderWidth: 1.5,
-    borderColor: colors.borderLight,
-    borderRadius: 20,
-    paddingVertical: 16,
-    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderTopColor: 'rgba(255,255,255,0.7)',
+    borderBottomWidth: 3.5,
+    borderBottomColor: 'rgba(0,0,0,0.32)',
+  },
+  btnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnGhost: { backgroundColor: colors.glass, borderColor: colors.borderLight },
+
+  iconBtn: { backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', justifyContent: 'center' },
+  iconBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  iconBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  card: { backgroundColor: colors.glass, borderRadius: radius.lg, padding: 18, borderWidth: 1, overflow: 'hidden' },
+  cardGlow: { shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  cardSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: 120 },
+
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: radius.full, borderWidth: 1, alignSelf: 'flex-start' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.full, borderWidth: 1, paddingLeft: 5, alignSelf: 'flex-start' },
+
+  timer: { gap: 12, paddingVertical: 12, paddingHorizontal: 16, marginVertical: 2 },
+  timerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timerLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  timerIcon: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  timerLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 1.3 },
+  timerBadge: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  timerUnit: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+
+  input: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.inset, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16,
+  },
+
+  tabWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
+  tabBar: {
+    flexDirection: 'row',
     gap: 6,
+    padding: 6,
+    borderRadius: 36,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.38)',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.38,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 16,
   },
-  memoryCardActive: {
-    backgroundColor: alpha(colors.mint, 0.2),
-    borderColor: colors.mint,
-    shadowColor: colors.mint,
-    shadowOpacity: 0.8,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
-    transform: [{ scale: 1.06 }],
-  },
-  memoryName: { color: colors.muted, fontSize: 12.5, fontWeight: '700' },
-  stepBadge: {
+  tabIndicator: {
     position: 'absolute',
     top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.mint,
+    bottom: 6,
+    width: 100,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.75)',
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.5,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  indicatorSheen: {
+    position: 'absolute',
+    bottom: 3,
+    left: 14,
+    right: 14,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
+    shadowOpacity: 0.95,
+    shadowRadius: 4,
+  },
+  tabItem: {
+    width: 100,
+    paddingVertical: 9,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
     zIndex: 2,
   },
-  stepBadgeText: { color: '#05281A', fontSize: 13, fontWeight: '900' },
-
-  // Denge
-  balanceTrack: {
-    width: '100%',
-    height: 54,
-    backgroundColor: colors.inset,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 27,
-    position: 'relative',
-    justifyContent: 'center',
-    overflow: 'hidden',
+  tabLabel: {
+    fontSize: 10.5,
+    letterSpacing: 0.3,
   },
-  safeZone: {
-    position: 'absolute',
-    left: '35%',
-    width: '30%',
-    top: 0,
-    bottom: 0,
-    backgroundColor: alpha(colors.mint, 0.16),
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    borderColor: alpha(colors.mint, 0.5),
-  },
-  balancePointer: {
-    position: 'absolute',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    marginLeft: -13,
-    borderWidth: 3,
-    borderColor: '#fff',
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.cyan,
+    marginTop: -1,
+    shadowColor: colors.cyan,
     shadowOpacity: 0.9,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    shadowRadius: 4,
   },
-  nudgeRow: { flexDirection: 'row', gap: 12, width: '100%' },
 
-  // Ortak elemanlar
-  progressWrap: { gap: 8, marginTop: 2 },
-  progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusText: { color: colors.textSoft, fontSize: 16, fontWeight: '800' },
-  winnerCard: { alignItems: 'center', gap: 10, paddingVertical: 24, marginTop: 4 },
-  playerVoteCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 22,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 14,
+  backdrop: { flex: 1, backgroundColor: 'rgba(2,6,14,0.78)' },
+  dialog: {
+    backgroundColor: colors.glassStrong, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.borderLight,
+    width: '100%', maxWidth: 420, alignSelf: 'center', padding: 24, gap: 12, alignItems: 'center',
+    shadowColor: colors.cyan, shadowOpacity: 0.25, shadowRadius: 30, elevation: 16,
   },
-  playerVoteCardSelected: {
-    borderColor: alpha(colors.mint, 0.7),
-    backgroundColor: alpha(colors.mint, 0.1),
+  sheet: {
+    backgroundColor: '#0A1428', borderTopLeftRadius: 34, borderTopRightRadius: 34, borderWidth: 1, borderBottomWidth: 0,
+    borderColor: colors.borderLight, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 38, gap: 14,
   },
-  playerNickText: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  playerTeamText: { fontSize: 11, fontWeight: '700' },
-  voteRadio: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    backgroundColor: colors.inset,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voteRadioSelected: { borderColor: colors.mint, backgroundColor: colors.mint },
-  promptCard: { alignItems: 'center', gap: 12 },
-  prompt: { color: colors.text, fontSize: 22, fontWeight: '800', textAlign: 'center', lineHeight: 30 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  resName: { color: colors.text, fontWeight: '700', fontSize: 14 },
-  resPct: { fontWeight: '900', fontSize: 16 },
+  handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: 6 },
 
-  // Matematik ve sayı tahmini
-  correctAnswerCard: { alignItems: 'center', gap: 10, paddingVertical: 26, paddingHorizontal: 18, borderWidth: 2, borderColor: colors.mint },
-  correctAnswerHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  correctAnswerLabel: { color: colors.mint, fontSize: 18, fontWeight: '900', letterSpacing: 1.2 },
-  correctAnswerValue: { color: '#FFFFFF', fontSize: 64, lineHeight: 78, fontWeight: '900', textAlign: 'center', width: '100%' },
-  correctAnswerDifference: { color: colors.textSoft, fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: 4 },
-  mathDisplay: {
-    backgroundColor: colors.inset,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 56,
+  toast: {
+    position: 'absolute', left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(8,16,32,0.96)',
+    borderWidth: 1, paddingVertical: 13, paddingHorizontal: 18, borderRadius: radius.full,
+    shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 12,
   },
-  mathDisplayText: { fontSize: 28, fontWeight: '900', color: colors.cyan },
-  numPadGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  numPadKey: {
-    width: '30%',
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.inset,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numPadActionKey: {
-    backgroundColor: alpha(colors.cyan, 0.12),
-    borderColor: alpha(colors.cyan, 0.35),
-  },
-  numPadKeyText: { fontSize: 22, fontWeight: '800', color: colors.text },
-  guessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: alpha(colors.surface2, 0.45),
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  guessBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
+  toastText: { color: colors.text, fontWeight: '600', fontSize: 14, flex: 1 },
 });
-
