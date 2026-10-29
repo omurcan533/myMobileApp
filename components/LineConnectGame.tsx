@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, View } from 'react-native';
+import { PanResponder, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import { Card, Muted, Title, Btn } from './ui';
 
@@ -157,4 +157,4 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   <Btn title="Sıfırla" tone="ghost" icon="refresh" onPress={reset}/>
  </Card>;
 }
-const styles=StyleSheet.create({board:{width:'100%',maxWidth:390,aspectRatio:1,alignSelf:'center',borderRadius:16,overflow:'hidden',backgroundColor:'#0C1930',borderWidth:1,borderColor:'#36415A',touchAction:'none' as any}});
+const styles=StyleSheet.create({board:{width:'100%',maxWidth:390,aspectRatio:1,alignSelf:'center',borderRadius:16,overflow:'hidden',backgroundColor:'#0C1930',borderWidth:1,borderColor:'#36415A',...({touchAction:'none'} as unknown as ViewStyle)}});

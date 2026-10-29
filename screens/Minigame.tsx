@@ -213,7 +213,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {live && !isPreparing && mg.kind !== 'pong' && mg.kind !== 'tug_of_war' && (
           <TimerBar
             left={left}
-            total={mg.kind === 'tug_of_war' ? (mg.target_num||60)+3 : mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'pong' ? 300 : mg.kind === 'social_guess' ? 40 : 30}
+            total={mg.kind === 'survivor_memory' ? 109 : mg.kind === 'line_connect' ? 150 : mg.kind === 'song_complete' ? 65 : mg.kind === 'social_guess' ? 40 : 30}
             label="Kalan Süre"
             color={mode.color}
           />

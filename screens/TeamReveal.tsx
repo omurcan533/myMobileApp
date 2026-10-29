@@ -953,7 +953,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
-      <View style={s.content}>
+      <ScrollView style={{flex:1,minHeight:0}} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         {/* Header Row */}
         <View style={s.headerRow}>
           <View style={s.heading}>
@@ -1169,14 +1169,14 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
             </View>
           )}
         </View>
-      </View>
+      </ScrollView>
       {toast}
     </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  content: { flex: 1, justifyContent: 'flex-start', gap: 10, paddingBottom: 6 },
+  content: { flexGrow: 1, justifyContent: 'flex-start', gap: 10, paddingBottom: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heading: { flex: 1, alignItems: 'center', gap: 2, paddingTop: 2 },
   title: { color: colors.text, fontSize: 23, fontWeight: '900', textAlign: 'center' },

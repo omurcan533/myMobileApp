@@ -237,11 +237,11 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
                         show(changed ? 'Yeni mimar seçildi!' : 'Bu oyuncu zaten mimar.', 'success');
                       })
                     }
-                    style={[s.memberRow, isArch ? s.memberRowActive : s.memberRowInactive]}
+                    style={[s.memberRow,width<=430&&{flexDirection:'column',alignItems:'stretch',gap:8}, isArch ? s.memberRowActive : s.memberRowInactive]}
                   >
                     <View style={s.memberInfo}>
                       <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
-                      <Text style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}{p.id===me.id?' (Sen)':''}</Text>
+                      <Text numberOfLines={2} style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}{p.id===me.id?' (Sen)':''}</Text>
                     </View>
                     <Chip
                       size="sm"
@@ -310,6 +310,6 @@ const s = StyleSheet.create({
   },
   memberRowActive: { backgroundColor: alpha(colors.mint, 0.1), borderColor: alpha(colors.mint, 0.4) },
   memberRowInactive: { backgroundColor: colors.inset, borderColor: colors.border },
-  memberInfo: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  memberName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  memberInfo: { flexDirection: 'row', alignItems: 'center', gap: 10,minWidth:0 },
+  memberName: { flex:1,color: colors.text, fontSize: 15, fontWeight: '700' },
 });

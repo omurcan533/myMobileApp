@@ -9,6 +9,7 @@ export const TOTAL_QUESTIONS_BY_MODE: Record<GameMode, number> = {
   quick: 8,
   standard: 14,
   long: 20,
+  custom: 0,
 };
 
 /** Odanın oyun moduna göre toplam soru sayısını döndürür (varsayılan: 14). */

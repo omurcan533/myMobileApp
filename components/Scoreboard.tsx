@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, {memo} from 'react';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { CoinPill, Avatar, GemIcon, RoomExitButton, Text } from './ui';
@@ -9,7 +9,9 @@ import { totalQuestionsForRoom } from '../lib/selectors';
 import type { Ctx, Side } from '../lib/types';
 
 /** Canlı takip: iki takımın anlık puanı, topladığı parçalar ve kredisi (Fantasy kart tarzı HUD). */
-export function Scoreboard({ ctx }: { ctx: Ctx }) {
+export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
+  const {width,height}=useWindowDimensions();
+  const compact=width<=430||height<740;
   const { data, me, catalog } = ctx;
   const hasOpenRound = data.rounds.some((round) => round.status === 'open');
   const hasResolvedRound = data.rounds.some((round) => round.status === 'resolved');
@@ -45,8 +47,9 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
               key={side}
               style={[
                 s.box,
+                compact&&{padding:8,gap:5,borderRadius:15,minWidth:0},
                 { borderColor: alpha(tColor, mine ? 0.7 : 0.28), shadowColor: tColor, shadowOpacity: mine ? 0.4 : 0.12 },
-                mine ? [s.mineBox, { borderColor: tColor }] : s.opponentBox,
+                mine ? [s.mineBox, { borderColor: tColor,borderWidth:compact?2:4 }] : s.opponentBox,
               ]}
             >
               <LinearGradient
@@ -56,7 +59,7 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
                 style={StyleSheet.absoluteFill}
               />
               <View style={s.head}>
-                <Avatar source={teamMascot(side)} size={38} ring={tColor} />
+                <Avatar source={teamMascot(side)} size={compact?28:38} ring={tColor} />
                 <View style={{ flex: 1 }}>
                   <Text numberOfLines={1} style={[s.teamText, { color: tColor }]}>
                     {teamName(side)}
@@ -70,7 +73,7 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
                 </View>
               </View>
 
-              {mine && (
+              {mine && !compact && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.memberList}>
                   {teammates.map((player) => (
                     <View key={player.id} style={[s.memberChip, player.id === me.id && s.memberSelf]}>
@@ -85,12 +88,12 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
 
               <View style={s.scoreRow}>
                 <GemIcon size={20} color={tColor} />
-                <Text display style={s.score}>{t?.score ?? 0}</Text>
+                <Text display style={[s.score,compact&&{fontSize:24,lineHeight:28}]}>{t?.score ?? 0}</Text>
                 <Text style={s.scoreUnit}>puan</Text>
               </View>
 
-              <View style={s.subRow}>
-                <View style={s.piecesContainer}>
+              <View style={[s.subRow,compact&&{flexDirection:'row',alignItems:'center',gap:4}]}>
+                <View style={[s.piecesContainer,compact&&{flex:1,minWidth:0,paddingHorizontal:4}]}>
                   <Text style={s.pieces} numberOfLines={1}>
                     {pieces.length ? pieces.map((p) => catalog[p.piece_id]?.emoji ?? '❔').join(' ') : '—'}
                   </Text>
@@ -118,7 +121,7 @@ export function Scoreboard({ ctx }: { ctx: Ctx }) {
       </View>
     </View>
   );
-}
+});
 
 const s = StyleSheet.create({
   wrap: { marginBottom: 10 },

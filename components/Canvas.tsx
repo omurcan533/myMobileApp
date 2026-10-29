@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, GestureResponderEvent, PanResponder, PanResponderGestureState, Pressable, ScrollView, StyleSheet, View,
+  Animated, GestureResponderEvent, PanResponder, PanResponderGestureState, Pressable, ScrollView, StyleSheet, View, ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -125,7 +125,7 @@ function ItemView(props: ItemProps) {
   return (
     <View
       {...pr.panHandlers}
-      style={{ touchAction: 'none', position: 'absolute', left: tf.x * size - outer / 2, top: tf.y * size - outer / 2, width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }}
+      style={[{touchAction:'none'} as unknown as ViewStyle,{ position: 'absolute', left: tf.x * size - outer / 2, top: tf.y * size - outer / 2, width: outer, height: outer, alignItems: 'center', justifyContent: 'center' }]}
     >
       <View
         style={{

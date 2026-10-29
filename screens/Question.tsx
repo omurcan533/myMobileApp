@@ -90,6 +90,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
 
     return (
       <Screen>
+        <ScrollView style={{flex:1,minHeight:0}} contentContainerStyle={{flexGrow:1,paddingBottom:16}} keyboardShouldPersistTaps="handled">
         <Scoreboard ctx={ctx} />
         <View style={s.briefingWrap}>
           <Card accent={roundColor} style={s.briefingCard}>
@@ -133,6 +134,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             )}
           </Card>
         </View>
+        </ScrollView>
         {room.paused && (
           <View style={s.paused}>
             <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
@@ -642,8 +644,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  briefingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 },
-  briefingCard: { width: '100%', maxWidth: 420, alignItems: 'center', gap: 12, paddingVertical: 24 },
+  briefingWrap: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 2 },
+  briefingCard: { width: '100%', maxWidth: 420, alignItems: 'center', gap: 10, paddingVertical: 16 },
   briefingCountdown: { color: colors.text, fontSize: 64, fontWeight: '900', lineHeight: 72 },
 
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
