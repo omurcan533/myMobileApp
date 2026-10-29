@@ -17,8 +17,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  const [localProgress,setLocalProgress]=useState<Progress|null>(null);
  const [flipped,setFlipped]=useState<Reveal|null>(null);
  const [revealedRows,setRevealedRows]=useState<Record<number,Reveal>>({});
- const [animationBusy,setAnimationBusy]=useState(false);
- const flipScale=React.useRef(new Animated.Value(1)).current;
+ const requestBusy=React.useRef(false);
  const flash=React.useRef(new Animated.Value(0)).current;
  const animationRef=React.useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>()=>{if(animationRef.current)clearTimeout(animationRef.current)},[]);
@@ -62,7 +61,8 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   }
  },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
  const choose=async(col:number)=>{
-  if(!live||paused||previewing||!isCaptain||busy||animationBusy||(own?.row??0)>=7)return;
+  if(!live||paused||previewing||!isCaptain||requestBusy.current||(own?.row??0)>=7)return;
+  requestBusy.current=true;
   setBusy(true);
   try{
    const result=await api.survivorChoose(id,col);
@@ -70,28 +70,26 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    const reveal=result.reveal;
    if(reveal){
     setRevealedRows(prev=>reveal.outcome==='red'?{}:reveal.outcome==='white'?(Object.fromEntries(Object.entries(prev).filter(([row])=>Number(row)<result.row)) as Record<number,Reveal>):{...prev,[reveal.row]:reveal});
-    setAnimationBusy(true);
     setFlipped(reveal);
-    flipScale.setValue(0.8);
-    Animated.spring(flipScale,{toValue:1,useNativeDriver:true,friction:5}).start();
     if(reveal.outcome!=='green'){
      flash.setValue(0);
      Animated.sequence([
-      Animated.timing(flash,{toValue:1,duration:130,useNativeDriver:false}),
-      Animated.timing(flash,{toValue:0,duration:450,useNativeDriver:false}),
+      Animated.timing(flash,{toValue:1,duration:80,useNativeDriver:true}),
+      Animated.timing(flash,{toValue:0,duration:180,useNativeDriver:true}),
      ]).start();
     }
     setFeedback(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! Bir önceki sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!');
     if(animationRef.current)clearTimeout(animationRef.current);
-    animationRef.current=setTimeout(()=>{setFlipped(null);setAnimationBusy(false)},1100);
+    animationRef.current=setTimeout(()=>setFlipped(null),200);
    }
-  }catch(e){onError?.((e as Error).message)}finally{setBusy(false)}
+  }catch(e){onError?.((e as Error).message)}finally{requestBusy.current=false;setBusy(false)}
  };
  return <Card style={{gap:12}}>
   <Title size={23}>Survivor Hafıza Parkuru</Title>
   <Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.</Muted>
   {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!startsAt?'Başlaması bekleniyor':isCaptain?'Sıra sende, kaptan!':'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
-  <Animated.View style={[styles.grid,{transform:[{scale:flipScale}],backgroundColor:flash.interpolate({inputRange:[0,1],outputRange:['transparent','#A82D41']})}]}>
+  <View style={styles.grid}>
+   <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'#A82D41',opacity:flash}]}/>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
     const visible=previewing&&preview;
     const rowReveal=flipped?.row===row?flipped:revealedRows[row];
@@ -99,14 +97,14 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     const revealRow=!!rowReveal;
     const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):wrongSelection?(rowReveal?.selectedCol===col?(rowReveal.outcome==='white'?'#F4F6FA':'#E65869'):'#2D4262'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
-    return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||animationBusy||!live||paused}
-      onPress={()=>choose(col)}
+    return <Pressable key={row+'-'+col} disabled={!current||previewing||!isCaptain||busy||!live||paused}
+      onPressIn={()=>choose(col)}
       style={[styles.tile,{backgroundColor:color,borderColor:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?'#B9FF68':current&&!previewing?'#9BE7FF':'#4B6382',borderWidth:rowReveal?.selectedCol===col&&rowReveal.outcome==='green'?4:2,opacity:1}]}>
       {revealRow&&rowReveal?.selectedCol===col?<Text style={[styles.symbol,{color:rowReveal?.outcome==='white'?'#15233B':'#fff'}]}>{rowReveal?.outcome==='green'?'✓':'✕'}</Text>:null}
       {previewing&&preview?.whiteRow===row&&preview.whiteCol===col?<Text style={{color:'#102039',fontWeight:'bold'}}>★</Text>:null}
     </Pressable>
    }))}
-  </Animated.View>
+  </View>
   <Text style={styles.notice}>Takımın: {Math.min(7,own?.row??0)}/7 · Rakip: {Math.min(7,opponent?.row??0)}/7</Text>
   {feedback?<Text style={[styles.notice,{color:flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{feedback}</Text>:null}
   {busy?<ActivityIndicator/>:null}

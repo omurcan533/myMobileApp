@@ -146,6 +146,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       </View>
 
       {/* ================= TUVAL / STÜDYO ALANI ================= */}
+      {me.is_captain&&<Btn title="Mimarı Seç / Değiştir" icon="construct" onPress={()=>setOpen(true)} style={{marginBottom:12}}/>}
       <View style={s.canvasContainer}>
         <CanvasStudio ctx={ctx} size={size} onDraggingChange={setDraggingPiece} />
       </View>
@@ -218,34 +219,35 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
         {/* Mimar Seçimi Kartı */}
         {mates.length > 1 && (
           <Card style={{ gap: 12 }}>
-            <Eyebrow icon="construct" color={colors.muted}>Mimarı seç (takım çoğunluk oyu)</Eyebrow>
+            <Eyebrow icon="construct" color={colors.muted}>Mimarı takım kaptanı seçer</Eyebrow>
+            <Muted>{me.is_captain?'Kendin dahil takımından birini seçebilirsin.':'Mimarı takım kaptanın değiştirebilir.'}</Muted>
             <View style={{ gap: 10 }}>
               {mates.map((p) => {
                 const isArch = p.is_architect;
                 return (
                   <Tap
                     key={p.id}
-                    disabled={isArch}
+                    disabled={isArch||!me.is_captain}
                     color={alpha(colors.mint, 0.3)}
                     accent={colors.mint}
                     scaleTo={0.96}
                     onPress={() =>
                       guard(async () => {
                         const changed = await api.voteArchitect(data.room.id, p.id);
-                        show(changed ? 'Yeni Mimar seçildi!' : 'Oyun kaydedildi', 'success');
+                        show(changed ? 'Yeni mimar seçildi!' : 'Bu oyuncu zaten mimar.', 'success');
                       })
                     }
                     style={[s.memberRow, isArch ? s.memberRowActive : s.memberRowInactive]}
                   >
                     <View style={s.memberInfo}>
                       <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
-                      <Text style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}</Text>
+                      <Text style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}{p.id===me.id?' (Sen)':''}</Text>
                     </View>
                     <Chip
                       size="sm"
                       color={isArch ? colors.mint : colors.muted}
                       icon={isArch ? 'construct' : 'hand-right'}
-                      label={isArch ? 'Aktif Mimar' : 'Oy Ver'}
+                      label={isArch ? 'Aktif Mimar' : me.is_captain?'Mimar Seç':'Oyuncu'}
                     />
                   </Tap>
                 );

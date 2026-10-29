@@ -42,6 +42,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   // never shift the user's viewport while they are controlling a paddle.
   const [busy, setBusy] = useState(false);
   const [tugDuration,setTugDuration]=useState<30|60|90|120>(60);
+  const [mathSelection,setMathSelection]=useState<{id:string;count:1|3|5}|null>(null);
   const { toast, show } = useToast();
   const resultSoundId = useRef<string | null>(null);
   useEffect(() => {
@@ -70,6 +71,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const mine = entries.find((e) => e.player_id === me.id);
   const live = mg.status === 'live';
   const isPreparing = live && !mg.starts_at;
+  const mathCount=mathSelection?.id===mg.id?mathSelection.count:mg.math_state?.count;
+  const mathIndex=mg.math_state?.index??1;
   const goAt = mg.starts_at ? Date.parse(mg.starts_at) : 0;
   const go = !isPreparing && (mg.starts_at ? now >= goAt : false);
   const total = data.players.length;
@@ -143,6 +146,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     try {
       if(mg.kind==='tug_of_war')await api.minigameTugDuration(mg.id,tugDuration);
+      if(mg.kind==='math_guess'&&mathIndex===1){
+        if(!mathCount)throw new Error('Önce 1, 3 veya 5 soru seç.');
+        await api.configureMathQuestions(mg.id,mathCount);
+      }
       await api.confirmBriefing(data.room.id);
     } catch (error) {
       show((error as Error).message, 'error');
@@ -168,7 +175,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     mg.kind === 'tug_of_war' ? 'İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.'
     : mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
     : mg.kind === 'song_complete' ? '75 popüler Türkçe şarkıdan biri seçilir. Sanatçıya ve şarkı adının eksik kısmına bakarak şarkının tam adını yaz. Oyuncular doğru cevabı bulana kadar tekrar deneyebilir. İlk doğru yanıt veren takım +2 puan ve bonus parça kazanır. Süre 65 saniyedir.'
-    : mg.kind === 'line_connect' ? 'İki takım aynı 6×6 bulmacayı çözer. Aynı renkli noktaları birbirine bağla, çizgiler kesişemez ve diğer renklerin noktalarından geçemez. İlk hatasız bitiren takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
+    : mg.kind === 'line_connect' ? 'İki takım aynı bulmacayı çözer. Parmağını sürükleyerek aynı renkli noktaları birleştir. Çizgiler kesişemez ve başka renklerin noktalarından geçemez. Tüm çiftleri ilk hatasız tamamlayan takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
     : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
@@ -217,6 +224,11 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Eyebrow live color={mode.color} dot={mode.color}>Oyun Açıklaması</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
+            {mg.kind==='math_guess'&&<View style={{gap:10}}>
+              <Title size={19}>{mathIndex===1?'Kaç tahmin sorusu oynansın?':`Soru ${mathIndex} / ${mg.math_state?.count??1}`}</Title>
+              {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900'}}>{count} soru</Text></Pressable>)}</View>:mathIndex===1?<Muted>Oda kurucusu 1, 3 veya 5 soru seçecek.</Muted>:null}
+              <Muted>Her sorunun ayrı tahmin süresi ve sonucu var.</Muted>
+            </View>}
             {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
             {me.is_host ? (
               <Btn
@@ -224,7 +236,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
                 icon={canContinueBriefing ? 'play' : 'hourglass'}
                 tone={canContinueBriefing ? 'success' : 'ghost'}
                 size="lg"
-                disabled={!canContinueBriefing || busy || data.room.paused}
+                disabled={!canContinueBriefing || busy || data.room.paused || (mg.kind==='math_guess'&&mathIndex===1&&!mathCount)}
                 loading={busy}
                 onPress={startMinigame}
                 style={{ alignSelf: 'stretch', marginTop: 6 }}
@@ -261,9 +273,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           }} />
         ) : mg.kind === 'math_guess' ? (
           <MathGuessGame
+            key={mg.id}
             ctx={ctx}
             entries={entries}
-            prompt={mg.prompt ?? 'Sayıyı tahmin et'}
+            prompt={`${mg.math_state?`Soru ${mathIndex}/${mg.math_state.count} · `:''}${mg.prompt ?? 'Sayıyı tahmin et'}`}
             targetNum={mg.target_num ?? null}
             live={live}
             mineGuess={mine?.guess_num ?? null}

@@ -136,17 +136,17 @@ const threeWinners=event?.prompt?.includes('3 kişi')?[...players].sort((a,b)=>c
 const submit=(target:string|null,txt:string|null=null)=>run(()=>api.partyEventVote(event.id,target,txt));
 const finish=()=>run(()=>api.partyEventFinish(event.id));
 const secretCard=mission?(missionOpen ?
- <Card style={{gap:9,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',width:'100%'}}>
-  <Pressable accessibilityRole="button" onPress={()=>setMissionOpen(false)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5}}>
+ <Pressable accessibilityRole="button" accessibilityLabel="Gizli görevi gizle" onPress={()=>setMissionOpen(false)} style={{width:'100%'}}><Card style={{gap:9,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',width:'100%'}}>
+  <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingVertical:5}}>
    <Text style={{color:'#F1E5FF',fontSize:17,fontWeight:'900'}}>🕵️ Gizli Görevin {mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
    <Text style={{color:'#D4B8FF',fontWeight:'800'}}>Gizle ▲</Text>
-  </Pressable>
+  </View>
   <View style={{gap:10}}>
    <Text style={{color:'#FFFFFF',fontSize:15,lineHeight:23}}>{PARTY_MISSIONS[mission.key]??'Gizli görev'}</Text>
    <Muted>Görevini kimseye gösterme! Oyun boyunca deneyebilirsin. Başardığını kendin işaretlersin; puan verilmez, finalde açıklanır. İstediğin zaman pas geçebilirsin.</Muted>
    {mission.status==='active'?<View style={{gap:8}}><Btn title={missionBusy?'Kaydediliyor…':'✓ Görevi Başardım'} disabled={missionBusy} onPress={()=>finishMission('done')}/><Btn title="Pas Geç" tone="ghost" disabled={missionBusy} onPress={()=>finishMission('skipped')}/></View>:<Text style={{color:'#B8FFD9',fontWeight:'800'}}>{mission.status==='done'?'🎉 Tamamlandı! Finalde herkes öğrenecek.':'Görev pas geçildi.'}</Text>}
   </View>
- </Card>
+ </Card></Pressable>
  :<Pressable accessibilityRole="button" accessibilityLabel="Gizli görevi göster" onPress={()=>setMissionOpen(true)} style={{alignSelf:'flex-end',marginRight:145,flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:12,paddingVertical:9,borderRadius:22,backgroundColor:'#18253D',borderWidth:1,borderColor:'#7057A6',shadowColor:'#000',shadowOpacity:0.22,shadowRadius:8,elevation:6}}>
   <Text style={{fontSize:14}}>🕵️</Text>
   <Text style={{color:'#F1E5FF',fontSize:12,fontWeight:'900'}}>Gizli Görev</Text>

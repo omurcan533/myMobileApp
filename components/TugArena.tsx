@@ -1,7 +1,8 @@
 import React from 'react';
 import Svg,{Defs,LinearGradient,Stop,Rect,Circle,Path,Line,G,Ellipse,Polygon,Text as SvgText} from 'react-native-svg';
+import {colors} from '../lib/theme';
 
-const BLUE='#4BC7FF',RED='#FF698B';
+const BLUE=colors.teamA,RED=colors.teamB;
 function Fighter({x,side,step,effort,slip}:{x:number;side:'A'|'B';step:number;effort:number;slip:number}){
  const flip=side==='B';
  const color=flip?RED:BLUE;
@@ -31,7 +32,7 @@ export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:numbe
  // Kuvvet farkı büyüdükçe ilerleme yavaşlar; 200-300 puanda arena dolmaz.
  // tanh eğrisi asimptotik olarak yaklaşır, asla aniden %100'e kilitlenmez.
  const advantage=Math.tanh(diff/1000);
- const shift=advantage*60;
+ const shift=-advantage*60;
  const move=shift;
  const step=time/240;
  const strength=Math.min(1,magnitude/1300);
@@ -68,13 +69,13 @@ export function TugArena({blue,red,time,wide}:{blue:number;red:number;time:numbe
    <Circle cx="360" cy="116" r="7" fill="#F9DE92" stroke="#6B4527" strokeWidth="3"/>
   </G>
   {strength>0.08&&[145,230,490,575].map((x,i)=>{const slip=i<2?blueSlip:redSlip;const puff=(Math.sin(step*1.7+i*1.8)+1)/2;return <G key={i} opacity={Math.min(.65,(.12+slip*.5+strength*.15)*puff)}><Ellipse cx={x+move+(i<2?8:-8)} cy={194-puff*12} rx={8+puff*9} ry={4+puff*5} fill="#C8B7A1"/><Circle cx={x+move+(i<2?19:-19)} cy={185-puff*16} r={2+puff*4} fill="#D9C3A2"/></G>;})}
-  <Rect x="16" y="12" width="125" height="36" rx="12" fill="#0D355A" stroke={BLUE} strokeWidth="2"/>
-  <SvgText x="78" y="36" fill="#E5F7FF" fontSize="18" fontWeight="900" textAnchor="middle">MAVİ {blue}</SvgText>
-  <Rect x="579" y="12" width="125" height="36" rx="12" fill="#57263A" stroke={RED} strokeWidth="2"/>
-  <SvgText x="641" y="36" fill="#FFE5EC" fontSize="18" fontWeight="900" textAnchor="middle">KIRMIZI {red}</SvgText>
+  <Rect x="16" y="12" width="125" height="36" rx="12" fill="#542238" stroke={BLUE} strokeWidth="2"/>
+  <SvgText x="78" y="36" fill={BLUE} fontSize="18" fontWeight="900" textAnchor="middle">A: {blue}</SvgText>
+  <Rect x="579" y="12" width="125" height="36" rx="12" fill="#0D355A" stroke={RED} strokeWidth="2"/>
+  <SvgText x="641" y="36" fill={RED} fontSize="18" fontWeight="900" textAnchor="middle">B: {red}</SvgText>
   <Rect x="232" y="18" width="256" height="16" rx="8" fill="#111D2E" stroke="#8398A7" strokeWidth="1"/>
   <Rect x="360" y="21" width={Math.max(0,120*intensity)} height="10" rx="4" fill={diff>=0?BLUE:RED} transform={diff>=0?`translate(${-120*intensity},0)`:undefined}/>
   <Line x1="360" y1="16" x2="360" y2="37" stroke="#FFF0B0" strokeWidth="3"/>
-  <SvgText x="360" y="62" fill="#FFE9AF" fontSize="14" fontWeight="800" textAnchor="middle">{diff===0?'DENGE':diff>0?'◀ MAVİ ÜSTÜN':'KIRMIZI ÜSTÜN ▶'}</SvgText>
+  <SvgText x="360" y="62" fill="#FFE9AF" fontSize="14" fontWeight="800" textAnchor="middle">{diff===0?'BERABERE':diff>0?'◀ TAKIM A ÖNDE':'TAKIM B ÖNDE ▶'}</SvgText>
  </Svg>;
 }

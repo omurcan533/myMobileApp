@@ -154,6 +154,7 @@ export interface Minigame {
   prompt: string | null;
   target_num?: number | null;
   pong_state?: Record<string, any> | null;
+  math_state?: {count:1|3|5;index:number;prompts:string[]} | null;
   line_connect_state?: Record<string, any> | null;
   survivor_state?: Record<string, any> | null;
   status: 'pending' | 'live' | 'done';
