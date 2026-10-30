@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +30,7 @@ import type { Ctx, MinigameEntry, Player, Side } from '../lib/types';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function MinigameScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me } = ctx;
   const originalMg = latestMinigame(data.minigames);
   const [pongShortcut,setPongShortcut]=useState<PongShortcutState|null>(null);
@@ -67,8 +69,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         <Scoreboard ctx={ctx} />
         <View style={s.center}>
           <View style={s.bigIcon}><Ionicons name="happy" size={40} color={colors.magenta} /></View>
-          <Title size={26}>Devre Arası!</Title>
-          <Muted>Mini oyun hazırlanıyor…</Muted>
+          <Title size={26}>{translate("Devre Arası!")}</Title>
+          <Muted>{translate("Mini oyun hazırlanıyor…")}</Muted>
         </View>
       </Screen>
     );
@@ -225,13 +227,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {isPreparing ? (
           <Card accent={mode.color} style={s.briefingCard}>
-            <Eyebrow live color={mode.color} dot={mode.color}>Oyun Açıklaması</Eyebrow>
+            <Eyebrow live color={mode.color} dot={mode.color}>{translate("Oyun Açıklaması")}</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
             {mg.kind==='math_guess'&&<View style={{gap:10}}>
               <Title size={19}>{mathIndex===1?'Kaç tahmin sorusu oynansın?':`Soru ${mathIndex} / ${mg.math_state?.count??1}`}</Title>
-              {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count} soru</Text></Pressable>)}</View>:mathIndex===1?<Muted>Oda kurucusu 1, 3 veya 5 soru seçecek.</Muted>:null}
-              <Muted>Her sorunun ayrı tahmin süresi ve sonucu var.</Muted>
+              {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count} soru</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
+              <Muted>{translate("Her sorunun ayrı tahmin süresi ve sonucu var.")}</Muted>
             </View>}
             {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
             {me.is_host ? (
@@ -248,7 +250,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             ) : (
               <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <ActivityIndicator size="small" color={mode.color} />
-                <Muted style={{ textAlign: 'center' }}>Kuralları okuyabilirsin. Oyun yöneticisi Oyunu Başlat dediğinde 3 saniyelik geri sayım başlayacak.</Muted>
+                <Muted style={{ textAlign: 'center' }}>{translate("Kuralları okuyabilirsin. Oyun yöneticisi Oyunu Başlat dediğinde 3 saniyelik geri sayım başlayacak.")}</Muted>
               </View>
             )}
           </Card>
@@ -256,10 +258,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           <View style={{gap:12}}>
            <TugOfWar key={mg.id} main paused={data.room.paused} pausedAt={data.room.paused_at} event={{...mg,created_at:mg.starts_at}} players={data.players} myId={me.id} isHost={me.is_host}/>
            {!live&&<Card style={{gap:12}}>
-            <Title size={21}>🔁 Rövanş süresi</Title>
-            <Muted>Yeniden oynamak için yeni bir süre seçebilirsin.</Muted>
+            <Title size={21}>{translate("🔁 Rövanş süresi")}</Title>
+            <Muted>{translate("Yeniden oynamak için yeni bir süre seçebilirsin.")}</Muted>
             {me.is_host?<><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{([30,60,90,120] as const).map(seconds=><Pressable key={seconds} onPress={()=>setTugDuration(seconds)} style={{padding:12,borderRadius:12,borderWidth:2,borderColor:tugDuration===seconds?'#7BF4C5':'#50627A',backgroundColor:tugDuration===seconds?'#166B59':'#25354B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{seconds} sn</Text></Pressable>)}</View>
-            <Btn title={busy?'Başlatılıyor…':`🔁 Tekrar Oyna · ${tugDuration} sn`} disabled={busy} onPress={async()=>{setBusy(true);try{await api.minigameTugReplay(mg.id,tugDuration);}catch(e){show((e as Error).message,'error');}finally{setBusy(false);}}}/></>:<Muted>Oda kurucusu yeni tur başlatabilir.</Muted>}
+            <Btn title={busy?'Başlatılıyor…':`🔁 Tekrar Oyna · ${tugDuration} sn`} disabled={busy} onPress={async()=>{setBusy(true);try{await api.minigameTugReplay(mg.id,tugDuration);}catch(e){show((e as Error).message,'error');}finally{setBusy(false);}}}/></>:<Muted>{translate("Oda kurucusu yeni tur başlatabilir.")}</Muted>}
            </Card>}
           </View>
         ) : mg.kind === 'pong' ? (
@@ -367,7 +369,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {/* Katılım Durumu */}
         {mg.kind !== 'pong' && <View style={s.progressWrap}>
           <View style={s.progressHead}>
-            <Eyebrow icon="people" color={colors.muted}>Tamamlayan</Eyebrow>
+            <Eyebrow icon="people" color={colors.muted}>{translate("Tamamlayan")}</Eyebrow>
             <Text display style={s.statusText}>{entries.length} / {total}</Text>
           </View>
           <ProgressBar pct={total ? entries.length / total : 0} colors={gradients.success} height={8} />
@@ -397,11 +399,11 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
-            <Eyebrow icon="eye" color={colors.cyan}>Mini oyun sonuçları</Eyebrow>
+            <Eyebrow icon="eye" color={colors.cyan}>{translate("Mini oyun sonuçları")}</Eyebrow>
             {mg.kind==='survivor_memory'&&(me.is_host?
               <Btn title="Tekrar Oyna" icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
-              :<Muted>Oda kurucusu yeni bir parkurla tekrar oynatabilir.</Muted>)}
+              :<Muted>{translate("Oda kurucusu yeni bir parkurla tekrar oynatabilir.")}</Muted>)}
             {me.is_host ? (
              <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
               <Btn
@@ -415,7 +417,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               />
              </View>
             ) : (
-              <Muted style={{ textAlign: 'center' }}>Sonraki oyun için kurucu bekleniyor.</Muted>
+              <Muted style={{ textAlign: 'center' }}>{translate("Sonraki oyun için kurucu bekleniyor.")}</Muted>
             )}
           </Card>
         )}
@@ -426,8 +428,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       {data.room.paused && (
         <View style={s.paused}>
           <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
-          <Title size={26}>Mini Oyun Duraklatıldı</Title>
-          <Muted>Kaptanlardan biri devam ettirebilir.</Muted>
+          <Title size={26}>{translate("Mini Oyun Duraklatıldı")}</Title>
+          <Muted>{translate("Kaptanlardan biri devam ettirebilir.")}</Muted>
           {me.is_captain && (
             <Btn title="Devam Et" icon="play" tone="success" disabled={busy} onPress={togglePause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
           )}
@@ -453,7 +455,7 @@ function ReflexResults({ title, players, entries, winnerSide }: {
   return (
     <Card accent={colors.cyan} style={{ gap: 10 }}>
       <SectionLabel>{title}</SectionLabel>
-      <Muted>En düşük takım ortalaması kazanır. Yanıt vermeyen oyuncu 30 sn olarak hesaplanır.</Muted>
+      <Muted>{translate("En düşük takım ortalaması kazanır. Yanıt vermeyen oyuncu 30 sn olarak hesaplanır.")}</Muted>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {teamResults.map(({ side, average }) => {
           const color = teamColor(side);
@@ -766,7 +768,7 @@ function BalanceGame({
       {/* Denge İlerleme Sayacı */}
       <View style={{ width: '100%', gap: 6 }}>
         <View style={s.progressHead}>
-          <Eyebrow color={colors.muted}>Denge ilerlemesi</Eyebrow>
+          <Eyebrow color={colors.muted}>{translate("Denge ilerlemesi")}</Eyebrow>
           <Text display style={s.statusText}>%{score}</Text>
         </View>
         <ProgressBar pct={score / 100} colors={gradients.success} height={10} duration={120} />
@@ -875,7 +877,7 @@ function SocialGuess({
         </ScrollView>
       ) : (
         <Card style={{ gap: 14 }}>
-          <Title size={20}>Oylama Sonuçları</Title>
+          <Title size={20}>{translate("Oylama Sonuçları")}</Title>
           {counts.sort((a, b) => b.n - a.n).map(({ p, n }) => {
             const pct = Math.round((n / totalVotes) * 100);
             const tColor = teamColor(p.team_side);
@@ -957,7 +959,7 @@ function MathGuessGame({
           <Ionicons name="calculator" size={28} color={colors.cyan} />
         </View>}
         <Text display style={s.prompt}>{prompt}</Text>
-        {!compact&&<Muted>Doğru yanıta en yakın tahmini yapan takım bonus kazanır!</Muted>}
+        {!compact&&<Muted>{translate("Doğru yanıta en yakın tahmini yapan takım bonus kazanır!")}</Muted>}
       </Card>
 
       {/* Sonuç açıklandığında doğru yanıt tüm oyuncular için en üstte görünür. */}
@@ -965,12 +967,12 @@ function MathGuessGame({
         <Card accent={colors.mint} style={s.correctAnswerCard}>
           <View style={s.correctAnswerHeading}>
             <Ionicons name="checkmark-circle" size={24} color={colors.mint} />
-            <Text style={s.correctAnswerLabel}>DOĞRU CEVAP</Text>
+            <Text style={s.correctAnswerLabel}>{translate("DOĞRU CEVAP")}</Text>
           </View>
           <Text display adjustsFontSizeToFit numberOfLines={1} style={s.correctAnswerValue}>
             {targetNum.toLocaleString('tr-TR')}
           </Text>
-          <Muted style={{ textAlign: 'center' }}>Sorunun gerçek yanıtı</Muted>
+          <Muted style={{ textAlign: 'center' }}>{translate("Sorunun gerçek yanıtı")}</Muted>
           {mineGuess !== null && (
             <Text style={s.correctAnswerDifference}>
               Senin tahminin: {mineGuess.toLocaleString('tr-TR')}  ·  Fark: {Math.abs(mineGuess - targetNum).toLocaleString('tr-TR')}
@@ -985,7 +987,7 @@ function MathGuessGame({
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(colors.mint, 0.16), alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark-circle" size={28} color={colors.mint} />
           </View>
-          <Eyebrow color={colors.mint}>Tahminin Alındı</Eyebrow>
+          <Eyebrow color={colors.mint}>{translate("Tahminin Alındı")}</Eyebrow>
           <Text display style={{ fontSize: 36, color: colors.text, fontWeight: '900' }}>
             {mineGuess}
           </Text>
@@ -998,7 +1000,7 @@ function MathGuessGame({
           {/* Giriş Ekranı */}
           <View style={[s.mathDisplay,compact&&{padding:6,minHeight:44}]}>
             <Text display style={s.mathDisplayText}>
-              {val || <Text style={{ color: colors.muted }}>Tahminini gir…</Text>}
+              {val || <Text style={{ color: colors.muted }}>{translate("Tahminini gir…")}</Text>}
             </Text>
           </View>
 
@@ -1035,15 +1037,15 @@ function MathGuessGame({
       ) : (
         <Card accent={colors.gold} style={{ alignItems: 'center', gap: 8 }}>
           <Ionicons name="time" size={28} color={colors.gold} />
-          <Title size={20}>Süre Doldu</Title>
-          <Muted>Doğru cevap yukarıda gösteriliyor.</Muted>
+          <Title size={20}>{translate("Süre Doldu")}</Title>
+          <Muted>{translate("Doğru cevap yukarıda gösteriliyor.")}</Muted>
         </Card>
       )}
 
       {/* Diğer Tahminler & Oyuncu Durumu */}
       <Card style={{ gap: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <SectionLabel>Tüm Tahminler</SectionLabel>
+          <SectionLabel>{translate("Tüm Tahminler")}</SectionLabel>
           <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '700' }}>
             {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} Cevap
           </Text>
