@@ -819,10 +819,10 @@ function SocialGuess({
   return (
     <View style={{ gap: 14 }}>
       <Card accent={colors.violet} style={[s.promptCard,area.active&&{padding:10,gap:6}]}>
-        <Chip icon="chatbubbles" label="Grup oylaması" color={colors.violet} />
+        <Chip icon="chatbubbles" label={translate("Grup oylaması")} color={colors.violet} />
         <ScrollView nestedScrollEnabled style={{maxHeight:Math.max(70,Math.min(140,area.height-330))}}><Text display style={[s.prompt,area.active&&{fontSize:18,lineHeight:24}]}>{prompt}</Text></ScrollView>
         <Muted style={{ textAlign: 'center' }}>
-          Kendin dahil herkese oy verebilirsin.
+          {translate("Kendin dahil herkese oy verebilirsin.")}
         </Muted>
       </Card>
 
@@ -851,10 +851,10 @@ function SocialGuess({
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text numberOfLines={2} style={[s.playerNickText,area.active&&{fontSize:12}]}>
-                      {p.nickname}{isMe ? ' (Sen)' : ''}
+                      {p.nickname}{isMe ? translate(' (Sen)') : ''}
                     </Text>
                     {pHasVoted && (
-                      <Chip label="Oy Verdi" color={colors.mint} size="sm" icon="checkmark-circle" />
+                      <Chip label={translate("Oy Verdi")} color={colors.mint} size="sm" icon="checkmark-circle" />
                     )}
                   </View>
                   <Text style={[s.playerTeamText, { color: tColor }]}>
@@ -864,7 +864,7 @@ function SocialGuess({
                 {mineTarget && (
                   <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
                     <Text display style={{ color: pVotes > 0 ? colors.cyan : colors.muted, fontSize: 13, fontWeight: '700' }}>
-                      {pVotes} oy
+                      {pVotes} {translate("oy")}
                     </Text>
                   </View>
                 )}
@@ -886,7 +886,7 @@ function SocialGuess({
                 <View style={s.rowBetween}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                     <Avatar source={avatarFor(p.nickname)} size={30} ring={tColor} glow={false} />
-                    <Text style={s.resName}>{p.nickname} <Text style={{ color: colors.muted }}>({n} oy)</Text></Text>
+                    <Text style={s.resName}>{p.nickname} <Text style={{ color: colors.muted }}>({n} {translate("oy")})</Text></Text>
                   </View>
                   <Text display style={[s.resPct, { color: tColor }]}>{pct}%</Text>
                 </View>
@@ -970,12 +970,12 @@ function MathGuessGame({
             <Text style={s.correctAnswerLabel}>{translate("DOĞRU CEVAP")}</Text>
           </View>
           <Text display adjustsFontSizeToFit numberOfLines={1} style={s.correctAnswerValue}>
-            {targetNum.toLocaleString('tr-TR')}
+            {targetNum.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}
           </Text>
           <Muted style={{ textAlign: 'center' }}>{translate("Sorunun gerçek yanıtı")}</Muted>
           {mineGuess !== null && (
             <Text style={s.correctAnswerDifference}>
-              Senin tahminin: {mineGuess.toLocaleString('tr-TR')}  ·  Fark: {Math.abs(mineGuess - targetNum).toLocaleString('tr-TR')}
+              {translate('Senin tahminin:')} {mineGuess.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}  ·  {translate('Fark:')} {Math.abs(mineGuess - targetNum).toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}
             </Text>
           )}
         </Card>
@@ -992,7 +992,7 @@ function MathGuessGame({
             {mineGuess}
           </Text>
           <Muted>
-            {live ? 'Diğer oyuncuların tahminleri bekleniyor…' : 'Doğru cevap yukarıda gösteriliyor.'}
+            {translate(live ? 'Diğer oyuncuların tahminleri bekleniyor…' : 'Doğru cevap yukarıda gösteriliyor.')}
           </Muted>
         </Card>
       ) : live ? (
@@ -1026,7 +1026,7 @@ function MathGuessGame({
           </View>
 
           <Btn
-            size="sm" title="Tahmini Gönder"
+            size="sm" title={translate("Tahmini Gönder")}
             icon="send"
             tone="success"
             disabled={!val}
@@ -1047,7 +1047,7 @@ function MathGuessGame({
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <SectionLabel>{translate("Tüm Tahminler")}</SectionLabel>
           <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '700' }}>
-            {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} Cevap
+            {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} {translate("Cevap")}
           </Text>
         </View>
 
@@ -1066,7 +1066,7 @@ function MathGuessGame({
                 <Avatar source={avatarFor(p.nickname)} size={36} ring={tColor} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
-                    {p.nickname} {isMe ? '(Sen)' : ''}
+                    {p.nickname} {isMe ? translate('(Sen)') : ''}
                   </Text>
                   <Text style={{ color: tColor, fontSize: 11, fontWeight: '600' }}>
                     {teamName(p.team_side)}
@@ -1074,7 +1074,7 @@ function MathGuessGame({
                 </View>
 
                 {guess !== null && live && !isMe ? (
-                  <Chip label="Tahmin gönderildi" color={colors.mint} size="sm" icon="checkmark-circle" />
+                  <Chip label={translate("Tahmin gönderildi")} color={colors.mint} size="sm" icon="checkmark-circle" />
                 ) : guess !== null ? (
                   <View style={{ alignItems: 'flex-end', gap: 2 }}>
                     <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
@@ -1084,12 +1084,12 @@ function MathGuessGame({
                     </View>
                     {!live && targetNum !== null && diff !== null && (
                       <Text style={{ color: isWinner ? colors.gold : colors.muted, fontSize: 11, fontWeight: '700' }}>
-                        {isWinner ? `🏆 En Yakın (Fark: ${diff})` : `Fark: ${diff}`}
+                        {isWinner ? `🏆 ${translate('En Yakın')} (${translate('Fark:')} ${diff})` : `${translate('Fark:')} ${diff}`}
                       </Text>
                     )}
                   </View>
                 ) : (
-                  <Chip label="Düşünüyor..." color={colors.muted} size="sm" icon="time-outline" />
+                  <Chip label={translate("Düşünüyor...")} color={colors.muted} size="sm" icon="time-outline" />
                 )}
               </View>
             );
