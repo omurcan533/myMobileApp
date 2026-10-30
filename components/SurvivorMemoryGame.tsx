@@ -72,14 +72,15 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   : serverProgress;
  const opponent=side?state?.[side==='A'?'B':'A']:undefined;
  useEffect(()=>{
-  if(own?.reveal){
+  const timer=setTimeout(()=>{if(own?.reveal){
    const reveal=own.reveal;
    setRevealedRows(prev=>{
     if(reveal.outcome==='red')return {};
     if(reveal.outcome==='white')return Object.fromEntries(Object.entries(prev).filter(([row])=>Number(row)<(own?.row??0))) as Record<number,Reveal>;
     return prev[reveal.row]?.selectedCol===reveal.selectedCol && prev[reveal.row]?.outcome===reveal.outcome?prev:{...prev,[reveal.row]:reveal};
    });
-  }
+  }},0);
+  return()=>clearTimeout(timer);
  },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
  const choose=async(row:number,col:number)=>{
   if(!live||paused||!startsAt||serverNow()<Date.parse(startsAt)||!isCaptain||requestBusy.current||row!==(own?.row??0)||row>=7)return;
