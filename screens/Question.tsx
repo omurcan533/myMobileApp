@@ -135,7 +135,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             ) : (
               <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <ActivityIndicator size="small" color={roundColor} />
-                <Muted style={{ textAlign: 'center' }}>Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.</Muted>
+                <Muted style={{ textAlign: 'center' }}>{translate('Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.')}</Muted>
               </View>
             )}
           </Card>
