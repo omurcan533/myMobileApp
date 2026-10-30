@@ -158,7 +158,83 @@ const MINI_GAME_LABELS:Record<string,string>={
  memory:'Hafıza Oyunu',pong:'Pong Düellosu',line_connect:'Çizgi Birleştirme',
  survivor_memory:'Survivor Hafıza Parkuru',song_complete:'Şarkı Tamamlama',tug_of_war:'Halat Çekme',
 };
+const englishMiniGameLabels: Record<string,string> = {reflex:'Reflex Race',social_guess:'Friendship Memory',math_guess:'Quick Math and Guessing',memory:'Memory Game',pong:'Pong Duel',line_connect:'Connect the Lines',survivor_memory:'Survivor Memory Course',song_complete:'Complete the Song',tug_of_war:'Tug of War'};
+function describeMatchEnglish(story:MatchMoment[],players:Ctx['data']['players']){
+ type Moment={title:string;body:string;people:string[];accent:string};
+ const moments:Moment[]=[];
+ let prevWinner:Side|null=null,streak=0;
+ const finished=story.filter(x=>x.type!=='highlight').sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ const miniGames=finished.filter(x=>x.type==='minigame');
+ const miniTotals=new Map<string,{a:number;b:number;draw:number}>();
+ for(const m of miniGames){
+  const kind=m.data.kind??'unknown';
+  const count=miniTotals.get(kind)??{a:0,b:0,draw:0};
+  if(m.data.winner==='A')count.a++;else if(m.data.winner==='B')count.b++;else count.draw++;
+  miniTotals.set(kind,count);
+ }
+ const namedTeam=(side:Side|null|undefined)=>side==='A'?'Blue team':side==='B'?'Red team':'Both teams';
+ for(const moment of [...story].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
+  const d=moment.data;
+  if(moment.type==='highlight'){
+   if(d.kind==='tug_lead_change'){
+    moments.push({title:'🚀 Tug-of-war comeback',body:`After falling behind, ${namedTeam(d.leading)} pulled ahead! The score was Blue ${d.a??0} – Red ${d.b??0}. What a turnaround!`,people:[],accent:'#FFD58A'});
+   }else if(d.kind==='wrong_streak'){
+    const p=players.find(p=>p.id===d.player_id);
+    if(p)moments.push({title:'🙈 Three misses in a row',body:`${p.nickname} missed three evaluated answers in a row. The jury admires the persistence!`,people:[p.id],accent:'#FFB6CB'});
+   }else if(d.kind==='last_second_win'){
+    moments.push({title:'⏰ Last-second drama',body:`Round ${d.round} ended just before time ran out, with ${namedTeam(d.winner)} taking the win!`,people:[],accent:'#A7F4D2'});
+   }
+   continue;
+  }
+  if(moment.type==='round'){
+   const winners=d.correct_players??[],misses=d.wrong_players??[];
+   if(winners.length&&misses.length){
+    const hit=winners[0],miss=misses.find(p=>p.side!==hit.side);
+    if(miss)moments.push({title:'🎯 One question, two outcomes',body:`${hit.name} got it right while ${miss.name} missed the same question. Cheers and consolation from the jury!`,people:[hit.id,miss.id],accent:'#B8F7DA'});
+   }
+   if(d.winner){
+    streak=d.winner===prevWinner?streak+1:1;
+    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 Momentum shift',body:`In round ${d.round}, ${namedTeam(d.winner)} beat the previous winner, ${namedTeam(prevWinner)}. Momentum shifted!`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
+    if(streak===3)moments.push({title:'🔥 Three-round winning streak',body:`${namedTeam(d.winner)} won three question rounds in a row. Time for the opponents to regroup!`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
+    prevWinner=d.winner;
+   }
+  }else if(d.kind==='tug_of_war'){
+   const a=Number(d.tug_a??0),b=Number(d.tug_b??0),top=d.top_tug_player;
+   moments.push({title:'🪢 Tug of War: power struggle',body:`Blue generated ${a} net force and Red generated ${b}. ${top?`${top.name} stood out with ${top.force} force.`:'No individual force data was recorded.'} ${a===b?'The teams tied!':`${namedTeam(d.winner)} won the match.`}`,people:top?[top.id]:[],accent:'#99E6FF'});
+  }
+ }
+ // Each minigame type gets a single meaningful recap, rather than repeating a generic line per match.
+ for(const [kind,score] of miniTotals){
+  if(kind==='tug_of_war')continue;
+  const label=englishMiniGameLabels[kind]??'Minigame';
+  const count=score.a+score.b+score.draw;
+  const winner=score.a>score.b?'A':score.b>score.a?'B':null;
+  const scoreLine=`Blue ${score.a} – Red ${score.b}${score.draw?` · ${score.draw} draws`:''}`;
+  const descriptions:Record<string,string>={
+   reflex:'Every millisecond counted in the reflex challenge.',
+   social_guess:'Players tested how well they knew their friends.',
+   math_guess:'Fast calculations and close guesses made the difference.',
+   memory:'Strong memories gave players the edge.',
+   pong:'Paddles were flying in the Pong duel.',
+   line_connect:'Teams raced to connect the lines correctly.',
+   survivor_memory:'Memory and careful tile choices mattered in Survivor.',
+   song_complete:'Music knowledge helped players complete the missing song titles.',
+  };
+  const detail=descriptions[kind]??'The teams faced off in this minigame.';
+  moments.push({title:`🎮 ${label}`,body:`${count} matches played. ${detail} Final score: ${scoreLine}. ${winner?`${namedTeam(winner)} won more rounds.`:'The teams tied on wins.'}`,people:[],accent:'#D3B8FF'});
+ }
+ if(finished.length>=2){
+  const last=finished[finished.length-1];
+  const lastGame=last.data.kind?englishMiniGameLabels[last.data.kind]??'minigame':'question round';
+  const rounds=finished.filter(x=>x.type==='round').length;
+  moments.push({title:'🎬 Final whistle',body:`The last recorded match was ${lastGame}. Players completed ${rounds} question rounds and ${miniGames.length} minigames. The jury reports only what the records show.`,people:[],accent:'#FFD99C'});
+ }
+ const special=moments.filter(m=>/comeback|misses in a row|Last-second/i.test(m.title));
+ return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
+}
+
 function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
+ if(getLanguage()==='en')return describeMatchEnglish(story,players);
  type Moment={title:string;body:string;people:string[];accent:string};
  const moments:Moment[]=[];
  let prevWinner:Side|null=null,streak=0;
