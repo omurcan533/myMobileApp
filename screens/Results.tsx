@@ -450,6 +450,21 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
 }
 
 function ceremonyClosing(awards:CeremonyAward[],moments:ReturnType<typeof describeMatch>,res:GameResults):string{
+ if (getLanguage() === 'en') {
+  const champion = res.official_winner === 'A' ? 'Blue team' : res.official_winner === 'B' ? 'Red team' : null;
+  const highlight = moments.find(m => /comeback|Last-second|misses in a row/i.test(m.title)) ?? moments[0];
+  const star = awards.find(a => a.id === 'hero') ?? awards[0];
+  const intro = champion
+   ? `${champion} lifted the trophy. But the jury says the real winners are the friends who had fun together!`
+   : 'The trophy was shared in a tie. The real winners are the friends who had fun together!';
+  const detail = highlight
+   ? ` Unforgettable moment: ${highlight.title.replace(/^[^\\p{L}]+/u, '').trim()}. The match records captured it!`
+   : ' Everyone had a story; the jury will not invent what the records do not show.';
+  const outro = star
+   ? ` ${star.player} earned the “${star.title}” award. Everyone else, get ready to surprise the jury next time!`
+   : ' There was not enough data for an individual award this round. Next time brings new surprises!';
+  return intro + detail + outro + ' 🎉 The Ucube Jury has spoken!';
+ }
  const champ=res.official_winner?teamName(res.official_winner):'İki takım';
  const highlight=moments.find(m=>/geri dönüş|Son saniyede|yanlışlık seri/.test(m.title))??moments[0];
  const star=awards.find(a=>a.id==='hero')??awards[0];
