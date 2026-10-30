@@ -29,12 +29,12 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const [error,setError]=useState('');
  const lastPull=useRef(0);
  useEffect(()=>{
-  if(event.created_at!==startedAt){setStartedAt(event.created_at);setFeedback('');setError('');setNow(Date.now());}
- },[event.created_at]);
+  if(event.created_at!==startedAt){const initial=setTimeout(()=>{setStartedAt(event.created_at);setFeedback('');setError('');setNow(Date.now());},0);return()=>clearTimeout(initial);}
+ },[event.created_at,startedAt]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
  const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState({a:s.a,b:s.b,players:'players' in s&&Array.isArray(s.players)?s.players:[]});}catch{}};
  useEffect(()=>{
-  refresh();
+  const initial=setTimeout(()=>{void refresh();},0);
   const timer=setInterval(()=>setNow(Date.now()),40);
   const sync=setInterval(refresh,700);
   const ch=supabase.channel('tug:'+event.id);
