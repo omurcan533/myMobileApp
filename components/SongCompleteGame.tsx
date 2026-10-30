@@ -20,7 +20,7 @@ function SongRound({ id, prompt, live, canPlay, paused, winner, side, onError }:
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [correct, setCorrect] = useState(false);
-  // Remount the round-specific form when the game id changes (see keyed wrapper below).
+  // The keyed SongRound resets answer and feedback when a new round starts.
   const send = async () => {
     if (!answer.trim() || busy || correct || !live || !canPlay || paused) return;
     setBusy(true);
