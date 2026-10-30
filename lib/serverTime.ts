@@ -13,15 +13,25 @@ export const getServerOffset = () => offsetMs;
 
 export const isTimeSynced = () => isSynced;
 
+async function timedFetch(url: string, options: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    // Keep the deadline alive while reading the trace body as well as headers.
+    const text = options.method === 'HEAD' ? '' : await response.text();
+    return { ok: response.ok, text, date: response.headers.get('date') };
+  }
+  finally { clearTimeout(timer); }
+}
+
 export async function syncServerTime(): Promise<void> {
   // 1. Birincil yöntem: Cloudflare trace (CORS: * destekler, gövdede 'ts=' döner, dünya çapında hızlı)
   try {
     const t0 = Date.now();
-    const res = await fetch('https://cloudflare.com/cdn-cgi/trace', {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined,
-    });
+    const res = await timedFetch('https://cloudflare.com/cdn-cgi/trace');
     if (res.ok) {
-      const text = await res.text();
+      const text = res.text;
       const t1 = Date.now();
       const match = text.match(/ts=([\d.]+)/);
       if (match) {
@@ -42,9 +52,9 @@ export async function syncServerTime(): Promise<void> {
   for (let i = 0; i < 3; i++) {
     try {
       const t0 = Date.now();
-      const res = await fetch(`${url}/rest/v1/`, { method: 'HEAD', headers: { apikey: key } });
+      const res = await timedFetch(`${url}/rest/v1/`, { method: 'HEAD', headers: { apikey: key } });
       const t1 = Date.now();
-      const date = res.headers.get('date');
+      const date = res.date;
       if (date) {
         samples.push(Date.parse(date) + 500 - (t0 + t1) / 2);
       }

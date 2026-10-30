@@ -23,5 +23,7 @@ jobs:
         run: npm ci
       - name: TypeScript
         run: npx tsc --noEmit
+      - name: Room reconnect regression tests
+        run: node --experimental-strip-types --test scripts/room-reconnect.test.mjs scripts/server-time.test.mjs scripts/coalesced-task.test.mjs
       - name: Expo lint
         run: npx expo lint
