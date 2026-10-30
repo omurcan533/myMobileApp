@@ -35,6 +35,13 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Oyun gizlice kaydedildi": "Your vote was recorded privately",
+  "BİZİM TAKIM": "OUR TEAM",
+  "İsimsiz Ucube": "Unnamed Creature",
+  "Oyun Burada": "Voted Here",
+  "Oy Ver": "Vote",
+  "Oyun kaydedildi, diğer oyuncular bekleniyor…": "Vote recorded. Waiting for other players…",
+  "Bir yaratık seçip oyunu ver.": "Choose a creature and cast your vote.",
   "Burcun ne?": "What is your zodiac sign?",
   "Kaç kardeşin var?": "How many siblings do you have?",
   "Ayakkabı numaran kaç?": "What is your shoe size?",
