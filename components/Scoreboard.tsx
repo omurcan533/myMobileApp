@@ -6,6 +6,7 @@ import { CoinPill, Avatar, GemIcon, RoomExitButton, Text } from './ui';
 import { teamMascot } from '../lib/art';
 import { alpha, colors, teamColor, teamName } from '../lib/theme';
 import { totalQuestionsForRoom } from '../lib/selectors';
+import { PlayerManager } from './PlayerManager';
 import type { Ctx, Side } from '../lib/types';
 
 /** Canlı takip: iki takımın anlık puanı, topladığı parçalar ve kredisi (Fantasy kart tarzı HUD). */
@@ -24,6 +25,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
 
   return (
     <View style={s.wrap}>
+      <PlayerManager ctx={ctx} />
       <View style={s.topRow}>
         <Text style={s.roomCode}>ODA {data.room.code}</Text>
         {currentRound && data.room.phase === 'question' && (
