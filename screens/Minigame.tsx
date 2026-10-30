@@ -593,6 +593,7 @@ function MemoryGame({
   const [demoStarted, setDemoStarted] = useState<number|null>(null);
   const [playerIdx, setPlayerIdx] = useState(0);
   const [errorFlash, setErrorFlash] = useState(false);
+  const [lastCorrect, setLastCorrect] = useState<number | null>(null);
   const clock = useNow(80);
   const frame = memoryFrame(sequence,demoStarted,clock);
   const showing = !mineDone && frame.showing;
@@ -600,7 +601,7 @@ function MemoryGame({
   const showingStep = mineDone ? null : frame.showingStep;
   const flashTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   useEffect(()=>{
-    if(live&&go&&!mineDone&&demoStarted===null){setDemoStarted(serverNow());setPlayerIdx(0);}
+    if(live&&go&&!mineDone&&demoStarted===null){setDemoStarted(serverNow());setPlayerIdx(0);setLastCorrect(null);}
   },[live,go,mineDone,demoStarted]);
   useEffect(()=>{
     const replay=()=>{if(live&&go&&!mineDone){setDemoStarted(serverNow());setPlayerIdx(0);}};
@@ -616,6 +617,8 @@ function MemoryGame({
 
     if (id === sequence[playerIdx]) {
       // Doğru parça
+      setErrorFlash(false);
+      setLastCorrect(id);
       soundFx.click();
       haptic.light();
       const next = playerIdx + 1;
@@ -632,6 +635,7 @@ function MemoryGame({
       soundFx.wrong();
       haptic.error();
       setErrorFlash(true);
+      setLastCorrect(null);
       if(flashTimer.current)clearTimeout(flashTimer.current);
       flashTimer.current=setTimeout(() => setErrorFlash(false), 800);
       setPlayerIdx(0); // Baştan başla
@@ -644,6 +648,8 @@ function MemoryGame({
     ? { icon: 'checkmark-circle', text: translate('Harika! Başarıyla tamamlandı'), color: colors.mint }
     : errorFlash
     ? { icon: 'close-circle', text: translate('Hatalı! Baştan başla…'), color: colors.red }
+    : playerIdx > 0
+    ? { icon: 'checkmark-circle', text: `${translate('Doğru! Devam et')} (${playerIdx}/${sequence.length})`, color: colors.mint }
     : { icon: 'finger-print', text: `${translate('Sıra sende! Dokun')} (${playerIdx}/${sequence.length})`, color: colors.yellow };
 
   const isClickable = !showing && !mineDone && live && go;
@@ -655,9 +661,17 @@ function MemoryGame({
         <Text style={[s.statusBannerText, { color: status.color }]}>{status.text}</Text>
       </View>
 
+      {!showing && live && go && !mineDone && (
+        <View style={{ flexDirection: 'row', gap: 6, width: '100%', marginVertical: 8 }}>
+          {sequence.map((_, index) => (
+            <View key={index} style={{ flex: 1, height: 9, borderRadius: 8, backgroundColor: index < playerIdx ? colors.mint : alpha(colors.cyan, 0.2) }} />
+          ))}
+        </View>
+      )}
       <View style={s.memoryGrid}>
         {MEMORY_PIECES.map((item) => {
           const isHighlighted = activeStep === item.id;
+          const isCorrect = isClickable && !errorFlash && lastCorrect === item.id && playerIdx > 0;
           return (
             <Tap
               key={item.id}
@@ -670,6 +684,7 @@ function MemoryGame({
                 s.memoryCard,
                 isHighlighted && s.memoryCardActive,
                 isClickable && { borderColor: alpha(colors.cyan, 0.45) },
+                isCorrect && { borderColor: colors.mint, backgroundColor: alpha(colors.mint, 0.22), borderWidth: 3 },
               ]}
             >
               {isHighlighted && showingStep && (
@@ -677,13 +692,14 @@ function MemoryGame({
                   <Text display style={s.stepBadgeText}>{showingStep}</Text>
                 </View>
               )}
+              {isCorrect && <Ionicons name="checkmark-circle" size={23} color={colors.mint} style={{ position: 'absolute', top: 5, right: 5 }} />}
               <Text style={{ fontSize: 40 }}>{item.emoji}</Text>
               <Text style={[s.memoryName, isHighlighted && { color: colors.mint }]}>{translate(item.name)}</Text>
             </Tap>
           );
         })}
       </View>
-      {live&&go&&!mineDone&&<Btn title="Sıralamayı Tekrar Göster" tone="ghost" size="sm" onPress={()=>{setPlayerIdx(0);setDemoStarted(serverNow());}}/>}
+      {live&&go&&!mineDone&&<Btn title="Sıralamayı Tekrar Göster" tone="ghost" size="sm" onPress={()=>{setPlayerIdx(0);setLastCorrect(null);setErrorFlash(false);setDemoStarted(serverNow());}}/>}
       {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
     </Card>
   );
