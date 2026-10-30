@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { AppState, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -83,7 +83,11 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
       .subscribe();
     // Public room metadata is also refreshed for visitors who are not room members.
     const refreshInterval = setInterval(() => { void loadRooms(); }, 5000);
+    const appState = AppState.addEventListener('change', state => {
+      if (state === 'active') void loadRooms();
+    });
     return () => {
+      appState.remove();
       active = false;
       clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
