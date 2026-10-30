@@ -1,3 +1,4 @@
+import { getLanguage, useLanguage } from '../lib/i18n';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -20,6 +21,9 @@ const emojiList=['👏','🔥','😂','😱','❤️'];
 const dirs=[-1,1];
 
 export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:Props){
+ useLanguage();
+ const en=getLanguage()==='en';
+ const loc=(tr:string,english:string)=>en?english:tr;
  const {data,me}=ctx;
  const {width:screenWidth,height:screenHeight}=useWindowDimensions();
  const area=usePlaySize();
@@ -44,7 +48,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const stopped=useRef(false);
  const timing=useRef(createPongDiagnostics());
  const players=useMemo(()=>data.players,[data.players]);
- const playerName=(id?:string)=>players.find(p=>p.id===id)?.nickname??'Oyuncu';
+ const playerName=(id?:string)=>players.find(p=>p.id===id)?.nickname??loc('Oyuncu','Player');
 
  const goAt=mg.starts_at?Date.parse(mg.starts_at):0;
  const countdown=live&&goAt?Math.max(0,Math.ceil((goAt-clock)/1000)):0;
@@ -144,7 +148,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     }else{
      const {data:updated,error}=await supabase.from('room_minigames').select('pong_state,status').eq('id',mg.id).single();
      if(!mounted)return;
-     if(error){failures++;if(failures>=3)setGameError('Bağlantı hatası: '+error.message);}
+     if(error){failures++;if(failures>=3)setGameError(loc('Bağlantı hatası: ','Connection error: ')+error.message);}
      else{
       failures=0;
       if(updated?.pong_state)applySnapshot(updated.pong_state as State);
@@ -159,7 +163,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      }
     }
    }catch(e){
-    if(mounted)setGameError('Bağlantı kesildi: '+String(e));
+    if(mounted)setGameError(loc('Bağlantı kesildi: ','Connection lost: ')+String(e));
    }finally{inFlight=false;}
   };
   void poll();
@@ -229,31 +233,31 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  return <View style={styles.wrapper}>
   <Card accent={colors.cyan} style={[styles.gameCard,area.active&&{padding:8,gap:5}]}>
    <View style={styles.matchHeading}>
-    <Eyebrow color={colors.cyan}>PONG DÜELLOSU</Eyebrow>
-    {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} sn</Text>}
+    <Eyebrow color={colors.cyan}>{loc('PONG DÜELLOSU','PONG DUEL')}</Eyebrow>
+    {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} {loc('sn','sec')}</Text>}
    </View>
    <View style={styles.score}>
-    <Text style={styles.teamA}>TAKIM A</Text>
+    <Text style={styles.teamA}>{loc('TAKIM A','TEAM A')}</Text>
     <Title size={32}>{state?.scoreA??0} : {state?.scoreB??0}</Title>
-    <Text style={styles.teamB}>TAKIM B</Text>
+    <Text style={styles.teamB}>{loc('TAKIM B','TEAM B')}</Text>
    </View>
    {needsModeChoice&&<View style={styles.choice}>
-    <Title size={17}>Takımın kaç kişi oynasın?</Title>
-    <Muted>İki takım arkadaşının aynı seçimi yapması gerekir.</Muted>
+    <Title size={17}>{loc('Takımın kaç kişi oynasın?','How many players on your team?')}</Title>
+    <Muted>{loc('İki takım arkadaşının aynı seçimi yapması gerekir.','Both teammates must make the same choice.')}</Muted>
     <View style={styles.controls}>
-     <Tap onPress={()=>void chooseMode('solo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>1 KİŞİ</Text></Tap>
-     <Tap onPress={()=>void chooseMode('duo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>2 KİŞİ</Text></Tap>
+     <Tap onPress={()=>void chooseMode('solo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>{loc('1 KİŞİ','1 PLAYER')}</Text></Tap>
+     <Tap onPress={()=>void chooseMode('duo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>{loc('2 KİŞİ','2 PLAYERS')}</Text></Tap>
     </View>
-    <Muted>Senin seçimin: {state?.modeVotes?.[me.id]==='solo'?'1 kişi':state?.modeVotes?.[me.id]==='duo'?'2 kişi':'Henüz yok'}</Muted>
+    <Muted>{loc('Senin seçimin:','Your choice:')} {state?.modeVotes?.[me.id]==='solo'?loc('1 kişi','1 player'):state?.modeVotes?.[me.id]==='duo'?loc('2 kişi','2 players'):loc('Henüz yok','Not chosen yet')}</Muted>
    </View>}
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
      <PongArena key={mg.id} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
-     {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>Hazır ol! Maç başlıyor…</Muted></View>}
-     {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ GOOOL! TAKIM {goal.side} 🎉</Title></View>}
+     {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>{loc('Hazır ol! Maç başlıyor…','Get ready! Match starting…')}</Muted></View>}
+     {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ {loc('GOOOL! TAKIM','GOAL! TEAM')} {goal.side} 🎉</Title></View>}
     </View>
-   ) : !state ? <Muted>Maç hazırlanıyor…</Muted> : null}
+   ) : !state ? <Muted>{loc('Maç hazırlanıyor…','Preparing match…')}</Muted> : null}
    {!area.active&&<View style={styles.teams}>
     <View style={{flex:1}}>
      <Text style={styles.teamA}> {state?.modeA==='solo'?'▲▼':'▲'} {playerName(state?.a1)}</Text>
@@ -265,7 +269,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     </View>
    </View>}
    {mySlot&&live&&mg.starts_at?<View style={[styles.buttonsArea,Platform.OS==='web'&&({touchAction:'none',overscrollBehavior:'contain'} as any)]}>
-    <Title size={16} style={{textAlign:'center'}}>{solo?'İki yön de sende ▲ ▼':directions[0]===-1?'YUKARI yönü sende ▲':'AŞAĞI yönü sende ▼'}</Title>
+    <Title size={16} style={{textAlign:'center'}}>{solo?loc('İki yön de sende ▲ ▼','You control both directions ▲ ▼'):directions[0]===-1?loc('YUKARI yönü sende ▲','You control UP ▲'):loc('AŞAĞI yönü sende ▼','You control DOWN ▼')}</Title>
     <View style={[styles.paddleControls,area.active&&{flexDirection:'row',gap:8}]}>
      {directions.map(direction=><Pressable
       key={direction}
@@ -277,22 +281,22 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
       disabled={!active}
       style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
-     ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?'▲  YUKARI':'▼  AŞAĞI'}</Text></Pressable>)}
+     ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></Pressable>)}
     </View>
-    {!compactControls&&<Muted style={{textAlign:'center'}}>Hareket ettirmek için tuşa basılı tut.</Muted>}
-    {controlError&&<Muted style={styles.error}>Kontrol hatası: {controlError}</Muted>}
-   </View>:<Muted style={{textAlign:'center'}}>{countdown>0?'Geri sayım bitince kontroller açılır.':live&&!mg.starts_at?'Kuralları oku; yönetici oyunu başlatacak.':live&&mySlot?'Kontroller hazırlanıyor…':live?'Seyircisin! Arkadaşlarını destekle.':'Maç tamamlandı.'}</Muted>}
+    {!compactControls&&<Muted style={{textAlign:'center'}}>{loc('Hareket ettirmek için tuşa basılı tut.','Hold the button to move.')}</Muted>}
+    {controlError&&<Muted style={styles.error}>{loc('Kontrol hatası:','Control error:')} {controlError}</Muted>}
+   </View>:<Muted style={{textAlign:'center'}}>{countdown>0?loc('Geri sayım bitince kontroller açılır.','Controls unlock after the countdown.'):live&&!mg.starts_at?loc('Kuralları oku; yönetici oyunu başlatacak.','Read the rules; the host will start the game.'):live&&mySlot?loc('Kontroller hazırlanıyor…','Preparing controls…'):live?loc('Seyircisin! Arkadaşlarını destekle.','You are spectating! Cheer on your friends.'):loc('Maç tamamlandı.','Match complete.')}</Muted>}
    {(!live||serverFinished)&&state&&<View style={styles.results}>
-    <Title size={18}>⚽ Gol Kralı</Title>
-    {top.length?<Text style={styles.starText}>{top.map(([id])=>playerName(id)).join(' · ')} — {high} gol katkısı</Text>:<Muted>Oyuncu bazında gol katkısı kaydı yok.</Muted>}
-    <Muted>Gol katkısı son çubuk temasındaki yönlendiriciye yazılır.</Muted>
-    <Title size={18}>🏅 Savunma Yıldızları</Title>
-    <Muted>A: {state.savesA??0} · B: {state.savesB??0} kurtarış</Muted>
-    <Text style={styles.starText}>{(state.savesA??0)===(state.savesB??0)?'Takımlar eşit savunma yaptı.':(state.savesA??0)>(state.savesB??0)?'Takım A: '+playerName(state.a1)+(state.a1===state.a2?'':' ve '+playerName(state.a2)):'Takım B: '+playerName(state.b1)+(state.b1===state.b2?'':' ve '+playerName(state.b2))}</Text>
+    <Title size={18}>{loc('⚽ Gol Kralı','⚽ Top Scorer')}</Title>
+    {top.length?<Text style={styles.starText}>{top.map(([id])=>playerName(id)).join(' · ')} — {high} {loc('gol katkısı','goal contributions')}</Text>:<Muted>{loc('Oyuncu bazında gol katkısı kaydı yok.','No player goal contributions recorded.')}</Muted>}
+    <Muted>{loc('Gol katkısı son çubuk temasındaki yönlendiriciye yazılır.','Goal contributions go to the player controlling the last paddle touch.')}</Muted>
+    <Title size={18}>{loc('🏅 Savunma Yıldızları','🏅 Defensive Stars')}</Title>
+    <Muted>A: {state.savesA??0} · B: {state.savesB??0} {loc('kurtarış','saves')}</Muted>
+    <Text style={styles.starText}>{(state.savesA??0)===(state.savesB??0)?loc('Takımlar eşit savunma yaptı.','Both teams defended equally.'):(state.savesA??0)>(state.savesB??0)?loc('Takım A: ','Team A: ')+playerName(state.a1)+(state.a1===state.a2?'':loc(' ve ',' and ')+playerName(state.a2)):loc('Takım B: ','Team B: ')+playerName(state.b1)+(state.b1===state.b2?'':loc(' ve ',' and ')+playerName(state.b2))}</Text>
    </View>}
   </Card>
   <Card style={{gap:area.active?4:10,padding:area.active?6:16}}>
-   {!area.active&&<Title size={16}>Canlı Tepkiler {reaction??''}</Title>}
+   {!area.active&&<Title size={16}>{loc('Canlı Tepkiler','Live Reactions')} {reaction??''}</Title>}
    <View style={styles.reactions}>{emojiList.map(emoji=><Tap key={emoji} onPress={()=>cheer(emoji)} style={styles.reaction}><Text style={{fontSize:24}}>{emoji}</Text></Tap>)}</View>
   </Card>
  </View>;
