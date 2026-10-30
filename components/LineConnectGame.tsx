@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 import { Card, Muted, Title, Btn } from './ui';
@@ -46,7 +46,7 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
  const winRef=useRef(onWin);
  const lastTouch=useRef<Point|null>(null);
  
- widthRef.current=boardWidth;disabledRef.current=disabled;boardRef.current=board;winRef.current=onWin;
+ useEffect(()=>{widthRef.current=boardWidth;disabledRef.current=disabled;boardRef.current=board;winRef.current=onWin;},[boardWidth,disabled,board,onWin]);
 
  const commit=useCallback((next:Point[][])=>{
   pathsRef.current=next;setPaths(next);
@@ -132,8 +132,8 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   lastTouch.current=p;
  },[advance,coords]);
  const startRef=useRef(start),moveRef=useRef(move);
- startRef.current=start;moveRef.current=move;
- const pan=useRef(PanResponder.create({
+ useEffect(()=>{startRef.current=start;moveRef.current=move;},[start,move]);
+ const pan=useMemo(()=>PanResponder.create({
   onStartShouldSetPanResponder:()=>true,
   onMoveShouldSetPanResponder:()=>true,
   onPanResponderGrant:e=>startRef.current(e.nativeEvent.locationX,e.nativeEvent.locationY),
@@ -141,7 +141,7 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   onPanResponderRelease:()=>{lastTouch.current=null;},
   onPanResponderTerminate:()=>{lastTouch.current=null;},
   onPanResponderTerminationRequest:()=>false,
- })).current;
+ }),[]);
  const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastTouch.current=null;};
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
   <Title size={area.active?18:22}>Çizgi Birleştirme · Bölüm {board.level}</Title>
