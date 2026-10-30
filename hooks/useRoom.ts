@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { coalescedTask } from '../lib/coalescedTask';
@@ -64,7 +65,11 @@ export function useRoom(roomId: string) {
     });
     ch.subscribe(status=>{if(status==='SUBSCRIBED')schedule();});
     const poll=setInterval(()=>void load(),6000);
-    return()=>{active=false;if(timer)clearTimeout(timer);clearInterval(poll);void supabase.removeChannel(ch);};
+    // Background timers can be suspended on mobile; refresh immediately on return.
+    const appState=AppState.addEventListener('change',state=>{
+      if(state==='active')schedule();
+    });
+    return()=>{active=false;appState.remove();if(timer)clearTimeout(timer);clearInterval(poll);void supabase.removeChannel(ch);};
   },[roomId]);
   return {data:data?.room.id===roomId?data:null,gone:goneRoom===roomId,refresh};
 }
