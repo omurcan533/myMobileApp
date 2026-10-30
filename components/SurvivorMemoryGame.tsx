@@ -30,7 +30,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  const mounted=React.useRef(true);
  const playState=React.useRef({live,paused});
  useEffect(()=>{playState.current={live,paused}},[live,paused]);
- const flash=React.useRef(new Animated.Value(0)).current;
+ const [flash]=useState(()=>new Animated.Value(0));
  const animationRef=React.useRef<ReturnType<typeof setTimeout>|null>(null);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;if(animationRef.current)clearTimeout(animationRef.current)}},[]);
  const [messages,setMessages]=useState<{id:number;nickname:string;body:string}[]>([]);
