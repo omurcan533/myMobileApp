@@ -48,6 +48,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [modeCarouselWidth, setModeCarouselWidth] = useState(0);
   const modeSlideWidth = modeCarouselWidth || Math.max(220, windowWidth - 72);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
+  const joiningRef = useRef(false);
   const [profile, setProfile] = useState<Profile>({ games: 0, wins: 0, lastRoom: null });
   const [sound, setSound] = useState(soundFx.isEnabled());
   const { toast, show } = useToast();
@@ -107,10 +108,12 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const displayName = nick.trim() || t('newPlayer');
 
   const run = async (kind: 'create' | 'join', selectedRoomCode?: string) => {
+    if (joiningRef.current) return;
     const name = nick.trim();
     if (!name) { show(t('nicknameRequired'), 'error'); setTab('play'); return; }
     const joinCode = (selectedRoomCode ?? code).trim();
     if (kind === 'join' && joinCode.length < 4) return show(t('roomCodeRequired'), 'error');
+    joiningRef.current = true;
     setBusy(kind);
     try {
       await AsyncStorage.setItem('nickname', name);
@@ -119,6 +122,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     } catch (e) {
       show((e as Error).message, 'error');
     } finally {
+      joiningRef.current = false;
       setBusy(null);
     }
   };
