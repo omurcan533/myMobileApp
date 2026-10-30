@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { getLanguage, translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,6 +45,62 @@ function playerFinalComment(
  const ageTotal=age?.total??0;
  const facts:string[]=[];
  const details:string[]=[];
+ // Reports are rendered locally for each player; do not translate user-entered creature names.
+ if (getLanguage() === 'en') {
+  if (answers.length) {
+   facts.push(`Questions: ${answers.length} answers · ${correct} correct · ${wrong} incorrect`);
+   details.push(correct > wrong
+    ? `You got ${correct} questions right and ${wrong} wrong. The jury noticed your sharp thinking!`
+    : wrong > correct
+      ? `You got ${correct} right and ${wrong} wrong. Bold guesses, but the answer key had other plans.`
+      : `You finished with ${correct} correct and ${wrong} incorrect answers. A perfectly balanced adventure!`);
+   if (finalAnswers > 0) details.push(`You submitted ${finalAnswers} final answers. Taking responsibility deserves applause.`);
+   if (pending > 0) facts.push(`${pending} answers have not been evaluated yet`);
+  } else details.push('No question answers were recorded for you this round. A mysterious strategy!');
+  if (friendAttempt > 0) {
+   facts.push(`Friendship Memory: ${friend!.correct}/${friendAttempt}`);
+   details.push(friend!.correct === friendAttempt
+    ? `You remembered all ${friendAttempt} friendship answers. You're the group's walking archive!`
+    : `You remembered ${friend!.correct} of ${friendAttempt} friendship answers. There are still surprises to discover!`);
+  } else facts.push('Friendship Memory: no record');
+  if (ageTotal > 0) {
+   facts.push(`Age guesses: ${age!.correct}/${ageTotal}`);
+   details.push(`You guessed ${age!.correct} of ${ageTotal} ages correctly. The jury is taking notes.`);
+  }
+  if (playerMinigameEntries.length > 0) {
+   facts.push(`Minigame entries: ${playerMinigameEntries.length}`);
+   const reactions = playerMinigameEntries.filter(x => typeof x.reaction_ms === 'number').map(x => x.reaction_ms as number);
+   if (reactions.length) details.push(`Your fastest recorded reaction was ${Math.min(...reactions)} ms. Nice reflexes!`);
+   else details.push(`You joined ${playerMinigameEntries.length} minigame rounds. Participation counts!`);
+  }
+  if (side && team && rival) {
+   const difference = Math.abs(team.score - rival.score);
+   facts.push(`Team: ${team.score} points · ${pieces.length} pieces`);
+   details.push(results.official_winner === side
+    ? `Your team won by ${difference} points! Share the trophy with your teammates.`
+    : results.official_winner !== null
+      ? `Your team finished ${difference} points behind. The whole team shares the result.`
+      : 'The teams tied. Even the jury could not pick a winner.');
+   if (roundsPlayed > 0) details.push(`Your team won ${roundWins} of ${roundsPlayed} completed question rounds.`);
+   if (playedMinigames > 0) details.push(`Your team won ${teamMinigameWins} of ${playedMinigames} completed minigames.`);
+   if (team.creature_name) details.push(`Your team's creature is called “${team.creature_name}”. What a creation!`);
+  }
+  const highlights = [
+   {score: friendAttempt > 0 ? friend!.correct / friendAttempt * 3 : 0, text: '🧠 Friendship Archivist'},
+   {score: ageTotal > 0 ? age!.correct / ageTotal * 3 : 0, text: '🕵️ Age Detective'},
+   {score: correct > 0 ? correct / Math.max(1, correct + wrong) * 2 : 0, text: '🎯 Answer Hunter'},
+   {score: playerMinigameEntries.length > 0 ? 1 : 0, text: '🎮 Arena Regular'},
+  ];
+  const best = highlights.sort((a, b) => b.score - a.score)[0];
+  const headline = best.score > 0 ? best.text : index % 2 === 0 ? '🎭 Mystery Strategist' : '🎪 Surprise Factor';
+  const verdict = results.official_winner === side && side
+   ? 'JURY VERDICT: Your team takes the trophy, but everyone shares the spotlight.'
+   : correct > 0 || friend?.correct || age?.correct
+     ? 'JURY VERDICT: You earned applause and a little friendly teasing.'
+     : 'JURY VERDICT: Not enough stats to invent a legend. Your next game awaits!';
+  return {headline, details: details.slice(0, 7), verdict, facts};
+ }
+
  if(answers.length){
   facts.push(`Sorular: ${answers.length} yanıt · ${correct} doğru · ${wrong} yanlış`);
   if(correct>0&&wrong===0)details.push(`Sorularda ${correct} doğru yanıtın var, kayıtlarda yanlışın görünmüyor. Jüri notu: Cevap anahtarıyla gizli anlaşman mı var?`);
