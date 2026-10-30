@@ -35,6 +35,19 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Grup oylaması": "Group voting",
+  "Kendin dahil herkese oy verebilirsin.": "You can vote for anyone, including yourself.",
+  "Oy Verdi": "Voted",
+  "oy": "votes",
+  "Senin tahminin:": "Your guess:",
+  "Fark:": "Difference:",
+  "Diğer oyuncuların tahminleri bekleniyor…": "Waiting for other players to guess…",
+  "Tahmini Gönder": "Submit Guess",
+  "Cevap": "Answers",
+  "(Sen)": "(You)",
+  "Tahmin gönderildi": "Guess submitted",
+  "En Yakın": "Closest",
+  "Düşünüyor...": "Thinking...",
   "Tepki süren kaydedildi": "Your reaction time was recorded",
   "Oyun bitti": "Game over",
   "ŞİMDİ DOKUN!": "TAP NOW!",
