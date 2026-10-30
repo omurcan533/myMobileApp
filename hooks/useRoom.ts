@@ -2,6 +2,7 @@ import { AppState } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { coalescedTask } from '../lib/coalescedTask';
+import { syncServerTime } from '../lib/serverTime';
 import type { Answer, CanvasItem, Minigame, MinigameEntry, Player, Room, RoomData, Round, RoundReveal, TeamPiece, TeamState, Vote } from '../lib/types';
 
 /** Room-scoped, serialized refreshes; transient errors never eject a player. */
@@ -14,18 +15,22 @@ export function useRoom(roomId: string) {
     let active=true;
     let timer:ReturnType<typeof setTimeout>|undefined;
     let games:Minigame[]=[];
+    let request:AbortController|undefined;
     const fetchRoom=async()=>{
+      const controller=new AbortController();
+      request=controller;
+      const deadline=setTimeout(()=>controller.abort(),10000);
       try {
         const q=<T,>(table:string,order='id')=>{
           const query=supabase.from(table).select('*');
-          return (table==='rooms'?query.eq('id',roomId):query.eq('room_id',roomId)).order(order) as unknown as Promise<{data:T[]|null;error:unknown}>;
+          return (table==='rooms'?query.eq('id',roomId):query.eq('room_id',roomId)).order(order).abortSignal(controller.signal) as unknown as Promise<{data:T[]|null;error:unknown}>;
         };
         const results=await Promise.all([
           q<Room>('rooms'),q<Player>('players','joined_at'),q<TeamState>('room_teams','side'),
           q<Round>('room_rounds','idx'),q<Answer>('round_answers','created_at'),q<TeamPiece>('team_pieces','created_at'),
           q<Minigame>('room_minigames','created_at'),q<CanvasItem>('canvas_items','z_index'),q<Vote>('votes','created_at'),q<RoundReveal>('round_reveals','created_at'),
         ] as const);
-        if(!active)return;
+        if(!active||controller.signal.aborted)return;
         if(results.some(r=>r.error))throw new Error('Room refresh failed');
         const [rooms,players,teams,rounds,answers,teamPieces,minigames,canvas,votes,reveals]=results;
         const room=rooms.data?.[0];
@@ -33,19 +38,29 @@ export function useRoom(roomId: string) {
         const ids=(minigames.data??[]).map(m=>m.id);
         let entries:MinigameEntry[]=[];
         if(ids.length){
-          const res=await supabase.from('minigame_entries').select('*').in('minigame_id',ids);
+          const res=await supabase.from('minigame_entries').select('*').in('minigame_id',ids).abortSignal(controller.signal);
           if(res.error)throw res.error;
           entries=res.data??[];
         }
-        if(!active)return;
+        if(!active||controller.signal.aborted)return;
         games=minigames.data??[];
         setGoneRoom(null);
         setData({room,players:players.data??[],teams:teams.data??[],rounds:rounds.data??[],answers:answers.data??[],teamPieces:teamPieces.data??[],minigames:games,canvas:canvas.data??[],votes:votes.data??[],reveals:reveals.data??[],entries});
-      } catch(error) { if(active)console.warn('Room refresh will retry:',error); }
+      } catch(error) { if(active&&!controller.signal.aborted)console.warn('Room refresh will retry:',error); }
+      finally { clearTimeout(deadline);if(request===controller)request=undefined; }
     };
     const load=coalescedTask(fetchRoom,()=>active);
     refreshRef.current=load;
     const schedule=()=>{if(timer)return;timer=setTimeout(()=>{timer=undefined;void load();},120);};
+    const syncClock=coalescedTask(syncServerTime,()=>active);
+    const recover=()=>{
+      if(!active)return;
+      // A fetch started before connectivity returned must not block recovery or
+      // publish an obsolete round/team snapshot after the reconnect signal.
+      request?.abort();
+      void load();
+      void syncClock().catch(error=>console.warn('Clock sync will retry:',error));
+    };
     void load();
     const ch=supabase.channel(`room-${roomId}`);
     for(const table of ['players','room_teams','room_rounds','round_answers','team_pieces','canvas_items','votes','round_reveals']){
@@ -70,13 +85,13 @@ export function useRoom(roomId: string) {
       }
       if(entry.minigame_id&&games.some(g=>g.id===entry.minigame_id))schedule();
     });
-    ch.subscribe(status=>{if(status==='SUBSCRIBED')schedule();});
+    ch.subscribe(status=>{if(status==='SUBSCRIBED')recover();});
     const poll=setInterval(()=>void load(),6000);
     // Background timers can be suspended on mobile; refresh immediately on return.
     const appState=AppState.addEventListener('change',state=>{
-      if(state==='active')schedule();
+      if(state==='active')recover();
     });
-    return()=>{active=false;appState.remove();if(timer)clearTimeout(timer);clearInterval(poll);void supabase.removeChannel(ch);};
+    return()=>{active=false;request?.abort();appState.remove();if(timer)clearTimeout(timer);clearInterval(poll);void supabase.removeChannel(ch);};
   },[roomId]);
   return {data:data?.room.id===roomId?data:null,gone:goneRoom===roomId,refresh};
 }
