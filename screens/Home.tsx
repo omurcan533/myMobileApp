@@ -14,6 +14,7 @@ import { getProfile, levelOf, Profile } from '../lib/profile';
 import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { GameMode } from '../lib/types';
+import { t, useLanguage, saveLanguage } from '../lib/i18n';
 
 export const GAME_TITLE = 'Ucube Atölyesi';
 
@@ -33,6 +34,8 @@ const STEPS: { icon: IconName; color: string; title: string; text: string }[] = 
 ];
 
 export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (roomId: string) => void; avatarId: AvatarId; onAvatarChange: (id: AvatarId) => void }) {
+  const language = useLanguage();
+  const tabs: TabItem<Tab>[] = TABS.map((tab) => ({ ...tab, label: tab.key === 'play' ? t('play') : tab.key === 'how' ? t('how') : t('profile') }));
   const [tab, setTab] = useState<Tab>('play');
   const [nick, setNick] = useState('');
   const [code, setCode] = useState('');
@@ -93,13 +96,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   }, [modeCarouselWidth]);
 
   const lvl = levelOf(profile);
-  const displayName = nick.trim() || 'Yeni Oyuncu';
+  const displayName = nick.trim() || t('newPlayer');
 
   const run = async (kind: 'create' | 'join', selectedRoomCode?: string) => {
     const name = nick.trim();
-    if (!name) { show('Önce bir takma ad yaz', 'error'); setTab('play'); return; }
+    if (!name) { show(t('nicknameRequired'), 'error'); setTab('play'); return; }
     const joinCode = (selectedRoomCode ?? code).trim();
-    if (kind === 'join' && joinCode.length < 4) return show('Oda kodunu yaz.', 'error');
+    if (kind === 'join' && joinCode.length < 4) return show(t('roomCodeRequired'), 'error');
     setBusy(kind);
     try {
       await AsyncStorage.setItem('nickname', name);
@@ -161,13 +164,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     pointerEvents="none"
                   />
                   <View style={s.heroText}>
-                    <Eyebrow live color={colors.mint} dot={colors.mint}>Çok oyunculu arena</Eyebrow>
+                    <Eyebrow live color={colors.mint} dot={colors.mint}>{t('gameArena')}</Eyebrow>
                     <Title size={31} style={{ marginTop: 8 }}>{GAME_TITLE}</Title>
                     <Muted style={{ marginTop: 6, maxWidth: 190 }}>
-                      İki takım, aynı bulmacalar. Parçaları kap, en absürt yaratığı inşa et!
+                      {t('heroDescription')}
                     </Muted>
                     <View style={s.heroChips}>
-                      <Chip icon="people" label="2 Takım" color={colors.cyan} size="sm" />
+                      <Chip icon="people" label={t('teams')} color={colors.cyan} size="sm" />
                       <Chip icon="time" label="5-20 dk" color={colors.magenta} size="sm" />
                     </View>
                   </View>
@@ -177,7 +180,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
               {/* ================= TAKMA AD ================= */}
               <Reveal delay={80}>
                 <Card style={{ gap: 12 }}>
-                  <Eyebrow icon="person-circle" color={colors.muted}>Oyuncu adın</Eyebrow>
+                  <Eyebrow icon="person-circle" color={colors.muted}>{t('nickname')}</Eyebrow>
                   <Input
                     icon="happy"
                     value={nick}
@@ -204,8 +207,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Ionicons name="add-circle" size={22} color={colors.mint} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>Yeni Oda Kur</Title>
-                      <Muted>Hızlı, Standart ve Epik modlarda oyunlar rastgele seçilir. Özel modda oyunları sen belirlersin.</Muted>
+                      <Title size={20}>{t('roomTitle')}</Title>
+                      <Muted>{t('roomDescription')}</Muted>
                     </View>
                   </View>
                   <View style={{ position: 'relative', width: '100%' }}>
@@ -314,7 +317,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       </Tap>
                     ))}
                   </View>
-                  <Btn title="Oda Kur" tone="success" icon="rocket" loading={busy === 'create'} onPress={() => run('create')} />
+                  <Btn title={t('roomCreate')} tone="success" icon="rocket" loading={busy === 'create'} onPress={() => run('create')} />
                 </Card>
               </Reveal>
 
@@ -326,20 +329,20 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Ionicons name="enter" size={22} color={colors.cyan} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>Odaya Katıl</Title>
-                      <Muted>Arkadaşının paylaştığı kodu gir.</Muted>
+                      <Title size={20}>{t('joinRoom')}</Title>
+                      <Muted>{t('joinDescription')}</Muted>
                     </View>
                   </View>
                   <Input
                     center
                     value={code}
                     onChangeText={(t) => setCode(t.toUpperCase())}
-                    placeholder="ODA KODU"
+                    placeholder={t('roomCode')}
                     autoCapitalize="characters"
                     maxLength={5}
                     style={s.codeInput}
                   />
-                  <Btn title="Odaya Giriş Yap" tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
+                  <Btn title={t('roomJoin')} tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
                 </Card>
               </Reveal>
 
@@ -351,8 +354,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Ionicons name="earth" size={22} color={colors.mint} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>Açık Odalar</Title>
-                      <Muted>Herkese açık bekleyen ve devam eden oyunlar.</Muted>
+                      <Title size={20}>{t('publicRooms')}</Title>
+                      <Muted>{t('publicDescription')}</Muted>
                     </View>
                     <View style={{ minWidth: 28, height: 28, borderRadius: 14, backgroundColor: alpha(colors.mint, 0.14), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
                       <Text style={{ color: colors.mint, fontWeight: '700', fontSize: 12 }}>{openRooms.length}</Text>
@@ -360,13 +363,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </View>
                   {roomsLoading ? (
                     <View style={{ paddingVertical: 14, alignItems: 'center' }}>
-                      <Muted>Açık odalar yükleniyor…</Muted>
+                      <Muted>{t('roomsLoading')}</Muted>
                     </View>
                   ) : openRooms.length === 0 ? (
                     <View style={{ paddingVertical: 12, alignItems: 'center', gap: 5 }}>
                       <Ionicons name="game-controller-outline" size={28} color={colors.muted} />
-                      <Text style={{ color: colors.textSoft, fontWeight: '600' }}>Şimdilik açık oda yok</Text>
-                      <Muted>Bir oda kurduğunda burada görünecek.</Muted>
+                      <Text style={{ color: colors.textSoft, fontWeight: '600' }}>{t('noRooms')}</Text>
+                      <Muted>{t('noRoomsHint')}</Muted>
                     </View>
                   ) : openRooms.map((room) => {
                     const waiting = room.phase === 'lobby';
@@ -488,13 +491,21 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     placeholder="Takma adın"
                     maxLength={20}
                   />
+                  <View style={{ gap: 8 }}>
+                    <Text style={s.settingTitle}>{t('language')}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(['tr', 'en'] as const).map((option) => (
+                        <Btn key={option} title={option === 'tr' ? 'Türkçe' : 'English'} tone={language === option ? 'primary' : 'ghost'} onPress={() => { void saveLanguage(option).catch(console.warn); }} />
+                      ))}
+                    </View>
+                  </View>
                   <View style={s.settingRow}>
                     <View style={[s.cardIcon, { backgroundColor: alpha(colors.violet, 0.14), borderColor: alpha(colors.violet, 0.4) }]}>
                       <Ionicons name="musical-notes" size={20} color={colors.violet} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.settingTitle}>Ses efektleri</Text>
-                      <Muted>Oyun içi sesler ve geri bildirim</Muted>
+                      <Text style={s.settingTitle}>{t('soundEffects')}</Text>
+                      <Muted>{t('soundDescription')}</Muted>
                     </View>
                     <Switch
                       value={sound}
@@ -509,7 +520,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <TabBar items={TABS} active={tab} onChange={(k) => { setTab(k); if (k === 'profile') getProfile().then(setProfile); }} />
+      <TabBar items={tabs} active={tab} onChange={(k) => { setTab(k); if (k === 'profile') getProfile().then(setProfile); }} />
       {toast}
     </Screen>
   );
