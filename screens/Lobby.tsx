@@ -18,6 +18,7 @@ const MIN_SLOTS = 4;
 const getGameStyles = () => [
   { id: 'anagram', name: translate("Harf Bulmacası"), description: translate("Kelimeleri çöz, parçaları kazan"), icon: 'text' },
   { id: 'riddle', name: translate("Bilmece"), description: translate("Takımca düşün, doğru cevabı bul"), icon: 'bulb' },
+  { id: 'memory', name: translate("Hızlı eşleştirme"), description: translate("Gösterilen sırayı hatırla ve aynı sırayla dokun"), icon: 'albums' },
   { id: 'reflex', name: translate("Refleks"), description: translate("En hızlı tepkiyi ver"), icon: 'flash' },
   { id: 'math_guess', name: translate("Sayı Tahmini"), description: translate("Sayılarla yarış"), icon: 'calculator' },
   { id: 'social_guess', name: translate("Sosyal Tahmin"), description: translate("Arkadaşların hakkında tahmin et"), icon: 'people' },
@@ -217,23 +218,6 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         </Reveal>
 
-        {/* ================= ODA KODU KARTI ================= */}
-        <Reveal>
-          <View style={s.codeCard}>
-            <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
-            <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
-            <Pulse amount={1.025}>
-              <Text display style={s.code}>{room.code}</Text>
-            </Pulse>
-            <View style={s.chipsRow}>
-              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? translate("Hızlı mod") : room.mode === 'standard' ? translate("Standart mod") : room.mode === 'long' ? translate("Epik mod") : translate("Özel mod")} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
-              <Chip icon="people" label={translate("2 Takım")} color={colors.cyan} />
-            </View>
-            <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
-          </View>
-        </Reveal>
-
         {/* ================= OYUN SEÇİMİ ================= */}
         {room.mode === 'custom' ? <Reveal delay={80}>
           <Card style={{ gap: 12 }}>
@@ -267,6 +251,23 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Muted>{savingGames ? translate("Seçimler kaydediliyor…") : gamesLocked && !editingGames ? translate("Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.") : me.is_host ? translate("Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.") : translate("Seçimleri yalnızca oda kurucusu değiştirebilir.")}</Muted>
           </Card>
         </Reveal> : <Card style={{gap:8}}><Title size={20}>{translate("🎲 Rastgele Oyunlar")}</Title><Muted>{translate("Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.")}</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
+
+        {/* ================= ODA KODU KARTI ================= */}
+        <Reveal>
+          <View style={s.codeCard}>
+            <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
+            <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
+            <Pulse amount={1.025}>
+              <Text display style={s.code}>{room.code}</Text>
+            </Pulse>
+            <View style={s.chipsRow}>
+              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? translate("Hızlı mod") : room.mode === 'standard' ? translate("Standart mod") : room.mode === 'long' ? translate("Epik mod") : translate("Özel mod")} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
+              <Chip icon="people" label={translate("2 Takım")} color={colors.cyan} />
+            </View>
+            <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
+          </View>
+        </Reveal>
 
         {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>{translate('Bot sayısı:')} {draftBotCount??botCount} · {translate('Toplam oyuncu:')} {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title={translate("Botları Uygula")} tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show(translate("Test botları güncellendi."),'success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
