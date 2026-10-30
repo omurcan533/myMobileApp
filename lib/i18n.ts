@@ -35,6 +35,15 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Soru Başlangıcı": "Question Briefing",
+  "Hazır Olun": "Get Ready",
+  "Harfleri Düzenle": "Unscramble Letters",
+  "Grup Oylaması": "Group Vote",
+  "Bilmeceyi Çöz": "Solve the Riddle",
+  "Ödül:": "Reward:",
+  "Devam Et": "Continue",
+  "sn": "sec",
+  "Soru": "Question",
   "Oyun gizlice kaydedildi": "Your vote was recorded privately",
   "BİZİM TAKIM": "OUR TEAM",
   "İsimsiz Ucube": "Unnamed Creature",
