@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { getLanguage, translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -321,7 +321,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               onEarly={() => {
                 soundFx.wrong();
                 haptic.error();
-                show('Çok erken! Bekle…', 'error');
+                show(getLanguage()==='en'?'Too early! Wait…':'Çok erken! Bekle…', 'error');
               }}
             />
           )
@@ -390,7 +390,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {!live && mg.kind === 'reflex' && (
           <ReflexResults
-            title={variant === 'memory' ? 'Hafıza Sonuçları' : variant === 'balance' ? 'Denge Sonuçları' : 'Refleks Sonuçları'}
+            title={getLanguage()==='en'?(variant === 'memory' ? 'Memory Results' : variant === 'balance' ? 'Balance Results' : 'Reflex Results'):(variant === 'memory' ? 'Hafıza Sonuçları' : variant === 'balance' ? 'Denge Sonuçları' : 'Refleks Sonuçları')}
             players={data.players}
             entries={entries}
             winnerSide={mg.winner_side}
@@ -501,7 +501,7 @@ function ReflexGame({
   return (
     <View style={s.reflexWrap}>
       <Text style={[s.gameInstruction, { color: go && !idle ? colors.mint : colors.textSoft }]}>
-        {idle ? (mineDone ? 'Tepki süren kaydedildi' : 'Oyun bitti') : go ? 'ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!'}
+        {translate(idle ? (mineDone ? 'Tepki süren kaydedildi' : 'Oyun bitti') : go ? 'ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!')}
       </Text>
       <Pulse active={live && go && !mineDone} amount={1.05}>
         <View style={s.ringOuter}>
@@ -519,12 +519,12 @@ function ReflexGame({
                 {idle ? (
                   <>
                     <Ionicons name={mineDone ? 'speedometer' : 'flag'} size={34} color={colors.textSoft} />
-                    <Text display style={s.reflexMs}>{mineDone ? `${reactionMs} ms` : 'Bitti'}</Text>
+                    <Text display style={s.reflexMs}>{mineDone ? `${reactionMs} ms` : translate('Bitti')}</Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name={go ? 'hand-left' : 'hourglass'} size={36} color={go ? '#05281A' : '#fff'} />
-                    <Text display style={[s.reflexText, go && { color: '#05281A' }]}>{go ? 'BAS!' : 'BEKLE'}</Text>
+                    <Text display style={[s.reflexText, go && { color: '#05281A' }]}>{translate(go ? 'BAS!' : 'BEKLE')}</Text>
                   </>
                 )}
               </LinearGradient>
@@ -657,12 +657,12 @@ function MemoryGame({
   };
 
   const status: { icon: IconName; text: string; color: string } = showing
-    ? { icon: 'eye', text: `Sıralamayı aklında tut (${showingStep ?? 1}/${sequence.length})`, color: colors.cyan }
+    ? { icon: 'eye', text: `${translate('Sıralamayı aklında tut')} (${showingStep ?? 1}/${sequence.length})`, color: colors.cyan }
     : mineDone
-    ? { icon: 'checkmark-circle', text: 'Harika! Başarıyla tamamlandı', color: colors.mint }
+    ? { icon: 'checkmark-circle', text: translate('Harika! Başarıyla tamamlandı'), color: colors.mint }
     : errorFlash
-    ? { icon: 'close-circle', text: 'Hatalı! Baştan başla…', color: colors.red }
-    : { icon: 'finger-print', text: `Sıra sende! Dokun (${playerIdx}/${sequence.length})`, color: colors.yellow };
+    ? { icon: 'close-circle', text: translate('Hatalı! Baştan başla…'), color: colors.red }
+    : { icon: 'finger-print', text: `${translate('Sıra sende! Dokun')} (${playerIdx}/${sequence.length})`, color: colors.yellow };
 
   const isClickable = !showing && !mineDone && live;
 
@@ -696,7 +696,7 @@ function MemoryGame({
                 </View>
               )}
               <Text style={{ fontSize: 40 }}>{item.emoji}</Text>
-              <Text style={[s.memoryName, isHighlighted && { color: colors.mint }]}>{item.name}</Text>
+              <Text style={[s.memoryName, isHighlighted && { color: colors.mint }]}>{translate(item.name)}</Text>
             </Tap>
           );
         })}
@@ -762,7 +762,7 @@ function BalanceGame({
   return (
     <Card style={s.gameContainer}>
       <Text style={s.gameInstruction}>
-        {mineDone ? 'Denge başarıyla korundu!' : 'Göstergeyi yeşil bölgede tut!'}
+        {translate(mineDone ? 'Denge başarıyla korundu!' : 'Göstergeyi yeşil bölgede tut!')}
       </Text>
 
       {/* Denge İlerleme Sayacı */}
@@ -787,8 +787,8 @@ function BalanceGame({
 
       {/* Dokunma Butonları */}
       <View style={s.nudgeRow}>
-        <Btn title="Sola" icon="chevron-back" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(-1)} style={{ flex: 1 }} />
-        <Btn title="Sağa" icon="chevron-forward" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(1)} style={{ flex: 1 }} />
+        <Btn title={translate("Sola")} icon="chevron-back" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(-1)} style={{ flex: 1 }} />
+        <Btn title={translate("Sağa")} icon="chevron-forward" tone="ghost" size="md" disabled={mineDone || !live} onPress={() => nudge(1)} style={{ flex: 1 }} />
       </View>
       {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
     </Card>
