@@ -65,11 +65,11 @@ useEffect(()=>{
 },[roomId,mission?.key]);
 const finishMission=async(status:'done'|'skipped')=>{setMissionBusy(true);try{await api.partySecretMissionFinish(roomId,status);await refreshMission();}catch(e){setError((e as Error).message);}finally{setMissionBusy(false);}};
 
-const [tick,setTick]=useState(Date.now());
+const [tick,setTick]=useState(0);
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
 const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null),[ageMedals,setAgeMedals]=useState<any[]>([]);
 const refresh=async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent(e);if(!e)setWinner(null);}catch{}};
-useEffect(()=>{refresh();const t=setInterval(refresh,2500);return()=>clearInterval(t);},[roomId]);
+useEffect(()=>{const first=setTimeout(()=>{void refresh();},0);const t=setInterval(()=>{void refresh();},2500);return()=>{clearTimeout(first);clearInterval(t);};},[roomId]);
 const run=async(fn:()=>Promise<any>)=>{setBusy(true);setError('');try{await fn();await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const start=(kind:string)=>run(async()=>{
 // Ucube Mahkemesi başlatma akışı şimdilik devre dışı:
