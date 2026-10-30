@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React,{useEffect,useState} from 'react';
 import {ActivityIndicator,StyleSheet,View,Pressable,TextInput,Animated,Keyboard,Platform,ViewStyle} from 'react-native';
 import {api,GameError} from '../lib/api';
@@ -13,6 +14,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  id:string;startsAt:string|null;live:boolean;paused:boolean;isCaptain:boolean;side:'A'|'B'|null;
  state?:Record<string,Progress>|null;onError?:(message:string)=>void;
 }){
+ useLanguage();
  const area=usePlaySize();
  const [chatOpen,setChatOpen]=useState(false);
  const tileSize=Math.max(28,Math.min(58,Math.floor((area.width-60)/5),Math.floor((area.height-220)/7)));
@@ -109,16 +111,16 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
       Animated.timing(flash,{toValue:0,duration:180,useNativeDriver:true}),
      ]).start();
     }
-    setFeedback(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! Bir önceki sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!');
+    setFeedback(translate(reveal.outcome==='green'?'DOĞRU! Yeşil fayansı buldun.':reveal.outcome==='white'?'BEYAZ FAYANS! Bir önceki sıraya dönüyorsun.':'YANLIŞ! Kırmızı fayans. En başa dönüyorsun!'));
     if(animationRef.current)clearTimeout(animationRef.current);
     animationRef.current=setTimeout(()=>setFlipped(null),200);
    }
   }catch(e){if(mounted.current&&playState.current.live){setFeedback((e as Error).message);onError?.((e as Error).message)}}finally{requestBusy.current=false;if(mounted.current)setPending(null)}
  };
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
-  <Title size={area.active?18:23}>Survivor Hafıza Parkuru</Title>
-  {!area.active&&<Muted>7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.</Muted>}
-  {previewing?<Text style={styles.notice}>Fayansları ezberle! {Math.ceil((Date.parse(startsAt!)-clock)/1000)} sn</Text>:<Text style={styles.notice}>{!live?'Parkur tamamlandı':paused?'Oyun duraklatıldı':!startsAt?'Başlaması bekleniyor':isCaptain?`Sıra ${Math.min(7,(own?.row??0)+1)} / 7 · Dokun ve ilerle`:'Kaptan oynuyor — takımına doğru yolu söyle.'}</Text>}
+  <Title size={area.active?18:23}>{translate('Survivor Hafıza Parkuru')}</Title>
+  {!area.active&&<Muted>{translate('7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.')}</Muted>}
+  {previewing?<Text style={styles.notice}>{translate('Fayansları ezberle!')} {Math.ceil((Date.parse(startsAt!)-clock)/1000} {translate('sn')}</Text>:<Text style={styles.notice}>{!live?translate('Parkur tamamlandı'):paused?translate('Oyun duraklatıldı'):!startsAt?translate('Başlaması bekleniyor'):isCaptain?`${translate('Sıra')} ${Math.min(7,(own?.row??0)+1)} / 7 · ${translate('Dokun ve ilerle')}`:translate('Kaptan oynuyor — takımına doğru yolu söyle.')}</Text>}
   <View style={[styles.grid,area.active&&{width:tileSize*5+24}]}>
    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'#A82D41',opacity:flash}]}/>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
@@ -129,7 +131,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     const color=visible?(preview.greens[row]===col?'#36C88A':preview.whiteRow===row&&preview.whiteCol===col?'#F4F6FA':'#E65869'):wrongSelection?(rowReveal?.selectedCol===col?(rowReveal.outcome==='white'?'#F4F6FA':'#E65869'):'#2D4262'):revealRow?(rowReveal?.greenCol===col?'#36C88A':rowReveal?.whiteCol===col?'#F4F6FA':'#E65869'):'#2D4262';
     const current=(own?.row??0)===row;
     const selected=pending?.row===row&&pending.col===col;
-    return <Pressable key={row+'-'+col} testID={`survivor-tile-${row}-${col}`} accessibilityRole="button" accessibilityLabel={`Sıra ${row+1}, kutu ${col+1}`} accessibilityState={{busy:selected}}
+    return <Pressable key={row+'-'+col} testID={`survivor-tile-${row}-${col}`} accessibilityRole="button" accessibilityLabel={`${translate('Sıra')} ${row+1}, ${translate('kutu')} ${col+1}`} accessibilityState={{busy:selected}}
       disabled={!current||previewing||!startsAt||!isCaptain||busy||!live||paused}
       // RN Web uses delayPressIn (50ms by default); native uses unstable_pressDelay.
       {...(Platform.OS==='web'?{delayPressIn:0}:{unstable_pressDelay:0})}
@@ -140,18 +142,18 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
     </Pressable>
    }))}
   </View>
-  <Text style={styles.notice}>Takımın: {Math.min(7,own?.row??0)}/7 · Rakip: {Math.min(7,opponent?.row??0)}/7</Text>
-  <View style={styles.feedback}><Text accessibilityLiveRegion="polite" numberOfLines={2} style={[styles.notice,{fontSize:12,color:busy?'#FFD166':flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{busy?'Dokunuşun alındı · Sonuç bekleniyor…':feedback||' '}</Text></View>
-  <Btn title="Takım Sohbeti" size="sm" tone="ghost" onPress={()=>setChatOpen(true)}/>
+  <Text style={styles.notice} >{translate('Takımın:')} {Math.min(7,own?.row??0)}/7 · {translate('Rakip:')} {Math.min(7,opponent?.row??0)}/7</Text>
+  <View style={styles.feedback}><Text accessibilityLiveRegion="polite" numberOfLines={2} style={[styles.notice,{fontSize:12,color:busy?'#FFD166':flipped?.outcome==='red'?'#FF7A88':'#BCEEFF'}]}>{busy?translate('Dokunuşun alındı · Sonuç bekleniyor…'):feedback||' '}</Text></View>
+  <Btn title={translate('Takım Sohbeti')} size="sm" tone="ghost" onPress={()=>setChatOpen(true)}/>
   <Sheet visible={chatOpen} onClose={closeChat}>
-  <Title size={18}>Takım Sohbeti</Title>
-  <Muted>Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!</Muted>
+  <Title size={18}>{translate('Takım Sohbeti')}</Title>
+  <Muted>{translate('Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!')}</Muted>
   <View style={styles.messages}>{messages.slice(-8).map(m=><Text key={m.id} style={styles.message}><Text style={styles.nickname}>{m.nickname}: </Text>{m.body}</Text>)}</View>
   <View style={styles.compose}>
-   <TextInput value={draft} onChangeText={setDraft} placeholder="Takımına yaz..." placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
-   <Btn title="Gönder" size="sm" disabled={!live||!draft.trim()||sending} onPress={send}/>
+   <TextInput value={draft} onChangeText={setDraft} placeholder={translate('Takımına yaz...')} placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
+   <Btn title={translate('Gönder')} size="sm" disabled={!live||!draft.trim()||sending} onPress={send}/>
   </View>
-  <Btn title="Oyuna Dön" size="sm" onPress={closeChat}/>
+  <Btn title={translate('Oyuna Dön')} size="sm" onPress={closeChat}/>
   </Sheet>
  </Card>;
 }
