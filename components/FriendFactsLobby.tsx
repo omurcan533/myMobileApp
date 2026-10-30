@@ -1,5 +1,5 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React,{useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useState} from 'react';
 import {TextInput,View} from 'react-native';
 import {api} from '../lib/api';
 import {Btn,Card,Muted,Text,Title} from './ui';
@@ -11,8 +11,9 @@ const [facts,setFacts]=useState<Record<string,string>>({});
 const [progress,setProgress]=useState<{player_id:string;count:number}[]>([]);
 const [reveal,setReveal]=useState<{player_id:string;question_key:string;answer:string}[]>([]);
 const [saved,setSaved]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
-const refresh=async()=>{try{const p=await api.friendFactProgress(roomId);setProgress(p);const ready=players.length>=2&&players.every(x=>(p.find(v=>v.player_id===x.id)?.count??0)>=6);onReady(ready);if(ready)setReveal(await api.friendFactReveal(roomId));}catch(e){setError((e as Error).message);}};
-useEffect(()=>{refresh();const t=setInterval(refresh,5000);return()=>clearInterval(t);},[roomId,players.map(p=>p.id).join(',')]);
+const playerIds=players.map(p=>p.id).join(',');
+const refresh=useCallback(async()=>{try{const p=await api.friendFactProgress(roomId);setProgress(p);const ids=playerIds.split(',').filter(Boolean);const ready=ids.length>=2&&ids.every(id=>(p.find(v=>v.player_id===id)?.count??0)>=6);onReady(ready);if(ready)setReveal(await api.friendFactReveal(roomId));}catch(e){setError((e as Error).message);}},[roomId,playerIds,onReady]);
+useEffect(()=>{const initial=setTimeout(()=>{void refresh();},0);const t=setInterval(()=>{void refresh();},5000);return()=>{clearTimeout(initial);clearInterval(t);};},[refresh]);
 const save=async()=>{if(QUESTIONS.some(([k])=>!facts[k]?.trim())){setError(translate("Tüm soruları cevapla."));return;}setBusy(true);try{await api.saveFriendFacts(roomId,facts);setSaved(true);await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const ready=players.length>=2&&players.every(p=>(progress.find(x=>x.player_id===p.id)?.count??0)>=6);
 return <Card style={{gap:12}}><Title size={21}>{translate("Beni Ne Kadar Tanıyorsun?")}</Title><Muted>{translate("Herkes cevaplasın. Sonra cevapları birlikte okuyup aklınızda tutun.")}</Muted>
