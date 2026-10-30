@@ -8,6 +8,7 @@ import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, Muted, Pulse, Reveal, RoomExitButton, Screen, SectionLabel, Title, Text, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
+import { shortMatchRecap, shortPlayerQuip } from '../lib/resultsRecap';
 import { PARTY_MISSIONS } from '../lib/partyMissions';
 import { teamMascot } from '../lib/art';
 import { recordGame } from '../lib/profile';
@@ -16,298 +17,7 @@ import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
 import type { Ctx, GameResults, Side } from '../lib/types';
 
-/** Gerçek oyun olaylarından oyuncuya özgü, kanıta dayalı ve şakacı bir final raporu üretir. */
-function playerFinalComment(
- player: {id:string;nickname:string;team_side:Side|null},
- index:number,
- results:GameResults,
- friendScores:{player_id:string;correct:number;attempts:number}[],
- ageScores:{player_id:string;correct:number;total:number}[],
- data:Ctx['data'],
-): {headline:string;details:string[];verdict:string;facts:string[]} {
- const side=player.team_side;
- const team=side?results.teams[side]:null;
- const rival=side?results.teams[side==='A'?'B':'A']:null;
- const friend=friendScores.find(x=>x.player_id===player.id);
- const age=ageScores.find(x=>x.player_id===player.id);
- const answers=data.answers.filter(x=>x.player_id===player.id);
- const correct=answers.filter(x=>x.is_correct===true).length;
- const wrong=answers.filter(x=>x.is_correct===false).length;
- const pending=answers.filter(x=>x.is_correct===null).length;
- const finalAnswers=answers.filter(x=>x.is_final).length;
- const roundWins=data.rounds.filter(x=>x.winner_side===side&&x.status==='resolved').length;
- const roundsPlayed=data.rounds.filter(x=>x.status==='resolved').length;
- const pieces=side?data.teamPieces.filter(x=>x.side===side):[];
- const playerMinigameEntries=data.entries.filter(x=>x.player_id===player.id);
- const teamMinigameWins=data.minigames.filter(x=>x.status==='done'&&x.winner_side===side).length;
- const playedMinigames=data.minigames.filter(x=>x.status==='done').length;
- const friendAttempt=friend?.attempts??0;
- const ageTotal=age?.total??0;
- const facts:string[]=[];
- const details:string[]=[];
- // Reports are rendered locally for each player; do not translate user-entered creature names.
- if (getLanguage() === 'en') {
-  if (answers.length) {
-   facts.push(`Questions: ${answers.length} answers · ${correct} correct · ${wrong} incorrect`);
-   details.push(correct > wrong
-    ? `You got ${correct} questions right and ${wrong} wrong. The jury noticed your sharp thinking!`
-    : wrong > correct
-      ? `You got ${correct} right and ${wrong} wrong. Bold guesses, but the answer key had other plans.`
-      : `You finished with ${correct} correct and ${wrong} incorrect answers. A perfectly balanced adventure!`);
-   if (finalAnswers > 0) details.push(`You submitted ${finalAnswers} final answers. Taking responsibility deserves applause.`);
-   if (pending > 0) facts.push(`${pending} answers have not been evaluated yet`);
-  } else details.push('No question answers were recorded for you this round. A mysterious strategy!');
-  if (friendAttempt > 0) {
-   facts.push(`Friendship Memory: ${friend!.correct}/${friendAttempt}`);
-   details.push(friend!.correct === friendAttempt
-    ? `You remembered all ${friendAttempt} friendship answers. You're the group's walking archive!`
-    : `You remembered ${friend!.correct} of ${friendAttempt} friendship answers. There are still surprises to discover!`);
-  } else facts.push('Friendship Memory: no record');
-  if (ageTotal > 0) {
-   facts.push(`Age guesses: ${age!.correct}/${ageTotal}`);
-   details.push(`You guessed ${age!.correct} of ${ageTotal} ages correctly. The jury is taking notes.`);
-  }
-  if (playerMinigameEntries.length > 0) {
-   facts.push(`Minigame entries: ${playerMinigameEntries.length}`);
-   const reactions = playerMinigameEntries.filter(x => typeof x.reaction_ms === 'number').map(x => x.reaction_ms as number);
-   if (reactions.length) details.push(`Your fastest recorded reaction was ${Math.min(...reactions)} ms. Nice reflexes!`);
-   else details.push(`You joined ${playerMinigameEntries.length} minigame rounds. Participation counts!`);
-  }
-  if (side && team && rival) {
-   const difference = Math.abs(team.score - rival.score);
-   facts.push(`Team: ${team.score} points · ${pieces.length} pieces`);
-   details.push(results.official_winner === side
-    ? `Your team won by ${difference} points! Share the trophy with your teammates.`
-    : results.official_winner !== null
-      ? `Your team finished ${difference} points behind. The whole team shares the result.`
-      : 'The teams tied. Even the jury could not pick a winner.');
-   if (roundsPlayed > 0) details.push(`Your team won ${roundWins} of ${roundsPlayed} completed question rounds.`);
-   if (playedMinigames > 0) details.push(`Your team won ${teamMinigameWins} of ${playedMinigames} completed minigames.`);
-   if (team.creature_name) details.push(`Your team's creature is called “${team.creature_name}”. What a creation!`);
-  }
-  const highlights = [
-   {score: friendAttempt > 0 ? friend!.correct / friendAttempt * 3 : 0, text: '🧠 Friendship Archivist'},
-   {score: ageTotal > 0 ? age!.correct / ageTotal * 3 : 0, text: '🕵️ Age Detective'},
-   {score: correct > 0 ? correct / Math.max(1, correct + wrong) * 2 : 0, text: '🎯 Answer Hunter'},
-   {score: playerMinigameEntries.length > 0 ? 1 : 0, text: '🎮 Arena Regular'},
-  ];
-  const best = highlights.sort((a, b) => b.score - a.score)[0];
-  const headline = best.score > 0 ? best.text : index % 2 === 0 ? '🎭 Mystery Strategist' : '🎪 Surprise Factor';
-  const verdict = results.official_winner === side && side
-   ? 'JURY VERDICT: Your team takes the trophy, but everyone shares the spotlight.'
-   : correct > 0 || friend?.correct || age?.correct
-     ? 'JURY VERDICT: You earned applause and a little friendly teasing.'
-     : 'JURY VERDICT: Not enough stats to invent a legend. Your next game awaits!';
-  return {headline, details: details.slice(0, 7), verdict, facts};
- }
-
- if(answers.length){
-  facts.push(`Sorular: ${answers.length} yanıt · ${correct} doğru · ${wrong} yanlış`);
-  if(correct>0&&wrong===0)details.push(`Sorularda ${correct} doğru yanıtın var, kayıtlarda yanlışın görünmüyor. Jüri notu: Cevap anahtarıyla gizli anlaşman mı var?`);
-  else if(correct>wrong)details.push(`Sorularda ${correct} doğruya karşı ${wrong} yanlış: Hesaplı riskler almışsın. Yalnız her özgüvenli cevap doğru cevap sayılmıyor, haberin olsun.`);
-  else if(wrong>correct)details.push(`Sorularda ${wrong} yanlış, ${correct} doğru var. Yanıtları cesurca savunmuşsun; doğruluk payı ise biraz tatildeymiş.`);
-  else details.push(`Sorularda ${correct} doğru, ${wrong} yanlışla dengeyi kurmuşsun. Jüri, bu istikrarlı kararsızlığı takdir etti.`);
-  if(finalAnswers>0)details.push(`${finalAnswers} kez son yanıt vermişsin. Karar anında sorumluluk almışsın; jüri bunu not etti.`);
-  if(pending>0)facts.push(`${pending} yanıt henüz değerlendirilmemiş`);
- }else details.push('Soru yanıtı kaydın görünmüyor. Bu tur sessiz gözlemci modunda mıydın, yoksa büyük planı son ana mı sakladın?');
- if(friendAttempt>0){
-  facts.push(`Dostluk Hafızası: ${friend!.correct}/${friendAttempt}`);
-  if(friend!.correct===friendAttempt)details.push(`Dostluk Hafızası'nda ${friendAttempt} sorunun tamamını bilmişsin. Arkadaş grubunun yürüyen arşivisin; doğum günlerini de hatırlıyorsundur artık.`);
-  else if(friend!.correct===0)details.push(`Dostluk Hafızası'nda ${friendAttempt} denemede doğru çıkmamış. Arkadaşlarınla bir kahve içip 'biz birbirimizi tanıyor muyuz?' toplantısı yapmanız gerekebilir.`);
-  else details.push(`Dostluk Hafızası'nda ${friend!.correct}/${friendAttempt} doğru: Bazı sırları çözmüşsün ama arkadaşlarının hâlâ sürpriz bölümleri var.`);
- }else facts.push('Dostluk Hafızası: kayıt yok');
- if(ageTotal>0){
-  facts.push(`Yaş tahmini: ${age!.correct}/${ageTotal}`);
-  if(age!.correct===ageTotal)details.push(`Yaş tahmininde ${ageTotal} isabet! Jüri sana nüfus müdürlüğünden fahri görev teklif ediyor.`);
-  else if(age!.correct===0)details.push(`Yaş tahmininde ${ageTotal} soruda isabet yok. Yaş sormadan önce iki kez düşün; bu yeteneğin arkadaş grubunda diplomatik kriz çıkarabilir.`);
-  else details.push(`Yaş tahmininde ${age!.correct}/${ageTotal} tutturdun. İnsan sarrafı olmak için biraz daha saha çalışması lazım.`);
- }
- if(playerMinigameEntries.length){
-  facts.push(`Mini oyun katılımı: ${playerMinigameEntries.length} kayıt`);
-  const reactions=playerMinigameEntries.filter(x=>typeof x.reaction_ms==='number').map(x=>x.reaction_ms as number);
-  if(reactions.length){
-   const best=Math.min(...reactions);
-   details.push(`Refleks kayıtlarında en hızlı tepkin ${best} ms. ${best<350?'Parmakların beyninden önce harekete geçiyor olabilir.':'Bir sonraki tur parmaklara biraz ısınma yaptırmakta fayda var.'}`);
-  }else details.push(`${playerMinigameEntries.length} mini oyun katılım kaydın var. Sahnede bulunmuşsun; jüri katılımı görmezden gelmiyor.`);
- }
- if(side&&team&&rival){
-  const diff=team.score-rival.score;
-  facts.push(`Takım: ${team.score} puan · ${pieces.length} parça`);
-  if(results.official_winner===side)details.push(`Takımın ${Math.abs(diff)} puan farkla şampiyon oldu. Kupayı kaldırırken takım arkadaşlarına da yer bırak, tek başına kazanmadın.`);
-  else if(results.official_winner!==null)details.push(`Takımın ${Math.abs(diff)} puan farkla geride kaldı. Yenilgi takımın ortak sonucu; tek kişilik günah keçisi aramıyoruz.`);
-  else details.push('Takımlar berabere kaldı. Jüri bile kimin daha büyük kaos çıkardığına karar veremedi.');
-  if(roundsPlayed>0)details.push(`Takımın ${roundsPlayed} sonuçlanan soru turunun ${roundWins} tanesini kazandı. ${roundWins>roundsPlayed/2?'Sorularda kontrolü ele geçirmişsiniz.':'Sorular size kolay teslim olmamış; mücadele etmişsiniz.'}`);
-  if(playedMinigames>0)details.push(`Mini oyunlarda takımın ${playedMinigames} sonuçlanan karşılaşmanın ${teamMinigameWins} tanesini aldı. ${teamMinigameWins>0?'Arada güzel refleksler ve takım çalışması da var.':'Bir sonraki karşılaşma için antrenman kampı şart olabilir.'}`);
-  if(team.creature_name)details.push(`Ve ortaya çıkan yaratığın adı “${team.creature_name}”. ${team.funny_votes>rival.funny_votes?'Komiklik oylarında da öne çıkmışsınız; jüri kahkahaya teslim.':'İsim iddialı, komiklik jürisi ise biraz daha ikna bekliyor.'}`);
- }
- const highlights=[
-  {score:friendAttempt>0?friend!.correct/Math.max(1,friendAttempt)*3:0,text:'🧠 Arkadaş grubunun hafıza kartı'},
-  {score:ageTotal>0?age!.correct/Math.max(1,ageTotal)*3:0,text:'🕵️ Yaş Dedektifi'},
-  {score:correct>0?correct/Math.max(1,correct+wrong)*2:0,text:'🎯 Cevap Avcısı'},
-  {score:playerMinigameEntries.length>0?1:0,text:'🎮 Arena Müdavimi'},
- ];
- const best=highlights.sort((a,b)=>b.score-a.score)[0];
- const headline=best.score>0?best.text:(index%2===0?'🎭 Gizemli Stratejist':'🎪 Sürpriz Faktörü');
- const verdict=results.official_winner===side&&side?'JÜRİ KARARI: Kupa takımının, hikâyenin başrolü ise hepinizsiniz.':correct>0||friend?.correct||age?.correct?'JÜRİ KARARI: Bu turda hem alkış hem tatlı bir taşlama hak ettin.':'JÜRİ KARARI: İstatistikler sınırlı; efsane bir performans uydurmayacağız. Bir sonraki oyunda sahne senin!';
- return {headline,details:details.slice(0,7),verdict,facts};
-}
-
 type MatchMoment={at:string;type:'round'|'minigame'|'highlight';data:{player_id?:string|null;leading?:Side;diff?:number;a?:number;b?:number;streak?:number;seconds_to_deadline?:number;round?:number;winner?:Side|null;question?:string;correct_players?:{id:string;name:string;side:Side}[];wrong_players?:{id:string;name:string;side:Side}[];kind?:string;tug_a?:number;tug_b?:number;top_tug_player?:{id:string;name:string;force:number}|null}};
-const MINI_GAME_LABELS:Record<string,string>={
- reflex:'Refleks Yarışı',social_guess:'Dostluk Hafızası',math_guess:'Hızlı Matematik ve Tahmin',
- memory:'Hafıza Oyunu',pong:'Pong Düellosu',line_connect:'Çizgi Birleştirme',
- survivor_memory:'Survivor Hafıza Parkuru',song_complete:'Şarkı Tamamlama',tug_of_war:'Halat Çekme',
-};
-const englishMiniGameLabels: Record<string,string> = {reflex:'Reflex Race',social_guess:'Friendship Memory',math_guess:'Quick Math and Guessing',memory:'Memory Game',pong:'Pong Duel',line_connect:'Connect the Lines',survivor_memory:'Survivor Memory Course',song_complete:'Complete the Song',tug_of_war:'Tug of War'};
-function describeMatchEnglish(story:MatchMoment[],players:Ctx['data']['players']){
- type Moment={title:string;body:string;people:string[];accent:string};
- const moments:Moment[]=[];
- let prevWinner:Side|null=null,streak=0;
- const finished=story.filter(x=>x.type!=='highlight').sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
- const miniGames=finished.filter(x=>x.type==='minigame');
- const miniTotals=new Map<string,{a:number;b:number;draw:number}>();
- for(const m of miniGames){
-  const kind=m.data.kind??'unknown';
-  const count=miniTotals.get(kind)??{a:0,b:0,draw:0};
-  if(m.data.winner==='A')count.a++;else if(m.data.winner==='B')count.b++;else count.draw++;
-  miniTotals.set(kind,count);
- }
- const namedTeam=(side:Side|null|undefined)=>side==='A'?'Blue team':side==='B'?'Red team':'Both teams';
- for(const moment of [...story].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
-  const d=moment.data;
-  if(moment.type==='highlight'){
-   if(d.kind==='tug_lead_change'){
-    moments.push({title:'🚀 Tug-of-war comeback',body:`After falling behind, ${namedTeam(d.leading)} pulled ahead! The score was Blue ${d.a??0} – Red ${d.b??0}. What a turnaround!`,people:[],accent:'#FFD58A'});
-   }else if(d.kind==='wrong_streak'){
-    const p=players.find(p=>p.id===d.player_id);
-    if(p)moments.push({title:'🙈 Three misses in a row',body:`${p.nickname} missed three evaluated answers in a row. The jury admires the persistence!`,people:[p.id],accent:'#FFB6CB'});
-   }else if(d.kind==='last_second_win'){
-    moments.push({title:'⏰ Last-second drama',body:`Round ${d.round} ended just before time ran out, with ${namedTeam(d.winner)} taking the win!`,people:[],accent:'#A7F4D2'});
-   }
-   continue;
-  }
-  if(moment.type==='round'){
-   const winners=d.correct_players??[],misses=d.wrong_players??[];
-   if(winners.length&&misses.length){
-    const hit=winners[0],miss=misses.find(p=>p.side!==hit.side);
-    if(miss)moments.push({title:'🎯 One question, two outcomes',body:`${hit.name} got it right while ${miss.name} missed the same question. Cheers and consolation from the jury!`,people:[hit.id,miss.id],accent:'#B8F7DA'});
-   }
-   if(d.winner){
-    streak=d.winner===prevWinner?streak+1:1;
-    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 Momentum shift',body:`In round ${d.round}, ${namedTeam(d.winner)} beat the previous winner, ${namedTeam(prevWinner)}. Momentum shifted!`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
-    if(streak===3)moments.push({title:'🔥 Three-round winning streak',body:`${namedTeam(d.winner)} won three question rounds in a row. Time for the opponents to regroup!`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
-    prevWinner=d.winner;
-   }
-  }else if(d.kind==='tug_of_war'){
-   const a=Number(d.tug_a??0),b=Number(d.tug_b??0),top=d.top_tug_player;
-   moments.push({title:'🪢 Tug of War: power struggle',body:`Blue generated ${a} net force and Red generated ${b}. ${top?`${top.name} stood out with ${top.force} force.`:'No individual force data was recorded.'} ${a===b?'The teams tied!':`${namedTeam(d.winner)} won the match.`}`,people:top?[top.id]:[],accent:'#99E6FF'});
-  }
- }
- // Each minigame type gets a single meaningful recap, rather than repeating a generic line per match.
- for(const [kind,score] of miniTotals){
-  if(kind==='tug_of_war')continue;
-  const label=englishMiniGameLabels[kind]??'Minigame';
-  const count=score.a+score.b+score.draw;
-  const winner=score.a>score.b?'A':score.b>score.a?'B':null;
-  const scoreLine=`Blue ${score.a} – Red ${score.b}${score.draw?` · ${score.draw} draws`:''}`;
-  const descriptions:Record<string,string>={
-   reflex:'Every millisecond counted in the reflex challenge.',
-   social_guess:'Players tested how well they knew their friends.',
-   math_guess:'Fast calculations and close guesses made the difference.',
-   memory:'Strong memories gave players the edge.',
-   pong:'Paddles were flying in the Pong duel.',
-   line_connect:'Teams raced to connect the lines correctly.',
-   survivor_memory:'Memory and careful tile choices mattered in Survivor.',
-   song_complete:'Music knowledge helped players complete the missing song titles.',
-  };
-  const detail=descriptions[kind]??'The teams faced off in this minigame.';
-  moments.push({title:`🎮 ${label}`,body:`${count} matches played. ${detail} Final score: ${scoreLine}. ${winner?`${namedTeam(winner)} won more rounds.`:'The teams tied on wins.'}`,people:[],accent:'#D3B8FF'});
- }
- if(finished.length>=2){
-  const last=finished[finished.length-1];
-  const lastGame=last.data.kind?englishMiniGameLabels[last.data.kind]??'minigame':'question round';
-  const rounds=finished.filter(x=>x.type==='round').length;
-  moments.push({title:'🎬 Final whistle',body:`The last recorded match was ${lastGame}. Players completed ${rounds} question rounds and ${miniGames.length} minigames. The jury reports only what the records show.`,people:[],accent:'#FFD99C'});
- }
- const special=moments.filter(m=>/comeback|misses in a row|Last-second/i.test(m.title));
- return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
-}
-
-function describeMatch(story:MatchMoment[],players:Ctx['data']['players']){
- if(getLanguage()==='en')return describeMatchEnglish(story,players);
- type Moment={title:string;body:string;people:string[];accent:string};
- const moments:Moment[]=[];
- let prevWinner:Side|null=null,streak=0;
- const finished=story.filter(x=>x.type!=='highlight').sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
- const miniGames=finished.filter(x=>x.type==='minigame');
- const miniTotals=new Map<string,{a:number;b:number;draw:number}>();
- for(const m of miniGames){
-  const kind=m.data.kind??'unknown';
-  const count=miniTotals.get(kind)??{a:0,b:0,draw:0};
-  if(m.data.winner==='A')count.a++;else if(m.data.winner==='B')count.b++;else count.draw++;
-  miniTotals.set(kind,count);
- }
- const namedTeam=(side:Side|null|undefined)=>side==='A'?'Mavi takım':side==='B'?'Kırmızı takım':'İki takım';
- for(const moment of [...story].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
-  const d=moment.data;
-  if(moment.type==='highlight'){
-   if(d.kind==='tug_lead_change'){
-    moments.push({title:'🚀 Halatta büyük geri dönüş',body:`Önce geriye düşen ${namedTeam(d.leading)}, halatı yeniden kendi tarafına çekti. Öne geçtiği an kuvvetler Mavi ${d.a??0} – Kırmızı ${d.b??0} idi. Arenada dengeler değişti!`,people:[],accent:'#FFD58A'});
-   }else if(d.kind==='wrong_streak'){
-    const p=players.find(p=>p.id===d.player_id);
-    if(p)moments.push({title:'🙈 Üç yanlışlık seri',body:`${p.nickname} arka arkaya üç değerlendirilmiş cevapta hedefi tutturamadı. Jüri notu: Israrına saygımız sonsuz, cevap anahtarına biraz daha yakın duralım!`,people:[p.id],accent:'#FFB6CB'});
-   }else if(d.kind==='last_second_win'){
-    moments.push({title:'⏰ Son saniye heyecanı',body:`${d.round}. soru turu kapanışa çok az kala sonuçlandı; ${namedTeam(d.winner)} bu turun galibi oldu. Kronometreyle yarışılan anlardan biri!`,people:[],accent:'#A7F4D2'});
-   }
-   continue;
-  }
-  if(moment.type==='round'){
-   const winners=d.correct_players??[],misses=d.wrong_players??[];
-   if(winners.length&&misses.length){
-    const hit=winners[0],miss=misses.find(p=>p.side!==hit.side);
-    if(miss)moments.push({title:'🎯 Aynı soruda iki ayrı kader',body:`${hit.name} doğru cevabı bulurken ${miss.name} aynı soruda yanıldı. Jüri bu turda bir alkış, bir de teselli dağıtıyor.`,people:[hit.id,miss.id],accent:'#B8F7DA'});
-   }
-   if(d.winner){
-    streak=d.winner===prevWinner?streak+1:1;
-    if(prevWinner&&prevWinner!==d.winner)moments.push({title:'🔄 Soru turunda dengeler değişti',body:`${d.round}. turda ${namedTeam(d.winner)}, bir önceki turun kazananı ${namedTeam(prevWinner)} karşısında üstün geldi. Soru tahtasında rüzgâr tersine döndü.`,people:winners.map(p=>p.id),accent:'#FFE2A3'});
-    if(streak===3)moments.push({title:'🔥 Üç soruluk galibiyet serisi',body:`${namedTeam(d.winner)} arka arkaya üç soru turunu kazandı. Rakip ekip için strateji molası vakti!`,people:winners.map(p=>p.id),accent:'#FFB9C6'});
-    prevWinner=d.winner;
-   }
-  }else if(d.kind==='tug_of_war'){
-   const a=Number(d.tug_a??0),b=Number(d.tug_b??0),top=d.top_tug_player;
-   moments.push({title:'🪢 Halat Çekme: kuvvet savaşı',body:`Halatın iki ucunda Mavi ${a}, Kırmızı ${b} net kuvvet topladı. ${top?`${top.name}, ${top.force} kuvvetle bireysel katkıda öne çıktı.`:'Bu turda bireysel kuvvet verisi bulunamadı.'} ${a===b?'Kuvvetler eşitlendi!':`${namedTeam(d.winner)} karşılaşmayı kazandı.`}`,people:top?[top.id]:[],accent:'#99E6FF'});
-  }
- }
- // Each minigame type gets a single meaningful recap, rather than repeating a generic line per match.
- for(const [kind,score] of miniTotals){
-  if(kind==='tug_of_war')continue;
-  const label=MINI_GAME_LABELS[kind]??'Mini oyun';
-  const count=score.a+score.b+score.draw;
-  const winner=score.a>score.b?'A':score.b>score.a?'B':null;
-  const scoreLine=`Mavi ${score.a} – Kırmızı ${score.b}${score.draw?` · ${score.draw} beraberlik`:''}`;
-  const descriptions:Record<string,string>={
-   reflex:'Milisaniyelerin konuştuğu refleks mücadelesinde parmaklar yarıştı.',
-   social_guess:'Arkadaşları ne kadar iyi tanıdıkları bu oyunda sınandı.',
-   math_guess:'Hızlı hesaplar ve yakın tahminler bu turda belirleyiciydi.',
-   memory:'Hafızası kuvvetli olanların avantaj sağladığı bir mücadele yaşandı.',
-   pong:'Topun peşinde geçen Pong düellosunda raketler iş başındaydı.',
-   line_connect:'Çizgileri doğru bağlamak ve bulmacayı çözmek takımların hedefiydi.',
-   survivor_memory:'Survivor parkurunda hafıza ve doğru kare seçimleri yarıştı.',
-   song_complete:'Eksik şarkı adlarını tamamlamak için müzik bilgisi devreye girdi.',
-  };
-  const detail=descriptions[kind]??'Bu mini oyunda takımlar karşı karşıya geldi.';
-  moments.push({title:`🎮 ${label}`,body:`${count} karşılaşma oynandı. ${detail} Sonuç: ${scoreLine}. ${winner?`Bu oyunda ${namedTeam(winner)} daha fazla galibiyet aldı.`:'Takımlar bu oyunda galibiyet sayısını eşitledi.'}`,people:[],accent:'#D3B8FF'});
- }
- if(finished.length>=2){
-  const last=finished[finished.length-1];
-  const lastGame=last.data.kind?MINI_GAME_LABELS[last.data.kind]??'mini oyun':'soru turu';
-  const rounds=finished.filter(x=>x.type==='round').length;
-  moments.push({title:'🎬 Final düdüğü',body:`Maçın son kayıtlı karşılaşması ${lastGame} oldu. Toplam ${rounds} soru turu ve ${miniGames.length} mini oyun tamamlandı. Jüri, bu gece yalnızca kayıtlara geçenleri anlattı.`,people:[],accent:'#FFD99C'});
- }
- const special=moments.filter(m=>/geri dönüş|yanlışlık seri|Son saniye/.test(m.title));
- return [...special,...moments.filter(m=>!special.includes(m))].slice(0,12);
-}
-
 type CeremonyAward={id:string;icon:string;title:string;player:string;playerId:string;reason:string;color:string};
 function buildCeremonyAwards(
  data:Ctx['data'],story:MatchMoment[],
@@ -331,20 +41,20 @@ function buildCeremonyAwards(
   return {id:p.id,correct,wrong,friendCorrect:friend?.correct??0,friendAttempts:friend?.attempts??0,ageCorrect:age?.correct??0,ageTotal:age?.total??0,reaction:reactions.length?Math.min(...reactions):null};
  }).sort((a,b)=>a.id.localeCompare(b.id));
  const bestCorrect=[...stats].sort((a,b)=>b.correct-a.correct||a.wrong-b.wrong||a.id.localeCompare(b.id))[0];
- if(bestCorrect?.correct>0)add('hero','👑',getLanguage()==='en'?'Match Hero':'Maçın Kahramanı',bestCorrect.id,getLanguage()==='en'?`With ${bestCorrect.correct} correct answers, this player led the question rounds. A well-earned crown!`:`${bestCorrect.correct} doğru cevapla soru turlarının en çok isabet sağlayan oyuncusu. Tahtı hak etmiş; tacı düşürmesin!`,'#FFDB8A');
+ if(bestCorrect?.correct>0)add('hero','👑',getLanguage()==='en'?'Match Hero':'Maçın Kahramanı',bestCorrect.id,getLanguage()==='en'?`${bestCorrect.correct} correct; the answer key is on speed dial.`:`${bestCorrect.correct} doğru; cevap anahtarıyla aranız fazla iyi.`,'#FFDB8A');
  const bestBrain=[...stats].filter(x=>x.friendAttempts>0||x.ageTotal>0).sort((a,b)=>(b.friendCorrect+b.ageCorrect)-(a.friendCorrect+a.ageCorrect)||a.id.localeCompare(b.id))[0];
- if(bestBrain&&(bestBrain.friendCorrect+bestBrain.ageCorrect)>0)add('brain','🧠',getLanguage()==='en'?'Team Brain':'Takımın Beyni',bestBrain.id,getLanguage()==='en'?`${bestBrain.friendCorrect+bestBrain.ageCorrect} correct answers across Friendship Memory and age guesses. A walking database!`:`Dostluk Hafızası ve yaş tahminlerinde toplam ${bestBrain.friendCorrect+bestBrain.ageCorrect} doğru. Arkadaş grubunun gizli veri tabanı olabilir.`,'#A3E7FF');
+ if(bestBrain&&(bestBrain.friendCorrect+bestBrain.ageCorrect)>0)add('brain','🧠',getLanguage()==='en'?'Team Brain':'Takımın Beyni',bestBrain.id,getLanguage()==='en'?`${bestBrain.friendCorrect+bestBrain.ageCorrect} hits; the group’s walking backup.`:`${bestBrain.friendCorrect+bestBrain.ageCorrect} isabet; grubun yürüyen yedeği.`,'#A3E7FF');
  const fastest=[...stats].filter(x=>x.reaction!==null).sort((a,b)=>(a.reaction??Infinity)-(b.reaction??Infinity)||a.id.localeCompare(b.id))[0];
- if(fastest&&fastest.reaction!==null)add('reflex','⚡',getLanguage()==='en'?'Reflex Monster':'Refleks Canavarı',fastest.id,getLanguage()==='en'?`Fastest recorded reaction: ${fastest.reaction} ms. Those fingers move fast!`:`Kaydedilmiş en hızlı tepki: ${fastest.reaction} ms. Parmaklar önden gidiyor, beyin yetişmeye çalışıyor!`,'#B6FFD8');
+ if(fastest&&fastest.reaction!==null)add('reflex','⚡',getLanguage()==='en'?'Reflex Monster':'Refleks Canavarı',fastest.id,getLanguage()==='en'?`${fastest.reaction} ms; those fingers need a speed limit.`:`${fastest.reaction} ms; parmaklara hız sınırı lazım.`,'#B6FFD8');
  const mistakes=story.filter(x=>x.type==='highlight'&&x.data.kind==='wrong_streak'&&x.data.player_id);
  if(mistakes.length){
   const counts=new Map<string,number>();
   for(const m of mistakes)counts.set(m.data.player_id!,1+(counts.get(m.data.player_id!)??0));
   const [id,count]=[...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0];
-  add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',id,getLanguage()==='en'?`${count} streaks of three incorrect answers. A playful medal for bad luck, not a judgment!`:`${count} kez üç yanlışlık seri kaydı. Bu bir beceriksizlik hükmü değil, jürinin tatlı şanssızlık madalyası!`,'#FFC3D7');
+  add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',id,getLanguage()==='en'?`${count} triple-miss streaks; consistency has many forms.`:`${count} kez üçlü yanlış serisi; istikrarın böylesi de var.`,'#FFC3D7');
  }else{
   const mostWrong=[...stats].sort((a,b)=>b.wrong-a.wrong||a.id.localeCompare(b.id))[0];
-  if(mostWrong?.wrong>=3)add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',mostWrong.id,getLanguage()==='en'?`${mostWrong.wrong} incorrect answers gave the jury plenty to talk about. Full marks for courage!`:`${mostWrong.wrong} yanlış cevapla jüriye en fazla malzemeyi verdi. Cesaret puanı ise tam!`,'#FFC3D7');
+  if(mostWrong?.wrong>=3)add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',mostWrong.id,getLanguage()==='en'?`${mostWrong.wrong} misses; confidence clearly wasn’t the problem.`:`${mostWrong.wrong} yanlış; özgüvende sorun yok belli ki.`,'#FFC3D7');
  }
  const comeback=story.filter(x=>x.type==='highlight'&&x.data.kind==='tug_lead_change');
  if(comeback.length){
@@ -352,7 +62,7 @@ function buildCeremonyAwards(
   const bestTug=story.filter(x=>x.type==='minigame'&&x.data.kind==='tug_of_war'&&x.data.top_tug_player).map(x=>x.data.top_tug_player!).sort((a,b)=>b.force-a.force)[0];
   if(bestTug){
    const player=players.find(p=>p.id===bestTug.id);
-   if(player?.team_side===lead)add('comeback','🔥',getLanguage()==='en'?'Comeback Master':'Geri Dönüş Ustası',bestTug.id,getLanguage()==='en'?`A big tug-of-war comeback! Contributed ${bestTug.force} net force; the victory was a team effort.`:`Halatta büyük geri dönüş kaydedildi. ${bestTug.force} net kuvvetle öne çıkan isimlerden biri; zafer takımın ortak emeği.`,'#FFBC88');
+   if(player?.team_side===lead)add('comeback','🔥',getLanguage()==='en'?'Comeback Master':'Geri Dönüş Ustası',bestTug.id,getLanguage()==='en'?`${bestTug.force} force in a comeback; the rope has filed a complaint.`:`Geri dönüşte ${bestTug.force} kuvvet; halat senden şikâyetçi.`,'#FFBC88');
   }
  }
  return awards;
@@ -387,7 +97,7 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
  // The closing scene stays until the user chooses to leave; no abrupt exit mid-speech.
  useEffect(()=>{
   if(closingScene)return;
-  const timer=setTimeout(next,opening?3000:6500);
+  const timer=setTimeout(next,opening?1500:3000);
   return ()=>clearTimeout(timer);
  },[step,opening,closingScene]);
  const player=award?players.find(p=>p.id===award.playerId):null;
@@ -434,7 +144,7 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
      </View>}
      <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={2} style={{color:'#FFFFFF',fontSize:compact?25:32,fontWeight:'900',textAlign:'center',width:'100%'}}>{opening?'Hazır mısınız?':closingScene?'Bu gece unutulmazdı!':award?.player}</Text>
      <View style={{width:'100%',backgroundColor:'#152845',borderRadius:18,borderWidth:1,borderColor:'#647A9C',padding:compact?14:19}}>
-      <Text style={{color:'#F4F8FF',fontSize:compact?14:16,lineHeight:compact?22:26,textAlign:'center'}}>{opening?'Spot ışıkları yandı, jüri dosyaları açıldı! Ödüller gerçek oyun performansına göre açıklanıyor.':closingScene?closing:award?.reason}</Text>
+      <Text style={{color:'#F4F8FF',fontSize:compact?14:16,lineHeight:compact?22:26,textAlign:'center'}}>{opening?'Kupalar hazır; bahaneleri sonra dinleriz.':closingScene?closing:award?.reason}</Text>
      </View>
      <Text style={{color:'#C6D6EF',fontSize:12,textAlign:'center'}}>{opening?'İlk ödül birazdan açıklanıyor…':closingScene?'🎉 Ucube Jürisi alkışlarla kapanıyor!':'👏 Alkışlar sahnedeki oyuncuya!'}</Text>
     </Animated.View>
@@ -443,36 +153,10 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
     <Pressable accessibilityRole="button" onPress={closingScene?onFinish:next} style={{paddingVertical:16,borderRadius:15,backgroundColor:'#F8CC78',alignItems:'center'}}>
      <Text style={{color:'#1A263A',fontSize:16,fontWeight:'900'}}>{closingScene?'📊 Tüm Sonuçları Gör':'Sonraki Sahne →'}</Text>
     </Pressable>
-    <Text style={{color:'#AABEDB',fontSize:11,textAlign:'center'}}>{closingScene?'Kapanış konuşmasını istediğin kadar okuyabilirsin.':'Sahneler otomatik ilerler · Atla ile sonuçlara geç'}</Text>
+    <Text style={{color:'#AABEDB',fontSize:11,textAlign:'center'}}>{closingScene?'Kupa dağıtıldı, rövanş sizi bekliyor.':'Sahneler otomatik ilerler · Atla ile sonuçlara geç'}</Text>
    </View>
   </View>
  </Screen>;
-}
-
-function ceremonyClosing(awards:CeremonyAward[],moments:ReturnType<typeof describeMatch>,res:GameResults):string{
- if (getLanguage() === 'en') {
-  const champion = res.official_winner === 'A' ? 'Blue team' : res.official_winner === 'B' ? 'Red team' : null;
-  const highlight = moments.find(m => /comeback|Last-second|misses in a row/i.test(m.title)) ?? moments[0];
-  const star = awards.find(a => a.id === 'hero') ?? awards[0];
-  const intro = champion
-   ? `${champion} lifted the trophy. But the jury says the real winners are the friends who had fun together!`
-   : 'The trophy was shared in a tie. The real winners are the friends who had fun together!';
-  const detail = highlight
-   ? ` Unforgettable moment: ${highlight.title.replace(/^[^\\p{L}]+/u, '').trim()}. The match records captured it!`
-   : ' Everyone had a story; the jury will not invent what the records do not show.';
-  const outro = star
-   ? ` ${star.player} earned the “${star.title}” award. Everyone else, get ready to surprise the jury next time!`
-   : ' There was not enough data for an individual award this round. Next time brings new surprises!';
-  return intro + detail + outro + ' 🎉 The Ucube Jury has spoken!';
- }
- const champ=res.official_winner?teamName(res.official_winner):'İki takım';
- const highlight=moments.find(m=>/geri dönüş|Son saniyede|yanlışlık seri/.test(m.title))??moments[0];
- const star=awards.find(a=>a.id==='hero')??awards[0];
- const winner=res.official_winner?`${champ} kupayı kaldırdı`:'Kupa beraberlikle paylaşıldı';
- const intro=`${winner}. Ama jüriye sorarsanız bu gecenin asıl kazananı, birbirine takılmayı bilen arkadaş grubu!`;
- const detail=highlight?` Unutulmaz anımız: ${highlight.title.replace(/^[^\\p{L}]+/u,'').trim()}. Bu sahne maç kayıtlarına geçti.`:' Herkesin kendine göre bir hikâyesi vardı; kayıtların söylemediğini biz de uydurmadık.';
- const outro=star?` ${star.player}, “${star.title}” unvanını kaptı. Diğerleri, bir sonraki oyunda jüriyi şaşırtmak için hazırlansın!`:' Bu turda kişisel ödül için yeterli veri yoktu; bir sonraki oyun yeni sürprizler getirsin!';
- return intro+detail+outro+' 🎉 Ucube Jürisi dağılmıştır!';
 }
 
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
@@ -485,7 +169,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const [secretResults,setSecretResults]=useState<{player_id:string;key:number;status:string}[]>([]);
   const [revealing, setRevealing] = useState(false);
   const [friendScores,setFriendScores]=useState<{player_id:string;nickname:string;correct:number;attempts:number}[]>([]);
-  const [ceremonyDismissed,setCeremonyDismissed]=useState(false);
+  const [ceremonyDismissed,setCeremonyDismissed]=useState(true);
+  const [detailsOpen,setDetailsOpen]=useState(false);
   const [ceremonyReady,setCeremonyReady]=useState(false);
   const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
   const { toast, show } = useToast();
@@ -539,7 +224,6 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
     );
   }
 
-  const matchMoments=describeMatch(matchStory,data.players);
   const ceremonyAwards=buildCeremonyAwards(data,matchStory,friendScores,ageScores);
   const isOfficialMine = res.official_winner && me.team_side === res.official_winner;
   const isFunnyMine = res.funny_winner && me.team_side === res.funny_winner;
@@ -548,7 +232,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const funny = res.funny_winner;
   const funnyColor = funny ? teamColor(funny) : colors.violet;
 
-  if(ceremonyReady&&!ceremonyDismissed){return <AwardStage awards={ceremonyAwards} players={data.players} closing={ceremonyClosing(ceremonyAwards,matchMoments,res)} onFinish={()=>setCeremonyDismissed(true)}/>;}
+  if(ceremonyReady&&!ceremonyDismissed){return <AwardStage awards={ceremonyAwards} players={data.players} closing={shortMatchRecap(res,getLanguage()==='en')} onFinish={()=>setCeremonyDismissed(true)}/>;}
 
   return (
     <Screen>
@@ -562,6 +246,20 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           <RoomExitButton onExit={exitRoom} />
         </View>
 
+        <Card accent={colors.gold} style={{gap:8}}>
+          <Title size={22}>{getLanguage()==='en'?'🏁 The Match in One Line':'🏁 Maçın Özeti'}</Title>
+          <Text style={{color:colors.text,fontSize:16,lineHeight:24}}>{shortMatchRecap(res,getLanguage()==='en')}</Text>
+          <Muted>🎭 {getLanguage()==='en'?'Design award':'Tasarım ödülü'}: {res.funny_winner?teamName(res.funny_winner):(getLanguage()==='en'?'Tied votes':'Oylar eşit')}</Muted>
+        </Card>
+        <Card accent={colors.violet} style={{gap:12}}>
+          <Title size={22}>{getLanguage()==='en'?'🎤 One Line Each':'🎤 Herkese Bir Laf'}</Title>
+          {data.players.filter(player=>!player.is_bot).map((player,index)=><View key={player.id} style={{gap:4,paddingVertical:8,borderBottomWidth:1,borderColor:colors.border}}>
+            <Text style={{color:teamColor(player.team_side),fontSize:16,fontWeight:'800'}}>{player.nickname}</Text>
+            <Text style={{color:colors.text,fontSize:14,lineHeight:22}}>{shortPlayerQuip(player,index,data,friendScores,ageScores,getLanguage()==='en')}</Text>
+          </View>)}
+        </Card>
+        <Btn title={getLanguage()==='en'?(detailsOpen?'Hide Details':'Stats & Awards'):(detailsOpen?'Detayları Gizle':'Detayları Göster')} icon={detailsOpen?'chevron-up':'chevron-down'} tone="ghost" onPress={()=>setDetailsOpen(value=>!value)}/>
+        {detailsOpen&&<>
         <Card style={{gap:12,backgroundColor:'#12233D',borderColor:'#355275',borderWidth:1}}>
           <Title size={22}>{translate("🏅 Dostluk Madalyaları")}</Title>
           <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>{translate("Dostluk Hafızası · Doğru cevap sıralaması")}</Text>
@@ -569,12 +267,12 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
         </Card>
 
-        <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>{translate("🎬 Ödül Törenini Yeniden İzle")}</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>{getLanguage()==='en'?'🎬 Watch Awards':'🎬 Ödül Törenini İzle'}</Text></Pressable>
 
         {/* ================= ÖDÜL TÖRENİ ================= */}
         <Card accent={colors.gold} style={{gap:13,backgroundColor:'#17253D',borderWidth:1,borderColor:'#8A6B39'}}>
           <Title size={24}>{translate("🏆 Ucube Ödül Töreni")}</Title>
-          <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:23}}>{translate("Jüri kupaları gerçek maç kayıtlarına göre dağıtıyor. Her ödülün altında neden kazanıldığı yazıyor; yeterli veri yoksa ödül uydurulmuyor.")}</Text>
+          <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:23}}>{translate("Kupalar kayıtlara göre; torpil talepleri kapalı.")}</Text>
           {ceremonyAwards.length?ceremonyAwards.map(award=><View key={award.id} style={{backgroundColor:'#0B192E',borderWidth:1,borderColor:'#425473',borderRadius:16,padding:14,gap:7}}>
             <Text style={{color:award.color,fontSize:17,fontWeight:'900'}}>{award.icon} {award.title}</Text>
             <Text style={{color:'#FFFFFF',fontSize:19,fontWeight:'900'}}>{award.player}</Text>
@@ -594,34 +292,6 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
               <Text style={{color:m.status==='done'?'#9BF0C6':'#CAD3EB',fontWeight:'800'}}>{m.status==='done'?'Başardığını bildirdi':m.status==='skipped'?'Pas geçti':'Tamamlandığı bildirilmedi'}</Text>
             </View>;
           }):<Text style={{color:'#CBD8EF'}}>{translate("Bu maç için gizli görev kaydı bulunmuyor.")}</Text>}
-        </Card>
-
-        {/* ================= MAÇIN HİKÂYESİ ================= */}
-        <Card accent={colors.cyan} style={{gap:13,backgroundColor:'#12243E',borderWidth:1,borderColor:'#32718A'}}>
-          <Title size={23}>{translate("📖 Maçın Hikâyesi")}</Title>
-          <Text style={{color:'#E0EDFF',fontSize:14,lineHeight:23}}>{translate("Aynı soruda karşı karşıya gelen arkadaşlar, seri galibiyetler, takımın geri dönüşleri ve mini oyunların gerçek kayıtlarından seçilmiş maç anları.")}</Text>
-          {matchMoments.length?matchMoments.map((moment,i)=><View key={i} style={{backgroundColor:'#09182D',borderWidth:1,borderColor:'#355470',borderRadius:14,padding:13,gap:7}}>
-            <Text style={{color:moment.accent,fontSize:16,fontWeight:'800'}}>{i+1}. {moment.title}</Text>
-            <Text style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{moment.body}</Text>
-          </View>):<Text style={{color:'#CFDFF5',fontSize:14,lineHeight:23}}>{translate("Henüz anlatılabilecek yeterli maç olayı bulunamadı. Oyun kayıtları oluştukça hikâye burada belirecek.")}</Text>}
-        </Card>
-
-        {/* ================= OYUNCU FİNAL YORUMLARI ================= */}
-        <Card accent={colors.violet} style={{gap:14,backgroundColor:'#14213B',borderWidth:1,borderColor:'#634AA0'}}>
-          <Title size={23}>{translate("🎤 Ucube Jürisi: Final Taşlaması")}</Title>
-          <Text style={{color:'#DFE8FF',fontSize:14,lineHeight:23}}>{translate("Jüri dosyaları açtı! Her oyuncunun gerçek yanıtları, dostluk hafızası, yaş tahminleri ve takım performansı ayrı ayrı incelendi. Yorumlar oyun verilerinden hazırlanır; yapay zekâ tarafından yazılmaz.")}</Text>
-          {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>{
-            const report=playerFinalComment(player,i,res,friendScores,ageScores,data);
-            const playerMoments=matchMoments.filter(m=>m.people.includes(player.id)).slice(0,2);
-            return <View key={player.id} style={{backgroundColor:'#08162B',borderColor:'#334969',borderWidth:1,borderRadius:18,padding:15,gap:11}}>
-              <Title size={20} color={'#FFCF70'}>🎭 {player.nickname}</Title>
-              <Text style={{color:'#91F4D5',fontSize:13,fontWeight:'800'}}>{report.headline}</Text>
-              <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{report.facts.map((fact,j)=><View key={j} style={{backgroundColor:'#203652',borderRadius:9,paddingVertical:6,paddingHorizontal:9}}><Text style={{color:'#EDF6FF',fontSize:12,fontWeight:'700'}}>{fact}</Text></View>)}</View>
-              {report.details.map((line,j)=><Text key={j} style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{line}</Text>)}
-              {playerMoments.map((moment,j)=><View key={'story'+j} style={{backgroundColor:'#1D2D48',borderRadius:10,padding:10,gap:5}}><Text style={{color:'#A9F6DE',fontSize:12,fontWeight:'800'}}>📌 MAÇTAN KANIT: {moment.title}</Text><Text style={{color:'#EAF3FF',fontSize:13,lineHeight:21}}>{moment.body}</Text></View>)}
-              <View style={{borderTopWidth:1,borderColor:'#3B5374',paddingTop:10}}><Text style={{color:'#FFDA9A',fontSize:13,lineHeight:21,fontWeight:'800'}}>{report.verdict}</Text></View>
-            </View>;
-          })}
         </Card>
 
         {/* ================= RESMİ ŞAMPİYON ================= */}
@@ -767,6 +437,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
             );
           })}
         </View>
+
+        </>}
 
         {/* ================= ANA MENÜ ================= */}
         <View style={{ marginTop: 10, marginBottom: 16 }}>
