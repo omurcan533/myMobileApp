@@ -384,7 +384,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Title size={24} color={mg.winner_side ? teamColor(mg.winner_side) : colors.text}>
               {mg.winner_side ? `${teamName(mg.winner_side)} Kazandı!` : 'Berabere!'}
             </Title>
-            <Muted>{mg.winner_side ? 'Bonus parça + 2 puan' : 'Bu sefer bonus yok.'}</Muted>
+            <Muted>{mg.winner_side ? translate('Bonus parça + 2 puan') : translate('Bu sefer bonus yok.')}</Muted>
           </Card>
         )}
 
@@ -401,13 +401,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>{translate("Mini oyun sonuçları")}</Eyebrow>
             {mg.kind==='survivor_memory'&&(me.is_host?
-              <Btn title="Tekrar Oyna" icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
+              <Btn title={translate("Tekrar Oyna")} icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
               :<Muted>{translate("Oda kurucusu yeni bir parkurla tekrar oynatabilir.")}</Muted>)}
             {me.is_host ? (
              <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
               <Btn
-                title={continueReady ? 'Sonraki Oyuna Geç' : `Sonuçları İncele · ${continueWait} sn`}
+                title={continueReady ? translate('Sonraki Oyuna Geç') : `${translate('Sonuçları İncele')} · ${continueWait} ${translate('sn')}`}
                 icon={continueReady ? 'play-forward' : 'hourglass'}
                 tone="primary"
                 size="md"
@@ -431,7 +431,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           <Title size={26}>{translate("Mini Oyun Duraklatıldı")}</Title>
           <Muted>{translate("Kaptanlardan biri devam ettirebilir.")}</Muted>
           {me.is_captain && (
-            <Btn title="Devam Et" icon="play" tone="success" disabled={busy} onPress={togglePause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
+            <Btn title={translate("Devam Et")} icon="play" tone="success" disabled={busy} onPress={togglePause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
           )}
         </View>
       )}
@@ -462,9 +462,9 @@ function ReflexResults({ title, players, entries, winnerSide }: {
           const won = winnerSide === side;
           return (
             <View key={side} style={{ flex: 1, alignItems: 'center', gap: 3, padding: 8, borderRadius: 12, borderWidth: 1.5, borderColor: alpha(won ? colors.gold : color, won ? 0.8 : 0.34), backgroundColor: alpha(color, 0.12) }}>
-              <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>TAKIM {side}{won ? ' · +2 PUAN' : ''}</Text>
-              <Text display style={{ color: won ? colors.gold : color, fontSize: 20, fontWeight: '900' }}>{(average / 1000).toFixed(2)} sn</Text>
-              <Text style={{ color: colors.muted, fontSize: 9, fontWeight: '700' }}>{won ? 'kazandı · bonus parça' : 'takım ortalaması'}</Text>
+              <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>{translate('TAKIM')} {side}{won ? ` · +2 ${translate('PUAN')}` : ''}</Text>
+              <Text display style={{ color: won ? colors.gold : color, fontSize: 20, fontWeight: '900' }}>{(average / 1000).toFixed(2)} {translate('sn')}</Text>
+              <Text style={{ color: colors.muted, fontSize: 9, fontWeight: '700' }}>{translate(won ? 'kazandı · bonus parça' : 'takım ortalaması')}</Text>
             </View>
           );
         })}
@@ -476,7 +476,7 @@ function ReflexResults({ title, players, entries, winnerSide }: {
             <View key={player.id} style={s.memoryResultRow}>
               <Text numberOfLines={1} style={{ flex: 1, color: colors.textSoft, fontSize: 11, fontWeight: '700' }}>{player.nickname}</Text>
               <Text style={{ color: teamColor(player.team_side), fontSize: 11, fontWeight: '800' }}>
-                {time === null || time === undefined ? 'Yanıt yok · 30 sn ceza' : `${(time / 1000).toFixed(2)} sn`}
+                {time === null || time === undefined ? translate('Yanıt yok · 30 sn ceza') : `${(time / 1000).toFixed(2)} ${translate('sn')}`}
               </Text>
             </View>
           );
