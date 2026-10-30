@@ -35,6 +35,9 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Karışık harfleri çöz ve cevabı en hızlı şekilde yaz. İlk doğru cevap takımına parça kazandırır.": "Unscramble the letters and answer quickly. The first correct answer wins a part for your team.",
+  "Oyunculardan birini seçip takımına öner. Kaptan, takımın adına nihai cevabı gönderir.": "Choose a player to suggest to your team. The captain submits the final answer.",
+  "Tahminini önce takımına öner. Kaptan doğru cevabı gönderir; yanlış cevap parçayı rakibe verir.": "Suggest a guess to your team. The captain submits the answer; a wrong answer gives the part to the opponent.",
   "Soru Başlangıcı": "Question Briefing",
   "Hazır Olun": "Get Ready",
   "Harfleri Düzenle": "Unscramble Letters",
