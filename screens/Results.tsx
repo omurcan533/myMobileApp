@@ -255,20 +255,20 @@ function buildCeremonyAwards(
   return {id:p.id,correct,wrong,friendCorrect:friend?.correct??0,friendAttempts:friend?.attempts??0,ageCorrect:age?.correct??0,ageTotal:age?.total??0,reaction:reactions.length?Math.min(...reactions):null};
  }).sort((a,b)=>a.id.localeCompare(b.id));
  const bestCorrect=[...stats].sort((a,b)=>b.correct-a.correct||a.wrong-b.wrong||a.id.localeCompare(b.id))[0];
- if(bestCorrect?.correct>0)add('hero','👑','Maçın Kahramanı',bestCorrect.id,`${bestCorrect.correct} doğru cevapla soru turlarının en çok isabet sağlayan oyuncusu. Tahtı hak etmiş; tacı düşürmesin!`,'#FFDB8A');
+ if(bestCorrect?.correct>0)add('hero','👑',getLanguage()==='en'?'Match Hero':'Maçın Kahramanı',bestCorrect.id,getLanguage()==='en'?`With ${bestCorrect.correct} correct answers, this player led the question rounds. A well-earned crown!`:`${bestCorrect.correct} doğru cevapla soru turlarının en çok isabet sağlayan oyuncusu. Tahtı hak etmiş; tacı düşürmesin!`,'#FFDB8A');
  const bestBrain=[...stats].filter(x=>x.friendAttempts>0||x.ageTotal>0).sort((a,b)=>(b.friendCorrect+b.ageCorrect)-(a.friendCorrect+a.ageCorrect)||a.id.localeCompare(b.id))[0];
- if(bestBrain&&(bestBrain.friendCorrect+bestBrain.ageCorrect)>0)add('brain','🧠','Takımın Beyni',bestBrain.id,`Dostluk Hafızası ve yaş tahminlerinde toplam ${bestBrain.friendCorrect+bestBrain.ageCorrect} doğru. Arkadaş grubunun gizli veri tabanı olabilir.`,'#A3E7FF');
+ if(bestBrain&&(bestBrain.friendCorrect+bestBrain.ageCorrect)>0)add('brain','🧠',getLanguage()==='en'?'Team Brain':'Takımın Beyni',bestBrain.id,getLanguage()==='en'?`${bestBrain.friendCorrect+bestBrain.ageCorrect} correct answers across Friendship Memory and age guesses. A walking database!`:`Dostluk Hafızası ve yaş tahminlerinde toplam ${bestBrain.friendCorrect+bestBrain.ageCorrect} doğru. Arkadaş grubunun gizli veri tabanı olabilir.`,'#A3E7FF');
  const fastest=[...stats].filter(x=>x.reaction!==null).sort((a,b)=>(a.reaction??Infinity)-(b.reaction??Infinity)||a.id.localeCompare(b.id))[0];
- if(fastest&&fastest.reaction!==null)add('reflex','⚡','Refleks Canavarı',fastest.id,`Kaydedilmiş en hızlı tepki: ${fastest.reaction} ms. Parmaklar önden gidiyor, beyin yetişmeye çalışıyor!`,'#B6FFD8');
+ if(fastest&&fastest.reaction!==null)add('reflex','⚡',getLanguage()==='en'?'Reflex Monster':'Refleks Canavarı',fastest.id,getLanguage()==='en'?`Fastest recorded reaction: ${fastest.reaction} ms. Those fingers move fast!`:`Kaydedilmiş en hızlı tepki: ${fastest.reaction} ms. Parmaklar önden gidiyor, beyin yetişmeye çalışıyor!`,'#B6FFD8');
  const mistakes=story.filter(x=>x.type==='highlight'&&x.data.kind==='wrong_streak'&&x.data.player_id);
  if(mistakes.length){
   const counts=new Map<string,number>();
   for(const m of mistakes)counts.set(m.data.player_id!,1+(counts.get(m.data.player_id!)??0));
   const [id,count]=[...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))[0];
-  add('unlucky','🤡','Maçın Talihsizi',id,`${count} kez üç yanlışlık seri kaydı. Bu bir beceriksizlik hükmü değil, jürinin tatlı şanssızlık madalyası!`,'#FFC3D7');
+  add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',id,getLanguage()==='en'?`${count} streaks of three incorrect answers. A playful medal for bad luck, not a judgment!`:`${count} kez üç yanlışlık seri kaydı. Bu bir beceriksizlik hükmü değil, jürinin tatlı şanssızlık madalyası!`,'#FFC3D7');
  }else{
   const mostWrong=[...stats].sort((a,b)=>b.wrong-a.wrong||a.id.localeCompare(b.id))[0];
-  if(mostWrong?.wrong>=3)add('unlucky','🤡','Maçın Talihsizi',mostWrong.id,`${mostWrong.wrong} yanlış cevapla jüriye en fazla malzemeyi verdi. Cesaret puanı ise tam!`,'#FFC3D7');
+  if(mostWrong?.wrong>=3)add('unlucky','🤡',getLanguage()==='en'?'Unluckiest Player':'Maçın Talihsizi',mostWrong.id,getLanguage()==='en'?`${mostWrong.wrong} incorrect answers gave the jury plenty to talk about. Full marks for courage!`:`${mostWrong.wrong} yanlış cevapla jüriye en fazla malzemeyi verdi. Cesaret puanı ise tam!`,'#FFC3D7');
  }
  const comeback=story.filter(x=>x.type==='highlight'&&x.data.kind==='tug_lead_change');
  if(comeback.length){
@@ -276,7 +276,7 @@ function buildCeremonyAwards(
   const bestTug=story.filter(x=>x.type==='minigame'&&x.data.kind==='tug_of_war'&&x.data.top_tug_player).map(x=>x.data.top_tug_player!).sort((a,b)=>b.force-a.force)[0];
   if(bestTug){
    const player=players.find(p=>p.id===bestTug.id);
-   if(player?.team_side===lead)add('comeback','🔥','Geri Dönüş Ustası',bestTug.id,`Halatta büyük geri dönüş kaydedildi. ${bestTug.force} net kuvvetle öne çıkan isimlerden biri; zafer takımın ortak emeği.`,'#FFBC88');
+   if(player?.team_side===lead)add('comeback','🔥',getLanguage()==='en'?'Comeback Master':'Geri Dönüş Ustası',bestTug.id,getLanguage()==='en'?`A big tug-of-war comeback! Contributed ${bestTug.force} net force; the victory was a team effort.`:`Halatta büyük geri dönüş kaydedildi. ${bestTug.force} net kuvvetle öne çıkan isimlerden biri; zafer takımın ortak emeği.`,'#FFBC88');
   }
  }
  return awards;
