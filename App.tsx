@@ -120,7 +120,12 @@ export default function App() {
       const soundEnabled = await AsyncStorage.getItem('soundEnabled');
       if (soundEnabled !== null) soundFx.setEnabled(soundEnabled === 'true');
       const savedAvatar = await AsyncStorage.getItem('avatarId');
-      if (AVATAR_OPTIONS.some((a) => a.id === savedAvatar)) setAvatarId(savedAvatar as AvatarId);
+      if (AVATAR_OPTIONS.some((a) => a.id === savedAvatar)) {
+        setAvatarId(savedAvatar as AvatarId);
+        // Returning players already completed avatar selection. When their
+        // previous room closes or they are kicked, show Home, not onboarding.
+        setAvatarChosen(true);
+      }
       setUserId(user.id);
       if (saved) setRoomId(saved);
       setReady(true);
