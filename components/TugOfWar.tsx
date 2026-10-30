@@ -20,7 +20,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const {width,height}=useWindowDimensions();
  const wide=width>height&&width>=600;
  const area=usePlaySize(); const compact=area.active;
- const [now,setNow]=useState(Date.now());
+ const [now,setNow]=useState(0);
  const [startedAt,setStartedAt]=useState<string>(event.created_at);
  const [state,setState]=useState<TugState>({a:0,b:0,players:[]});
  const [feedback,setFeedback]=useState('');
@@ -29,18 +29,18 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const [error,setError]=useState('');
  const lastPull=useRef(0);
  useEffect(()=>{
-  if(event.created_at!==startedAt){setStartedAt(event.created_at);setFeedback('');setError('');setNow(Date.now());}
- },[event.created_at]);
+  if(event.created_at!==startedAt){const initial=setTimeout(()=>{setStartedAt(event.created_at);setFeedback('');setError('');setNow(Date.now());},0);return()=>clearTimeout(initial);}
+ },[event.created_at,startedAt]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
  const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState({a:s.a,b:s.b,players:'players' in s&&Array.isArray(s.players)?s.players:[]});}catch{}};
  useEffect(()=>{
-  refresh();
+  const initial=setTimeout(()=>{void refresh();},0);
   const timer=setInterval(()=>setNow(Date.now()),40);
   const sync=setInterval(refresh,700);
   const ch=supabase.channel('tug:'+event.id);
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
   channel.current=ch;
-  return()=>{clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
+  return()=>{clearTimeout(initial);clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
  const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);

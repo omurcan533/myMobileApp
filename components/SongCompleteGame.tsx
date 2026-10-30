@@ -1,22 +1,26 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { api } from '../lib/api';
 import { Btn, Card, Muted, Text, Title } from './ui';
 import {usePlaySize} from './PlayLayout';
 import type { Side } from '../lib/types';
 
-export function SongCompleteGame({ id, prompt, live, canPlay, paused, winner, side, onError }: {
+export function SongCompleteGame({ id, ...props }: SongProps) {
+  return <SongRound key={id} id={id} {...props} />;
+}
+type SongProps = {
   id: string; prompt: string; live: boolean; canPlay: boolean; paused: boolean;
   winner: Side | null; side: Side | null; onError: (message: string) => void;
-}) {
+};
+function SongRound({ id, prompt, live, canPlay, paused, winner, side, onError }: SongProps) {
   useLanguage();
   const compact=usePlaySize().active;
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [correct, setCorrect] = useState(false);
-  useEffect(() => { setAnswer(''); setFeedback(''); setCorrect(false); }, [id]);
+  // Remount the round-specific form when the game id changes (see keyed wrapper below).
   const send = async () => {
     if (!answer.trim() || busy || correct || !live || !canPlay || paused) return;
     setBusy(true);
