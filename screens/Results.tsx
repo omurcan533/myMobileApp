@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -280,8 +281,8 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
    </View>}
    <View style={{paddingHorizontal:18,paddingTop:compact?12:24,paddingBottom:10,gap:10}}>
     <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
-     <View style={{flex:1,gap:3}}><Text style={{color:'#8EF5D1',fontSize:10,fontWeight:'900',letterSpacing:1.4}}>✦ UCUBE ATÖLYESİ ✦</Text><Title size={compact?23:27}>🏆 Ödül Gecesi</Title></View>
-     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:22,borderWidth:1,borderColor:'#8092B2',backgroundColor:'#1A2D4B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>Atla ↗</Text></Pressable>
+     <View style={{flex:1,gap:3}}><Text style={{color:'#8EF5D1',fontSize:10,fontWeight:'900',letterSpacing:1.4}}>{translate("✦ UCUBE ATÖLYESİ ✦")}</Text><Title size={compact?23:27}>{translate("🏆 Ödül Gecesi")}</Title></View>
+     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:22,borderWidth:1,borderColor:'#8092B2',backgroundColor:'#1A2D4B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{translate("Atla ↗")}</Text></Pressable>
     </View>
     <View style={{flexDirection:'row',gap:4}}>{Array.from({length:total},(_,i)=><View key={i} style={{height:5,flex:1,borderRadius:5,backgroundColor:i<=step?'#FFCE73':'#354765'}}/>)}</View>
     <Text style={{color:'#D2E0F7',fontSize:12,fontWeight:'800'}}>{opening?'Perde açılıyor…':closingScene?'🎤 Jürinin kapanış konuşması':`🏅 Ödül ${step} / ${awards.length}`}</Text>
@@ -328,6 +329,7 @@ function ceremonyClosing(awards:CeremonyAward[],moments:ReturnType<typeof descri
 }
 
 export function ResultsScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2; // sütun genişliği
@@ -407,36 +409,36 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         {/* ================= BAŞLIK ================= */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={[s.header, { flex: 1 }]}>
-            <Eyebrow live color={colors.mint} dot={colors.mint}>Oyun tamamlandı</Eyebrow>
-            <Title size={32}>Sonuçlar</Title>
+            <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Oyun tamamlandı")}</Eyebrow>
+            <Title size={32}>{translate("Sonuçlar")}</Title>
           </View>
           <RoomExitButton onExit={exitRoom} />
         </View>
 
         <Card style={{gap:12,backgroundColor:'#12233D',borderColor:'#355275',borderWidth:1}}>
-          <Title size={22}>🏅 Dostluk Madalyaları</Title>
-          <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>Dostluk Hafızası · Doğru cevap sıralaması</Text>
-          {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.</Text>}
+          <Title size={22}>{translate("🏅 Dostluk Madalyaları")}</Title>
+          <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>{translate("Dostluk Hafızası · Doğru cevap sıralaması")}</Text>
+          {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>{translate("Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.")}</Text>}
           {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
         </Card>
 
-        <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>🎬 Ödül Törenini Yeniden İzle</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>{translate("🎬 Ödül Törenini Yeniden İzle")}</Text></Pressable>
 
         {/* ================= ÖDÜL TÖRENİ ================= */}
         <Card accent={colors.gold} style={{gap:13,backgroundColor:'#17253D',borderWidth:1,borderColor:'#8A6B39'}}>
-          <Title size={24}>🏆 Ucube Ödül Töreni</Title>
-          <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:23}}>Jüri kupaları gerçek maç kayıtlarına göre dağıtıyor. Her ödülün altında neden kazanıldığı yazıyor; yeterli veri yoksa ödül uydurulmuyor.</Text>
+          <Title size={24}>{translate("🏆 Ucube Ödül Töreni")}</Title>
+          <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:23}}>{translate("Jüri kupaları gerçek maç kayıtlarına göre dağıtıyor. Her ödülün altında neden kazanıldığı yazıyor; yeterli veri yoksa ödül uydurulmuyor.")}</Text>
           {ceremonyAwards.length?ceremonyAwards.map(award=><View key={award.id} style={{backgroundColor:'#0B192E',borderWidth:1,borderColor:'#425473',borderRadius:16,padding:14,gap:7}}>
             <Text style={{color:award.color,fontSize:17,fontWeight:'900'}}>{award.icon} {award.title}</Text>
             <Text style={{color:'#FFFFFF',fontSize:19,fontWeight:'900'}}>{award.player}</Text>
             <Text style={{color:'#DCEBFF',fontSize:14,lineHeight:23}}>{award.reason}</Text>
-          </View>):<Text style={{color:'#D6E5FA',lineHeight:23}}>Henüz ödül dağıtmak için yeterli doğrulanmış oyuncu performansı bulunmuyor.</Text>}
+          </View>):<Text style={{color:'#D6E5FA',lineHeight:23}}>{translate("Henüz ödül dağıtmak için yeterli doğrulanmış oyuncu performansı bulunmuyor.")}</Text>}
         </Card>
 
         {/* ================= GİZLİ GÖREV İFŞASI ================= */}
         <Card accent={colors.violet} style={{gap:12,backgroundColor:'#1B2142',borderWidth:1,borderColor:'#7054A9'}}>
-          <Title size={23}>🕵️ Gizli Görevler Açıklanıyor!</Title>
-          <Text style={{color:'#E6DEFF',fontSize:14,lineHeight:23}}>Herkesin maç boyunca sakladığı görevler şimdi ortaya çıkıyor. Tamamlama oyuncunun kendi beyanına dayanır.</Text>
+          <Title size={23}>{translate("🕵️ Gizli Görevler Açıklanıyor!")}</Title>
+          <Text style={{color:'#E6DEFF',fontSize:14,lineHeight:23}}>{translate("Herkesin maç boyunca sakladığı görevler şimdi ortaya çıkıyor. Tamamlama oyuncunun kendi beyanına dayanır.")}</Text>
           {secretResults.length?secretResults.map(m=>{
             const player=data.players.find(p=>p.id===m.player_id);
             return <View key={m.player_id} style={{backgroundColor:'#111D38',borderRadius:12,padding:13,gap:6,borderWidth:1,borderColor:'#4E547D'}}>
@@ -444,23 +446,23 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
               <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:22}}>{PARTY_MISSIONS[m.key]??'Gizli görev'}</Text>
               <Text style={{color:m.status==='done'?'#9BF0C6':'#CAD3EB',fontWeight:'800'}}>{m.status==='done'?'Başardığını bildirdi':m.status==='skipped'?'Pas geçti':'Tamamlandığı bildirilmedi'}</Text>
             </View>;
-          }):<Text style={{color:'#CBD8EF'}}>Bu maç için gizli görev kaydı bulunmuyor.</Text>}
+          }):<Text style={{color:'#CBD8EF'}}>{translate("Bu maç için gizli görev kaydı bulunmuyor.")}</Text>}
         </Card>
 
         {/* ================= MAÇIN HİKÂYESİ ================= */}
         <Card accent={colors.cyan} style={{gap:13,backgroundColor:'#12243E',borderWidth:1,borderColor:'#32718A'}}>
-          <Title size={23}>📖 Maçın Hikâyesi</Title>
-          <Text style={{color:'#E0EDFF',fontSize:14,lineHeight:23}}>Aynı soruda karşı karşıya gelen arkadaşlar, seri galibiyetler, takımın geri dönüşleri ve mini oyunların gerçek kayıtlarından seçilmiş maç anları.</Text>
+          <Title size={23}>{translate("📖 Maçın Hikâyesi")}</Title>
+          <Text style={{color:'#E0EDFF',fontSize:14,lineHeight:23}}>{translate("Aynı soruda karşı karşıya gelen arkadaşlar, seri galibiyetler, takımın geri dönüşleri ve mini oyunların gerçek kayıtlarından seçilmiş maç anları.")}</Text>
           {matchMoments.length?matchMoments.map((moment,i)=><View key={i} style={{backgroundColor:'#09182D',borderWidth:1,borderColor:'#355470',borderRadius:14,padding:13,gap:7}}>
             <Text style={{color:moment.accent,fontSize:16,fontWeight:'800'}}>{i+1}. {moment.title}</Text>
             <Text style={{color:'#F0F5FF',fontSize:14,lineHeight:23}}>{moment.body}</Text>
-          </View>):<Text style={{color:'#CFDFF5',fontSize:14,lineHeight:23}}>Henüz anlatılabilecek yeterli maç olayı bulunamadı. Oyun kayıtları oluştukça hikâye burada belirecek.</Text>}
+          </View>):<Text style={{color:'#CFDFF5',fontSize:14,lineHeight:23}}>{translate("Henüz anlatılabilecek yeterli maç olayı bulunamadı. Oyun kayıtları oluştukça hikâye burada belirecek.")}</Text>}
         </Card>
 
         {/* ================= OYUNCU FİNAL YORUMLARI ================= */}
         <Card accent={colors.violet} style={{gap:14,backgroundColor:'#14213B',borderWidth:1,borderColor:'#634AA0'}}>
-          <Title size={23}>🎤 Ucube Jürisi: Final Taşlaması</Title>
-          <Text style={{color:'#DFE8FF',fontSize:14,lineHeight:23}}>Jüri dosyaları açtı! Her oyuncunun gerçek yanıtları, dostluk hafızası, yaş tahminleri ve takım performansı ayrı ayrı incelendi. Yorumlar oyun verilerinden hazırlanır; yapay zekâ tarafından yazılmaz.</Text>
+          <Title size={23}>{translate("🎤 Ucube Jürisi: Final Taşlaması")}</Title>
+          <Text style={{color:'#DFE8FF',fontSize:14,lineHeight:23}}>{translate("Jüri dosyaları açtı! Her oyuncunun gerçek yanıtları, dostluk hafızası, yaş tahminleri ve takım performansı ayrı ayrı incelendi. Yorumlar oyun verilerinden hazırlanır; yapay zekâ tarafından yazılmaz.")}</Text>
           {data.players.filter(p=>!(p as any).is_bot).map((player,i)=>{
             const report=playerFinalComment(player,i,res,friendScores,ageScores,data);
             const playerMoments=matchMoments.filter(m=>m.people.includes(player.id)).slice(0,2);
@@ -523,7 +525,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
                 <Ionicons name={funny ? 'happy' : 'hand-left'} size={30} color={colors.violet} />
               </View>
               <View style={{ flex: 1, gap: 4 }}>
-                <Eyebrow color={colors.violet}>En komik / çılgın tasarım</Eyebrow>
+                <Eyebrow color={colors.violet}>{translate("En komik / çılgın tasarım")}</Eyebrow>
                 <Title size={22} color={funny ? funnyColor : colors.text}>
                   {funny ? teamName(funny) : 'Berabere'}
                 </Title>
@@ -532,7 +534,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
                     {res.teams[funny].creature_name ?? 'İsimsiz Ucube'} · {res.teams[funny].funny_votes} oy
                   </Muted>
                 ) : (
-                  <Muted>Takımlar eşit komiklik oyu aldı</Muted>
+                  <Muted>{translate("Takımlar eşit komiklik oyu aldı")}</Muted>
                 )}
               </View>
             </View>
@@ -541,7 +543,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         </Reveal>
 
         {/* ================= YARATIK SERGİSİ ================= */}
-        <SectionLabel>Yaratık sergisi</SectionLabel>
+        <SectionLabel>{translate("Yaratık sergisi")}</SectionLabel>
         <View style={s.creatureRow}>
           {(['A', 'B'] as Side[]).map((side) => {
             const tColor = teamColor(side);
@@ -577,7 +579,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         </View>
 
         {/* ================= TAKIM İSTATİSTİKLERİ ================= */}
-        <SectionLabel>Takım istatistikleri</SectionLabel>
+        <SectionLabel>{translate("Takım istatistikleri")}</SectionLabel>
         <View style={{ gap: 12 }}>
           {(['A', 'B'] as Side[]).map((side) => {
             const t = res.teams[side];
@@ -611,7 +613,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
                   <View style={s.statDivider} />
                   <View style={s.statItem}>
                     <Text display style={s.statValue}>{t.funny_votes}</Text>
-                    <Text style={s.statLabel}>Komiklik oyu</Text>
+                    <Text style={s.statLabel}>{translate("Komiklik oyu")}</Text>
                   </View>
                 </View>
               </Card>
