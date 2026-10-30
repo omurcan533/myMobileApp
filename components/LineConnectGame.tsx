@@ -131,17 +131,16 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   }
   lastTouch.current=p;
  },[advance,coords]);
- const startRef=useRef(start),moveRef=useRef(move);
- useEffect(()=>{startRef.current=start;moveRef.current=move;},[start,move]);
+ const endTouch=useCallback(()=>{lastTouch.current=null;},[]);
  const pan=useMemo(()=>PanResponder.create({
   onStartShouldSetPanResponder:()=>true,
   onMoveShouldSetPanResponder:()=>true,
-  onPanResponderGrant:e=>startRef.current(e.nativeEvent.locationX,e.nativeEvent.locationY),
-  onPanResponderMove:e=>moveRef.current(e.nativeEvent.locationX,e.nativeEvent.locationY),
-  onPanResponderRelease:()=>{lastTouch.current=null;},
-  onPanResponderTerminate:()=>{lastTouch.current=null;},
+  onPanResponderGrant:e=>start(e.nativeEvent.locationX,e.nativeEvent.locationY),
+  onPanResponderMove:e=>move(e.nativeEvent.locationX,e.nativeEvent.locationY),
+  onPanResponderRelease:endTouch,
+  onPanResponderTerminate:endTouch,
   onPanResponderTerminationRequest:()=>false,
- }),[]);
+ }),[start,move,endTouch]);
  const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastTouch.current=null;};
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
   <Title size={area.active?18:22}>Çizgi Birleştirme · Bölüm {board.level}</Title>
