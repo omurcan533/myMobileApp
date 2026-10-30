@@ -47,10 +47,39 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const sendQueue=useRef<Record<number,Promise<void>>>({});
  const stopped=useRef(false);
  const timing=useRef(createPongDiagnostics());
+ const [showDiagnostics,setShowDiagnostics]=useState(false);
+ const diagnosticsEnabled=useRef(false);
+ const metricSamples=useRef<Record<string,number[]>>({});
+ const [metricSummary,setMetricSummary]=useState('');
+ const lastMetricUpdate=useRef(0);
+ const recordMetric=(metric:string,ms:number)=>{
+  timing.current(metric,ms);
+  if(!diagnosticsEnabled.current||!Number.isFinite(ms))return;
+  const values=metricSamples.current[metric]??[];
+  values.push(Math.max(0,ms));
+  metricSamples.current[metric]=values.slice(-100);
+  if(performance.now()-lastMetricUpdate.current<1500)return;
+  lastMetricUpdate.current=performance.now();
+  const summary=Object.entries(metricSamples.current).map(([name,items])=>{
+   const sorted=[...items].sort((a,b)=>a-b);
+   const median=sorted[Math.floor(sorted.length/2)];
+   const p95=sorted[Math.ceil(sorted.length*0.95)-1];
+   return name+': median '+Math.round(median)+'ms / p95 '+Math.round(p95)+'ms ('+items.length+')';
+  }).join('\\n');
+  setMetricSummary(summary);
+ };
+ const toggleDiagnostics=()=>{
+  const next=!diagnosticsEnabled.current;
+  diagnosticsEnabled.current=next;
+  metricSamples.current={};
+  lastMetricUpdate.current=0;
+  setMetricSummary('');
+  setShowDiagnostics(next);
+ };
  const lastFrameArrival=useRef<number|null>(null);
  const recordFrameArrival=()=>{
   const now=performance.now();
-  if(lastFrameArrival.current!==null)timing.current('frameArrivalInterval',now-lastFrameArrival.current);
+  if(lastFrameArrival.current!==null)recordMetric('frameArrivalInterval',now-lastFrameArrival.current);
   lastFrameArrival.current=now;
  };
  const players=useMemo(()=>data.players,[data.players]);
@@ -108,7 +137,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   channel.on('broadcast',{event:'pong_frame'},({payload})=>{
    const frame=payload?.state as State|undefined;
    if(!frame||typeof frame.x!=='number'||typeof frame.tick!=='string')return;
-   timing.current('broadcastSnapshotAge',serverNow()-Date.parse(frame.tick));
+   recordMetric('broadcastSnapshotAge',serverNow()-Date.parse(frame.tick));
    recordFrameArrival();
    setState(previous=>{
     if(previous&&Date.parse(frame.tick!)<=Date.parse(previous.tick??''))return previous;
@@ -139,7 +168,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     if(me.is_host&&mg.starts_at){
      const sentAt=performance.now();
      const {data:updated,error}=await supabase.rpc('pong_tick',{p_minigame:mg.id});
-     timing.current('tickRoundTrip',performance.now()-sentAt);
+     recordMetric('tickRoundTrip',performance.now()-sentAt);
      if(!mounted)return;
      if(error){
       failures++;
@@ -185,9 +214,9 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   const queuedAt=performance.now();
   const next=prev.catch(()=>{}).then(async()=>{
    const sentAt=performance.now();
-   timing.current('controlQueueWait',sentAt-queuedAt);
+   recordMetric('controlQueueWait',sentAt-queuedAt);
    const {error}=await supabase.rpc('pong_set_held',{p_minigame:mg.id,p_direction:direction,p_pressed:pressed});
-   timing.current('controlRoundTrip',performance.now()-sentAt);
+   recordMetric('controlRoundTrip',performance.now()-sentAt);
    if(error){
     setControlError(error.message);
     console.warn('Pong control:',error.message);
@@ -258,6 +287,15 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
     </View>
     <Muted>{loc('Senin seçimin:','Your choice:')} {state?.modeVotes?.[me.id]==='solo'?loc('1 kişi','1 player'):state?.modeVotes?.[me.id]==='duo'?loc('2 kişi','2 players'):loc('Henüz yok','Not chosen yet')}</Muted>
    </View>}
+   <View style={{gap:5}}>
+    <Pressable onPress={toggleDiagnostics} accessibilityRole="button" style={{alignSelf:'flex-start',paddingVertical:7,paddingHorizontal:10,borderRadius:8,backgroundColor:'#203148'}}>
+     <Text style={{color:colors.cyan,fontSize:12}}>{showDiagnostics?loc('Performans testini kapat','Stop performance test'):loc('Performans testi','Performance test')}</Text>
+    </Pressable>
+    {showDiagnostics&&<View style={{gap:4,padding:10,backgroundColor:'#10243A',borderRadius:8}}>
+     <Muted>{loc('Bu cihazın son 100 ölçümü. Metne basılı tutarak kopyalayabilirsin.','Last 100 samples on this device. Long-press to copy.')}</Muted>
+     <Text selectable style={{fontSize:11,color:'#FFFFFF'}}>{metricSummary||loc('Ölçüm bekleniyor…','Waiting for measurements…')}</Text>
+    </View>}
+   </View>
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
