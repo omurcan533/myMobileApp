@@ -33,15 +33,32 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
   if(event.created_at!==startedAt){const initial=setTimeout(()=>{setStartedAt(event.created_at);setFeedback('');setError('');setNow(serverNow());},0);return()=>clearTimeout(initial);}
  },[event.created_at,startedAt]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
- const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState({a:s.a,b:s.b,players:'players' in s&&Array.isArray(s.players)?s.players:[]});}catch{}};
+ const refreshInFlight=useRef(false);
+ const refreshQueued=useRef(false);
+ const mounted=useRef(true);
+ const refresh=async()=>{
+  if(refreshInFlight.current){refreshQueued.current=true;return;}
+  refreshInFlight.current=true;
+  try{
+   do{
+    refreshQueued.current=false;
+    try{
+     const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);
+     if(mounted.current&&s)setState({a:s.a,b:s.b,players:'players' in s&&Array.isArray(s.players)?s.players:[]});
+    }catch{}
+   }while(mounted.current&&refreshQueued.current);
+  }finally{refreshInFlight.current=false;}
+ };
  useEffect(()=>{
+  mounted.current=true;
   const initial=setTimeout(()=>{void refresh();},0);
   const timer=setInterval(()=>setNow(serverNow()),40);
-  const sync=setInterval(refresh,700);
+  // Broadcasts trigger prompt refreshes; polling remains a reconnect/fallback path.
+  const sync=setInterval(()=>{void refresh();},2000);
   const ch=supabase.channel('tug:'+event.id);
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
   channel.current=ch;
-  return()=>{clearTimeout(initial);clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
+  return()=>{mounted.current=false;refreshQueued.current=false;clearTimeout(initial);clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
  const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);
