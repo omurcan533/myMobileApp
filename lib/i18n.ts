@@ -35,6 +35,15 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Sonraki Oyuna Geç": "Next Game",
+  "Sonuçları İncele": "Review Results",
+  "TAKIM": "TEAM",
+  "PUAN": "POINTS",
+  "kazandı · bonus parça": "won · bonus piece",
+  "takım ortalaması": "team average",
+  "Yanıt yok · 30 sn ceza": "No answer · 30 sec penalty",
+  "Bonus parça + 2 puan": "Bonus piece + 2 points",
+  "Bu sefer bonus yok.": "No bonus this time.",
   "Grup oylaması": "Group voting",
   "Kendin dahil herkese oy verebilirsin.": "You can vote for anyone, including yourself.",
   "Oy Verdi": "Voted",
