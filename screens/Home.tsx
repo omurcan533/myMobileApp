@@ -14,7 +14,7 @@ import { getProfile, levelOf, Profile } from '../lib/profile';
 import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { GameMode } from '../lib/types';
-import { t, useLanguage, saveLanguage } from '../lib/i18n';
+import { t, useLanguage, saveLanguage, translate } from '../lib/i18n';
 
 export const GAME_TITLE = 'Ucube Atölyesi';
 
@@ -25,12 +25,12 @@ const TABS: TabItem<Tab>[] = [
   { key: 'profile', label: 'Profil', icon: 'person-outline', iconActive: 'person' },
 ];
 
-const STEPS: { icon: IconName; color: string; title: string; text: string }[] = [
-  { icon: 'people', color: colors.cyan, title: 'Takımlara ayrılın', text: 'Oda kodunu paylaş. Oyun başlayınca herkes adil şekilde iki takıma bölünür; her takımın bir Kaptanı olur.' },
-  { icon: 'help-circle', color: colors.yellow, title: 'Soruları çöz, parça kazan', text: 'Harf bulmacası ya da bilmece… İlk doğru cevaplayan takım yapı parçasını alır. Yanlış cevap parçayı rakibe verir!' },
-  { icon: 'flash', color: colors.mint, title: 'Devre arası mini oyun', text: 'Refleks, hafıza veya denge oyununu kazanan takım bonus parça ve +2 puan alır.' },
-  { icon: 'construct', color: colors.magenta, title: 'Yaratığını inşa et', text: 'Takımın Mimarı toplanan parçaları tuvale dizer. Diğerleri emoji ve sesli yönlendirmeyle destek olur.' },
-  { icon: 'trophy', color: colors.gold, title: 'Gizli oylama', text: 'En çılgın yaratığa gizlice oy ver. Resmi şampiyon puanla, en komik tasarım oylarla belirlenir.' },
+const getSteps = (): { icon: IconName; color: string; title: string; text: string }[] => [
+  { icon: 'people', color: colors.cyan, title: translate("Takımlara ayrılın"), text: translate("Oda kodunu paylaş. Oyun başlayınca herkes adil şekilde iki takıma bölünür; her takımın bir Kaptanı olur.") },
+  { icon: 'help-circle', color: colors.yellow, title: translate("Soruları çöz, parça kazan"), text: translate("Harf bulmacası ya da bilmece… İlk doğru cevaplayan takım yapı parçasını alır. Yanlış cevap parçayı rakibe verir!") },
+  { icon: 'flash', color: colors.mint, title: translate("Devre arası mini oyun"), text: translate("Refleks, hafıza veya denge oyununu kazanan takım bonus parça ve +2 puan alır.") },
+  { icon: 'construct', color: colors.magenta, title: translate("Yaratığını inşa et"), text: translate("Takımın Mimarı toplanan parçaları tuvale dizer. Diğerleri emoji ve sesli yönlendirmeyle destek olur.") },
+  { icon: 'trophy', color: colors.gold, title: translate("Gizli oylama"), text: translate("En çılgın yaratığa gizlice oy ver. Resmi şampiyon puanla, en komik tasarım oylarla belirlenir.") },
 ];
 
 export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (roomId: string) => void; avatarId: AvatarId; onAvatarChange: (id: AvatarId) => void }) {
@@ -265,7 +265,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                                 <Ionicons name="checkmark" size={12} color="#0A1020" />
                               </View>
                             )}
-                            <Text style={{ color: colors.subtle, fontSize: 11, marginTop: 8 }}>Yana kaydırarak modları keşfet</Text>
+                            <Text style={{ color: colors.subtle, fontSize: 11, marginTop: 8 }}>{translate("Yana kaydırarak modları keşfet")}</Text>
                           </Tap>
                         </View>
                       );
@@ -408,12 +408,12 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
             <>
               <Reveal>
                 <View style={{ gap: 4 }}>
-                  <Eyebrow color={colors.cyan} dot={colors.cyan}>Oyun rehberi</Eyebrow>
-                  <Title size={28}>Nasıl Oynanır?</Title>
-                  <Muted>5 adımda ucube yaratık inşa et, rakibi yen.</Muted>
+                  <Eyebrow color={colors.cyan} dot={colors.cyan}>{translate("Oyun rehberi")}</Eyebrow>
+                  <Title size={28}>{translate("Nasıl Oynanır?")}</Title>
+                  <Muted>{translate("5 adımda ucube yaratık inşa et, rakibi yen.")}</Muted>
                 </View>
               </Reveal>
-              {STEPS.map((st, i) => (
+              {getSteps().map((st, i) => (
                 <Reveal key={st.title} delay={80 + i * 70}>
                   <Card accent={st.color} style={s.step}>
                     <LinearGradient
@@ -430,7 +430,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </Card>
                 </Reveal>
               ))}
-              <Btn title="Hemen Oyna" icon="game-controller" tone="gold" onPress={() => setTab('play')} />
+              <Btn title={translate("Hemen Oyna")} icon="game-controller" tone="gold" onPress={() => setTab('play')} />
             </>
           )}
 
@@ -449,7 +449,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </View>
                   <View style={{ alignSelf: 'stretch', marginTop: 18, gap: 6 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={s.xpLabel}>Sonraki seviye</Text>
+                      <Text style={s.xpLabel}>{translate("Sonraki seviye")}</Text>
                       <Text style={s.xpLabel}>{Math.round(lvl.progress * 100)}%</Text>
                     </View>
                     <ProgressBar pct={lvl.progress} colors={gradients.gold} height={12} />
@@ -459,21 +459,21 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
 
               <Reveal delay={90}>
                 <View style={s.stats}>
-                  <StatTile icon="game-controller" color={colors.cyan} value={profile.games} label="Oynanan" />
-                  <StatTile icon="trophy" color={colors.gold} value={profile.wins} label="Galibiyet" />
+                  <StatTile icon="game-controller" color={colors.cyan} value={profile.games} label={translate("Oynanan")} />
+                  <StatTile icon="trophy" color={colors.gold} value={profile.wins} label={translate("Galibiyet")} />
                   <StatTile
                     icon="stats-chart"
                     color={colors.mint}
                     value={profile.games ? `%${Math.round((profile.wins / profile.games) * 100)}` : '—'}
-                    label="Kazanma"
+                    label={translate("Kazanma")}
                   />
                 </View>
               </Reveal>
 
               <Reveal delay={170}>
                 <Card style={{ gap: 14 }}>
-                  <SectionLabel>Hesap</SectionLabel>
-                  <Muted>Avatarını değiştir</Muted>
+                  <SectionLabel>{translate("Hesap")}</SectionLabel>
+                  <Muted>{translate("Avatarını değiştir")}</Muted>
                   <View style={s.avatarPicker}>
                     {AVATAR_OPTIONS.map((option) => (
                       <Tap key={option.id} onPress={() => onAvatarChange(option.id)} style={[s.avatarChoice, avatarId === option.id && s.avatarChoiceSelected]}>
@@ -488,7 +488,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     value={nick}
                     onChangeText={setNick}
                     onBlur={() => { const n = nick.trim(); if (n) AsyncStorage.setItem('nickname', n); }}
-                    placeholder="Takma adın"
+                    placeholder={translate("Takma adın")}
                     maxLength={20}
                   />
                   <View style={{ gap: 8 }}>
