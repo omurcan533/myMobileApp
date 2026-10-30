@@ -20,7 +20,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const {width,height}=useWindowDimensions();
  const wide=width>height&&width>=600;
  const area=usePlaySize(); const compact=area.active;
- const [now,setNow]=useState(Date.now());
+ const [now,setNow]=useState(0);
  const [startedAt,setStartedAt]=useState<string>(event.created_at);
  const [state,setState]=useState<TugState>({a:0,b:0,players:[]});
  const [feedback,setFeedback]=useState('');
@@ -40,7 +40,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
   const ch=supabase.channel('tug:'+event.id);
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
   channel.current=ch;
-  return()=>{clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
+  return()=>{clearTimeout(initial);clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
  },[event.id]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
  const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);
