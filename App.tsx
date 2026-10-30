@@ -21,6 +21,7 @@ import { syncServerTime } from './lib/serverTime';
 import { art } from './lib/art';
 import { alpha, colors } from './lib/theme';
 import type { Ctx, Piece } from './lib/types';
+import { initializeLanguage, useLanguage } from './lib/i18n';
 import { BuildingScreen } from './screens/Building';
 import { HomeScreen } from './screens/Home';
 import { LobbyScreen } from './screens/Lobby';
@@ -97,6 +98,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
 }
 
 export default function App() {
+  useLanguage();
   const [fontsLoaded] = useFonts({
     Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold,
     Outfit_600SemiBold, Outfit_700Bold, Outfit_800ExtraBold, Outfit_900Black,
@@ -112,7 +114,7 @@ export default function App() {
   const boot = useCallback(async () => {
     setError(null);
     try {
-      const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime()]);
+      const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime(), initializeLanguage()]);
       const [pieces, saved] = await Promise.all([supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY)]);
       setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((p) => [p.id, p])));
       const soundEnabled = await AsyncStorage.getItem('soundEnabled');
