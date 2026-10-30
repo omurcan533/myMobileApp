@@ -9,6 +9,7 @@ import {
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
+import { NicknameStep, validNickname } from '../components/NicknameStep';
 import { supabase } from '../lib/supabase';
 import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
@@ -39,6 +40,9 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const tabs: TabItem<Tab>[] = TABS.map((tab) => ({ ...tab, label: tab.key === 'play' ? t('play') : tab.key === 'how' ? t('how') : t('profile') }));
   const [tab, setTab] = useState<Tab>('play');
   const [nick, setNick] = useState('');
+  const [nameLoaded, setNameLoaded] = useState(false);
+  const [nameRequired, setNameRequired] = useState(false);
+  const pendingEntry = useRef<{ kind: 'create' | 'join'; code: string } | null>(null);
   const [code, setCode] = useState('');
   const [openRooms, setOpenRooms] = useState<OpenRoom[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -56,8 +60,16 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const modeCarouselRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem('nickname').then((v) => v && setNick(v));
+    let active = true;
+    AsyncStorage.getItem('nickname').then(value => {
+      if (!active) return;
+      const saved = value?.trim() ?? '';
+      if (validNickname(saved)) setNick(saved);
+      setNameRequired(!validNickname(saved));
+    }).catch(() => { if (active) setNameRequired(true); })
+      .finally(() => { if (active) setNameLoaded(true); });
     getProfile().then(setProfile);
+    return () => { active = false; };
   }, []);
 
   // Açık odaları ilk yüklemede al ve oda/oyuncu değişikliklerini gerçek zamanlı izle.
@@ -107,10 +119,14 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const lvl = levelOf(profile);
   const displayName = nick.trim() || t('newPlayer');
 
-  const run = async (kind: 'create' | 'join', selectedRoomCode?: string) => {
+  const run = async (kind: 'create' | 'join', selectedRoomCode?: string, confirmedName?: string) => {
     if (joiningRef.current) return;
-    const name = nick.trim();
-    if (!name) { show(t('nicknameRequired'), 'error'); setTab('play'); return; }
+    const name = (confirmedName ?? nick).trim();
+    if (!nameLoaded || !validNickname(name)) {
+      pendingEntry.current = { kind, code: selectedRoomCode ?? code };
+      setNameRequired(true);
+      return;
+    }
     const joinCode = (selectedRoomCode ?? code).trim();
     if (kind === 'join' && joinCode.length < 4) return show(t('roomCodeRequired'), 'error');
     joiningRef.current = true;
@@ -132,6 +148,19 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     setSound(v);
     AsyncStorage.setItem('soundEnabled', String(v)).catch(console.warn);
   };
+
+  if (!nameLoaded) return <Screen><View style={{flex:1,justifyContent:'center',alignItems:'center'}}>
+    <Muted>{language==='en'?'Preparing your player profile…':'Oyuncu profilin hazırlanıyor…'}</Muted>
+  </View></Screen>;
+
+  if (nameRequired) return <NicknameStep initialValue={nick} avatarId={avatarId} onContinue={async name => {
+    await AsyncStorage.setItem('nickname', name);
+    setNick(name);
+    setNameRequired(false);
+    const pending = pendingEntry.current;
+    pendingEntry.current = null;
+    if (pending) void run(pending.kind, pending.code, name);
+  }}/>;
 
   return (
     <Screen>
