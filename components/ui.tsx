@@ -83,6 +83,9 @@ export function Screen({ children, style, active=false }: { children: React.Reac
       const covered = window.innerHeight - vp.height;
       {
         const h = Math.round(vp.height);
+        // Android may briefly report a zero viewport while switching apps or
+        // rotating. Retain the last usable height instead of hiding the screen.
+        if (h <= 0 || !Number.isFinite(h)) return;
         const top = covered > 120 ? Math.round(vp.offsetTop) : 0;
         setVv((p) => (p && p.h === h && p.top === top ? p : { h, top }));
       }
@@ -90,9 +93,13 @@ export function Screen({ children, style, active=false }: { children: React.Reac
     update();
     vp.addEventListener('resize', update);
     vp.addEventListener('scroll', update);
+    window.addEventListener('pageshow', update);
+    document.addEventListener('visibilitychange', update);
     return () => {
       vp.removeEventListener('resize', update);
       vp.removeEventListener('scroll', update);
+      window.removeEventListener('pageshow', update);
+      document.removeEventListener('visibilitychange', update);
     };
   }, []);
 

@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import type { GameMode, GameResults, Side } from './types';
 
 const MESSAGES: Record<string, string> = {
+  pong_waiting_for_team_choice: 'Takım seçimi henüz tamamlanmadı. Oyunu güncelleyip yeniden dene.',
+  time_up: 'Bu turun süresi doldu. Güncel sonuçlar yükleniyor.',
   not_authenticated: 'Oturum açılamadı, tekrar dene.',
   room_not_found: 'Bu kodla bir oda bulunamadı.',
   nickname_taken: 'Bu takma ad odada alınmış.',
@@ -58,6 +60,8 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 export type OpenRoom = { code: string; mode: string; phase: string; player_count: number; host_nickname: string; created_at: string };
 
 export const api = {
+  closeRoom: (room: string) => rpc<void>('close_room', { p_room: room }),
+  replayMemory: (mg: string) => rpc<string>('replay_memory', { p_minigame: mg }),
   openRooms: () => rpc<OpenRoom[]>('list_open_rooms'),
   botSurvivorStep: (room:string)=>rpc<boolean>('bot_survivor_step',{p_room:room}),
   advanceTestBots: (room:string)=>rpc<{action:string;count?:number}>('advance_test_bots',{p_room:room}),

@@ -15,7 +15,10 @@ import { currentRound, effNow, secondsLeft, totalQuestionsForRoom } from '../lib
 import { alpha, colors, gradients, teamColor, teamName, tierLabel } from '../lib/theme';
 import { soundFx } from '../lib/soundEffects';
 import { haptic } from '../lib/haptics';
-import type { Ctx, Tier } from '../lib/types';
+import type { Answer, Ctx, Round, Tier } from '../lib/types';
+
+const answerSeconds = (answer: Answer, round: Round) =>
+  ((answer.elapsed_ms ?? Math.max(0, Date.parse(answer.created_at) - Date.parse(round.opens_at ?? answer.created_at))) / 1000).toFixed(2);
 
 const TIER_COLOR: Record<Tier, string> = { base: colors.cyan, body: colors.violet, roof: colors.magenta };
 
@@ -29,7 +32,6 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   const advancing=useRef<string|null>(null);
   const totalQuestions = useMemo(() => totalQuestionsForRoom(room.mode, data.rounds.length), [room.mode, data.rounds.length]);
   const [areaHeight,setAreaHeight]=useState(500);
-  const [suggestionsOpen,setSuggestionsOpen]=useState(false);
   const [text, setText] = useState('');
   const [final, setFinal] = useState('');
   const [confirmAnswer, setConfirmAnswer] = useState<string | null>(null);
@@ -434,9 +436,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {suggestions.length>0&&<Btn size="sm" title={`Takım Önerileri (${suggestions.length})`} onPress={()=>setSuggestionsOpen(true)}/>}
                 {suggestions.length > 0 && (
-                 <Sheet visible={suggestionsOpen} onClose={()=>setSuggestionsOpen(false)}>
                   <Card style={{ gap: 10 }}>
                     <Eyebrow icon="chatbubbles" color={colors.muted}>Takım tahminleri</Eyebrow>
                     <View style={s.chips}>
@@ -449,11 +449,11 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                             color={alpha(colors.cyan, 0.32)}
                             accent={colors.cyan}
                             scaleTo={0.93}
-                            onPress={() => {setSuggestionsOpen(false);sendFinal(a.body);}}
+                            onPress={() => sendFinal(a.body)}
                             style={[s.chip, me.is_captain && { borderColor: alpha(colors.cyan, 0.5) }]}
                           >
                             <Text style={s.chipText}>{a.body}</Text>
-                            <Text style={s.chipWho}>{who}</Text>
+                            <Text style={s.chipWho}>{who} · {answerSeconds(a, round)} sn</Text>
                           </Tap>
                         );
                       })}
@@ -462,8 +462,6 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                       <Muted style={{ fontSize: 12 }}>Bir tahmine dokun → takım adına gönder.</Muted>
                     )}
                   </Card>
-                  <Btn title="Oyuna Dön" onPress={()=>setSuggestionsOpen(false)}/>
-                 </Sheet>
                 )}
 
                 <Input
@@ -516,7 +514,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                 {roundAnswers.length > 0 ? (
                   <View style={s.finalAnswers}>
                     <Eyebrow icon="chatbubbles" color={colors.muted}>Gönderilen Cevaplar</Eyebrow>
-                    {roundAnswers.map((answer) => {
+                    {roundAnswers.map((answer, index) => {
                       const sender = data.players.find((player) => player.id === answer.player_id);
                       const answerColor = answer.is_correct === true ? colors.mint : answer.is_correct === false ? colors.red : colors.cyan;
                       const answerLabel = answer.is_final
@@ -526,7 +524,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
                         <View key={answer.id} style={[s.finalAnswerRow, { borderColor: alpha(answerColor, 0.35) }]}>
                           <View style={s.finalAnswerMeta}>
                             <Text numberOfLines={1} style={s.finalAnswerSender}>
-                              {sender?.nickname ?? 'Oyuncu'} · {teamName(answer.side)}
+                              {index + 1}. {sender?.nickname ?? 'Oyuncu'} · {teamName(answer.side)} · {answerSeconds(answer, round)} sn
                             </Text>
                             <Chip
                               label={answerLabel}
