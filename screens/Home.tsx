@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { AppState, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,7 @@ import {
   SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
+import { coalescedTask } from '../lib/coalescedTask';
 import { supabase } from '../lib/supabase';
 import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
@@ -71,15 +72,22 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
         if (active) setRoomsLoading(false);
       }
     };
-    void refreshRooms();
+    // Realtime events and polling may arrive together. Serialize refreshes so
+    // an older request cannot overwrite a newer room/player snapshot.
+    const loadRooms = coalescedTask(refreshRooms, () => active);
+    void loadRooms();
     const channel = supabase
       .channel('public-open-rooms')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => { void refreshRooms(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void refreshRooms(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => { void loadRooms(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => { void loadRooms(); })
       .subscribe();
     // Public room metadata is also refreshed for visitors who are not room members.
-    const refreshInterval = setInterval(() => { void refreshRooms(); }, 5000);
+    const refreshInterval = setInterval(() => { void loadRooms(); }, 5000);
+    const appState = AppState.addEventListener('change', state => {
+      if (state === 'active') void loadRooms();
+    });
     return () => {
+      appState.remove();
       active = false;
       clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
