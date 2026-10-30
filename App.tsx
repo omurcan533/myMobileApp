@@ -21,7 +21,7 @@ import { syncServerTime } from './lib/serverTime';
 import { art } from './lib/art';
 import { alpha, colors } from './lib/theme';
 import type { Ctx, Piece } from './lib/types';
-import { initializeLanguage, useLanguage } from './lib/i18n';
+import { initializeLanguage, useLanguage, translate } from './lib/i18n';
 import { BuildingScreen } from './screens/Building';
 import { HomeScreen } from './screens/Home';
 import { LobbyScreen } from './screens/Lobby';
@@ -75,7 +75,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
   }, [gone, data, me, onLeave]);
 
   if (!data || !me) {
-    return <Loading text="Odaya bağlanılıyor…" />;
+    return <Loading text={translate("Odaya bağlanılıyor…")} />;
   }
   const ctx: Ctx = { data, me, catalog, onLeave, exitRoom };
 
@@ -88,7 +88,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
     case 'team_reveal':
       return data.players.every((player) => player.team_side !== null)
         ? <TeamRevealScreen ctx={ctx} />
-        : <Loading text="Takımlar belirleniyor…" />;
+        : <Loading text={translate("Takımlar belirleniyor…")} />;
     case 'question': return withBreak(<QuestionScreen ctx={ctx} />);
     case 'minigame': return withBreak(<MinigameScreen ctx={ctx} />);
     case 'building': return withBreak(<BuildingScreen ctx={ctx} />);
@@ -197,13 +197,13 @@ export default function App() {
         <Screen>
           <View style={s.center}>
             <View style={s.errorIcon}><Ionicons name="cloud-offline" size={40} color={colors.red} /></View>
-            <Title>Bağlanamadık</Title>
+            <Title>{translate("Bağlanamadık")}</Title>
             <Muted style={{ textAlign: 'center', maxWidth: 300 }}>{error}</Muted>
-            <Btn title="Tekrar dene" icon="refresh" onPress={boot} style={{ marginTop: 18, alignSelf: 'stretch' }} />
+            <Btn title={translate("Tekrar dene")} icon="refresh" onPress={boot} style={{ marginTop: 18, alignSelf: 'stretch' }} />
           </View>
         </Screen>
       ) : !ready || !userId ? (
-        <Loading text="Arena hazırlanıyor…" />
+        <Loading text={translate("Arena hazırlanıyor…")} />
       ) : roomId ? (
         <RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} />
       ) : !avatarChosen ? (

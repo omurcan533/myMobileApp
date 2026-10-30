@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { haptic } from '../lib/haptics';
 import type { Ctx, Side } from '../lib/types';
 
 export function VotingScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me } = ctx;
   const { width } = useWindowDimensions();
   const colW = (width - 36 - 14) / 2;
@@ -40,15 +42,15 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
         {/* ================= BAŞLIK & DURUM ================= */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={[s.header, { flex: 1 }]}>
-            <Eyebrow live icon="eye-off" color={colors.violet} dot={colors.violet}>Gizli oylama evresi</Eyebrow>
-            <Title size={30}>En Çılgın Tasarım?</Title>
+            <Eyebrow live icon="eye-off" color={colors.violet} dot={colors.violet}>{translate("Gizli oylama evresi")}</Eyebrow>
+            <Title size={30}>{translate("En Çılgın Tasarım?")}</Title>
           </View>
           <RoomExitButton onExit={ctx.exitRoom} />
         </View>
 
-        <TimerBar left={left} total={30} label="Kalan Oy Süresi" color={colors.violet} />
+        <TimerBar left={left} total={30} label={translate("Kalan Oy Süresi")} color={colors.violet} />
 
-        <Hint id="voting" text="Gizli oy! İstediğin yaratığa oy verebilirsin; ister kendi takımına, ister rakibe." />
+        <Hint id="voting" text={translate("Gizli oy! İstediğin yaratığa oy verebilirsin; ister kendi takımına, ister rakibe.")} />
 
         {/* ================= YARATIK OYLAMA KARTLARI ================= */}
         <View style={s.voteRow}>

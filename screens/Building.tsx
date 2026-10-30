@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import type { Ctx } from '../lib/types';
  * Mimar tuvali yönetir, takım canlı izler ve emoji tepkileri gönderir.
  */
 export function BuildingScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me } = ctx;
   const { width, height } = useWindowDimensions();
   const now = useNow();
@@ -59,8 +61,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       {/* ================= ÜST BAŞLIK & BİLGİ ALANI ================= */}
       <View style={s.header}>
         <View style={s.headerLeft}>
-          <Eyebrow live color={colors.mint} dot={colors.mint}>Canlı inşa evresi</Eyebrow>
-          <Title size={30}>İnşa Zamanı</Title>
+          <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Canlı inşa evresi")}</Eyebrow>
+          <Title size={30}>{translate("İnşa Zamanı")}</Title>
           <View style={s.badgesRow}>
             <Chip color={tColor} icon="shield" label={teamName(me.team_side)} />
             <View style={s.architectChip}>
@@ -68,7 +70,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
               <Text style={s.architectLabel}>
                 Mimar:{' '}
                 <Text style={s.architectValue}>{architect?.nickname ?? '—'}</Text>
-                {me.is_architect && <Text style={s.architectSelf}> (Sen)</Text>}
+                {me.is_architect && <Text style={s.architectSelf}>{translate(" (Sen)")}</Text>}
               </Text>
             </View>
           </View>

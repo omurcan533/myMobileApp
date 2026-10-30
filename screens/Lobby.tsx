@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,6 +32,7 @@ const DEFAULT_GAMES = GAME_STYLES.map((game) => game.id);
 
 
 export function LobbyScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me, exitRoom } = ctx;
   const { room, players } = data;
   const [busy, setBusy] = useState(false);
@@ -172,8 +174,8 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         <Reveal>
           <View style={s.codeCard}>
             <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            <Eyebrow live color={colors.mint} dot={colors.mint}>Bekleme odası</Eyebrow>
-            <Text style={s.codeLabel}>KATILIM KODU</Text>
+            <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
+            <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
             <Pulse amount={1.025}>
               <Text display style={s.code}>{room.code}</Text>
             </Pulse>
@@ -188,7 +190,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         {/* ================= OYUN SEÇİMİ ================= */}
         {room.mode === 'custom' ? <Reveal delay={80}>
           <Card style={{ gap: 12 }}>
-            <Title size={20}>Oynamak istediğin oyunları seç</Title>
+            <Title size={20}>{translate("Oynamak istediğin oyunları seç")}</Title>
             <Muted>{me.is_host ? 'Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.' : 'Oyun kurucusunun seçtiği türler aşağıda görünüyor.'}</Muted>
             {me.is_host && (
               <View style={s.gameActions}>
@@ -217,17 +219,17 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             ) : null}
             <Muted>{savingGames ? 'Seçimler kaydediliyor…' : gamesLocked && !editingGames ? 'Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.' : me.is_host ? 'Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.' : 'Seçimleri yalnızca oda kurucusu değiştirebilir.'}</Muted>
           </Card>
-        </Reveal> : <Card style={{gap:8}}><Title size={20}>🎲 Rastgele Oyunlar</Title><Muted>Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
+        </Reveal> : <Card style={{gap:8}}><Title size={20}>{translate("🎲 Rastgele Oyunlar")}</Title><Muted>{translate("Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.")}</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
 
-        {me.is_host && <Card style={{gap:12}}><Title size={20}>🤖 Test Botları</Title><Muted>İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.</Muted><Text style={{color:colors.text,fontWeight:'700'}}>Bot sayısı: {draftBotCount??botCount} · Toplam oyuncu: {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title="Botları Uygula" tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show('Test botları güncellendi.','success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
+        {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>Bot sayısı: {draftBotCount??botCount} · Toplam oyuncu: {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title="Botları Uygula" tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show('Test botları güncellendi.','success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
         {/* ================= OYUNCULAR ================= */}
         <Reveal delay={100}>
           <Card style={{ gap: 14 }}>
             <View style={s.playersHead}>
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Title size={20}>Oyuncular</Title>
-                <Muted style={{ marginTop: 2 }}>Kurucu takımları belirleyince herkes sonucu görecek</Muted>
+                <Title size={20}>{translate("Oyuncular")}</Title>
+                <Muted style={{ marginTop: 2 }}>{translate("Kurucu takımları belirleyince herkes sonucu görecek")}</Muted>
               </View>
               <View style={s.countBadge}>
                 <Text display style={s.countText}>{players.length}</Text>
@@ -258,7 +260,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                   <View style={s.emptyAvatar}>
                     <Ionicons name="person-add" size={20} color={colors.subtle} />
                   </View>
-                  <Text style={[s.pName, { color: colors.subtle }]}>Bekleniyor…</Text>
+                  <Text style={[s.pName, { color: colors.subtle }]}>{translate("Bekleniyor…")}</Text>
                   <Text style={s.pRole}> </Text>
                 </View>
               ))}
@@ -268,7 +270,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
         <Reveal delay={130}>
           <Card style={{ gap: 10 }}>
-            <Title size={19}>🧠 Beni Ne Kadar Tanıyorsun?</Title>
+            <Title size={19}>{translate("🧠 Beni Ne Kadar Tanıyorsun?")}</Title>
             <Muted>{factsEnabled ? 'Etkin. Herkes kişisel soruları cevaplar; cevaplar okunduktan sonra hafıza soruları oyunlarda kullanılabilir.' : 'İsteğe bağlıdır. Kapalıyken kişisel sorular gösterilmez ve doldurmak gerekmez.'}</Muted>
             {me.is_host && <Btn title={factsEnabled ? 'Kişisel Soruları Kapat' : 'Kişisel Soruları Etkinleştir'} icon={factsEnabled ? 'toggle' : 'toggle-outline'} tone={factsEnabled ? 'success' : 'ghost'} loading={factsToggleBusy} disabled={factsToggleBusy || busy} onPress={toggleFriendFacts} />}
             {!me.is_host && <Muted>{factsEnabled ? 'Oda kurucusu bu özelliği etkinleştirdi.' : 'Bu özellik oda kurucusu tarafından etkinleştirilmedi.'}</Muted>}
@@ -293,7 +295,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           ) : (
             <Card style={s.waiting}>
               <Ionicons name="hourglass" size={22} color={colors.cyan} />
-              <Muted style={{ flex: 1 }}>Kurucunun takımları belirlemesi bekleniyor…</Muted>
+              <Muted style={{ flex: 1 }}>{translate("Kurucunun takımları belirlemesi bekleniyor…")}</Muted>
             </Card>
           )}
           <Btn title="Odadan Ayrıl" tone="ghost" icon="exit-outline" size="md" onPress={leave} />
@@ -303,7 +305,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         <View style={s.kickOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => { if (!kickingId) setKickTarget(null); }} />
           <View style={s.kickDialog}>
-            <Title size={22}>Oyuncuyu Çıkar</Title>
+            <Title size={22}>{translate("Oyuncuyu Çıkar")}</Title>
             <Muted>{kickTarget?.nickname} adlı oyuncuyu odadan çıkarmak istediğinize emin misiniz?</Muted>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
               <View style={{ flex: 1 }}><Btn title="Vazgeç" tone="ghost" disabled={!!kickingId} onPress={() => setKickTarget(null)} /></View>

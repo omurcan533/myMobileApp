@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +20,7 @@ import type { Ctx, Tier } from '../lib/types';
 const TIER_COLOR: Record<Tier, string> = { base: colors.cyan, body: colors.violet, roof: colors.magenta };
 
 export function QuestionScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const { data, me, catalog } = ctx;
   const { room } = data;
   const now = effNow(room, useNow());
@@ -50,8 +52,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
         <Scoreboard ctx={ctx} />
         <View style={s.center}>
           <View style={s.bigIcon}><Ionicons name="film" size={40} color={colors.cyan} /></View>
-          <Title size={26}>Hazır mısın?</Title>
-          <Muted>İlk soru birazdan geliyor…</Muted>
+          <Title size={26}>{translate("Hazır mısın?")}</Title>
+          <Muted>{translate("İlk soru birazdan geliyor…")}</Muted>
         </View>
       </Screen>
     );
@@ -145,7 +147,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             <Title size={26}>Oyun Duraklatıldı</Title>
             <Muted>Kaptanlar dilediğinde devam ettirebilir.</Muted>
             {me.is_captain && (
-              <Btn title="Devam Et" icon="play" tone="success" disabled={busy} onPress={toggleBriefingPause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
+              <Btn title={translate("Devam Et")} icon="play" tone="success" disabled={busy} onPress={toggleBriefingPause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
             )}
           </View>
         )}
@@ -594,7 +596,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
           <Title size={26}>Oyun Duraklatıldı</Title>
           <Muted>Kaptanlar dilediğinde devam ettirebilir.</Muted>
           {me.is_captain && (
-            <Btn title="Devam Et" icon="play" tone="success" onPress={pause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
+            <Btn title={translate("Devam Et")} icon="play" tone="success" onPress={pause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
           )}
         </View>
       )}

@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -619,7 +620,7 @@ function GiantDiceDuelArena({
             <Text style={[s.turnLabel, { color: colors.gold }]}>
               🎲 {lastRoller?.nickname ?? 'Oyuncu'} ZARLARI ATIYOR…
             </Text>
-            <Text style={s.turnSubtitle}>Zarlar yuvarlanıyor, tüm oda canlı izliyor!</Text>
+            <Text style={s.turnSubtitle}>{translate("Zarlar yuvarlanıyor, tüm oda canlı izliyor!")}</Text>
           </View>
           <Pulse amount={1.2}>
             <Ionicons name="refresh-circle" size={24} color={colors.cyan} />
@@ -681,7 +682,7 @@ function GiantDiceDuelArena({
           {isRolling ? (
             <View style={s.rollingBadge}>
               <Ionicons name="refresh-circle" size={18} color={colors.cyan} />
-              <Text style={s.rollingText}>Zarlar Dönüyor…</Text>
+              <Text style={s.rollingText}>{translate("Zarlar Dönüyor…")}</Text>
             </View>
           ) : lastRoll ? (
             <View style={s.totalBadge}>
@@ -695,7 +696,7 @@ function GiantDiceDuelArena({
             </View>
           ) : (
             <View style={s.waitingBadge}>
-              <Text style={s.waitingBadgeText}>Zar atmak için butona basın!</Text>
+              <Text style={s.waitingBadgeText}>{translate("Zar atmak için butona basın!")}</Text>
             </View>
           )}
         </View>
@@ -749,7 +750,7 @@ function GiantDiceDuelArena({
       {/* Round Rolls Board (Mevcut Tur Skorları) */}
       {currentRoundRolls.length > 0 && (
         <View style={s.standingsBox}>
-          <Text style={s.standingsTitle}>Bu Turun Zarları:</Text>
+          <Text style={s.standingsTitle}>{translate("Bu Turun Zarları:")}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -787,6 +788,7 @@ function GiantDiceDuelArena({
 }
 
 export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const phaseStartedAt = ctx.data.room.phase_started_at;
   const [timeline, setTimeline] = useState(() => ({ phaseStartedAt, startedAt: Date.now() }));
   const timelineForRender = timeline.phaseStartedAt === phaseStartedAt
@@ -1001,7 +1003,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
               ) : (
                 <View style={s.waitingSpotlight}>
                   <Ionicons name="people" size={22} color={colors.cyan} />
-                  <Text style={s.waitingText}>Takımlar belirleniyor…</Text>
+                  <Text style={s.waitingText}>{translate("Takımlar belirleniyor…")}</Text>
                 </View>
               )}
             </View>
@@ -1034,7 +1036,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
                 />
                 <Ionicons name="shield-checkmark" size={28} color={colors.cyan} />
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text display style={s.readyTitle}>Takımlar Belirlendi! ⚔️</Text>
+                  <Text display style={s.readyTitle}>{translate("Takımlar Belirlendi! ⚔️")}</Text>
                   <Text style={s.readySubtitle}>
                     {ctx.me.is_host
                       ? 'Kaptanlık zar düellosunu başlatmak için aşağıdaki butona tıklayın'
@@ -1074,7 +1076,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
                   <View style={s.captainsReveal}>
                     <View style={s.captainsTitleRow}>
                       <Ionicons name="ribbon" size={20} color={colors.gold} />
-                      <Text display style={s.captainsTitle}>SEÇİLEN KAPTANLARINIZ</Text>
+                      <Text display style={s.captainsTitle}>{translate("SEÇİLEN KAPTANLARINIZ")}</Text>
                       <Ionicons name="ribbon" size={20} color={colors.gold} />
                     </View>
                     <View style={s.captainGrid}>
@@ -1165,7 +1167,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
           ) : (
             <View style={s.hostWaiting}>
               <Ionicons name="hourglass" size={18} color={colors.cyan} />
-              <Text style={s.hostWaitingText}>Kurucunun oyunu başlatması bekleniyor…</Text>
+              <Text style={s.hostWaitingText}>{translate("Kurucunun oyunu başlatması bekleniyor…")}</Text>
             </View>
           )}
         </View>
