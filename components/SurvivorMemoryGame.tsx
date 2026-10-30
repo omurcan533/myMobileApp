@@ -120,7 +120,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
   <Title size={area.active?18:23}>{translate('Survivor Hafıza Parkuru')}</Title>
   {!area.active&&<Muted>{translate('7 sıra · Her sırada 1 yeşil. Renkleri ezberle. Kırmızıya basarsan en başa, beyaza basarsan bir önceki sıraya dönersin. Yalnızca kaptan seçim yapar.')}</Muted>}
-  {previewing?<Text style={styles.notice}>{translate('Fayansları ezberle!')} {Math.ceil((Date.parse(startsAt!)-clock)/1000} {translate('sn')}</Text>:<Text style={styles.notice}>{!live?translate('Parkur tamamlandı'):paused?translate('Oyun duraklatıldı'):!startsAt?translate('Başlaması bekleniyor'):isCaptain?`${translate('Sıra')} ${Math.min(7,(own?.row??0)+1)} / 7 · ${translate('Dokun ve ilerle')}`:translate('Kaptan oynuyor — takımına doğru yolu söyle.')}</Text>}
+  {previewing?<Text style={styles.notice}>{translate('Fayansları ezberle!')} {Math.ceil((Date.parse(startsAt!)-clock)/1000)} {translate('sn')}</Text>:<Text style={styles.notice}>{!live?translate('Parkur tamamlandı'):paused?translate('Oyun duraklatıldı'):!startsAt?translate('Başlaması bekleniyor'):isCaptain?`${translate('Sıra')} ${Math.min(7,(own?.row??0)+1)} / 7 · ${translate('Dokun ve ilerle')}`:translate('Kaptan oynuyor — takımına doğru yolu söyle.')}</Text>}
   <View style={[styles.grid,area.active&&{width:tileSize*5+24}]}>
    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'#A82D41',opacity:flash}]}/>
    {Array.from({length:7},(_,row)=>Array.from({length:5},(_,col)=>{
