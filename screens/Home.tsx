@@ -237,10 +237,10 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     }}
                   >
                     {([
-                      ['quick', 'flash', 'Hızlı', '8 Soru • ~5 dk', colors.yellow],
-                      ['standard', 'trophy', 'Standart', '14 Soru • ~10 dk', colors.cyan],
-                      ['long', 'flame', 'Epik', '20 Soru • ~18 dk', colors.violet],
-                      ['custom', 'options', 'Özel', 'Oyunları sen seç', colors.mint],
+                      ['quick', 'flash', translate("Hızlı"), translate("8 Soru • ~5 dk"), colors.yellow],
+                      ['standard', 'trophy', translate("Standart"), translate("14 Soru • ~10 dk"), colors.cyan],
+                      ['long', 'flame', translate("Epik"), translate("20 Soru • ~18 dk"), colors.violet],
+                      ['custom', 'options', translate("Özel"), translate("Oyunları sen seç"), colors.mint],
                     ] as const).map(([m, icon, label, sub, c], index) => {
                       const on = mode === m;
                       return (
@@ -374,7 +374,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   ) : openRooms.map((room) => {
                     const waiting = room.phase === 'lobby';
                     const full = room.player_count >= 12;
-                    const modeLabel: Record<string, string> = { quick: 'Hızlı', standard: 'Standart', long: 'Epik', custom: 'Özel' };
+                    const modeLabel: Record<string, string> = { quick: translate("Hızlı"), standard: translate("Standart"), long: translate("Epik"), custom: translate("Özel") };
                     return (
                       <View key={room.code} style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inset, padding: 12, gap: 10 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -382,13 +382,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                             <Ionicons name={waiting ? 'people' : 'game-controller'} size={20} color={waiting ? colors.mint : colors.violet} />
                           </View>
                           <View style={{ flex: 1, gap: 3 }}>
-                            <Text display style={{ fontSize: 15, color: colors.text, fontWeight: '700' }}>{room.host_nickname}'ın Odası</Text>
-                            <Muted>{modeLabel[room.mode] ?? room.mode} mod · {room.player_count}/12 oyuncu</Muted>
+                            <Text display style={{ fontSize: 15, color: colors.text, fontWeight: '700' }}>{room.host_nickname}{translate("'ın Odası")}</Text>
+                            <Muted>{modeLabel[room.mode] ?? room.mode} {translate('mod')} · {room.player_count}/12 {translate('oyuncu')}</Muted>
                           </View>
-                          <Chip label={waiting ? 'Bekliyor' : 'Devam ediyor'} color={waiting ? colors.mint : colors.violet} size="sm" />
+                          <Chip label={waiting ? translate("Bekliyor") : translate("Devam ediyor")} color={waiting ? colors.mint : colors.violet} size="sm" />
                         </View>
                         <Btn
-                          title={waiting && !full ? 'Katıl' : full && waiting ? 'Oda dolu' : 'Oyun başladı'}
+                          title={waiting && !full ? translate("Katıl") : full && waiting ? translate("Oda dolu") : translate("Oyun başladı")}
                           icon={waiting && !full ? 'log-in' : undefined}
                           tone={waiting && !full ? 'success' : 'ghost'}
                           size="md"
