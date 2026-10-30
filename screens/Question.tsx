@@ -64,10 +64,10 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   if (isPreparing) {
     const roundColor = TIER_COLOR[round.tier];
     const instructions = round.kind === 'anagram'
-      ? 'Karışık harfleri çöz ve cevabı en hızlı şekilde yaz. İlk doğru cevap takımına parça kazandırır.'
+      ? translate("Karışık harfleri çöz ve cevabı en hızlı şekilde yaz. İlk doğru cevap takımına parça kazandırır.")
       : round.kind === 'social'
-        ? 'Oyunculardan birini seçip takımına öner. Kaptan, takımın adına nihai cevabı gönderir.'
-        : 'Tahminini önce takımına öner. Kaptan doğru cevabı gönderir; yanlış cevap parçayı rakibe verir.';
+        ? translate("Oyunculardan birini seçip takımına öner. Kaptan, takımın adına nihai cevabı gönderir.")
+        : translate("Tahminini önce takımına öner. Kaptan doğru cevabı gönderir; yanlış cevap parçayı rakibe verir.");
     const briefingReadyAt = (room.phase_started_at ? Date.parse(room.phase_started_at) : 0) + 5000;
     const canContinue = now >= briefingReadyAt;
     const waitSeconds = Math.max(0, Math.ceil((briefingReadyAt - now) / 1000));
@@ -100,30 +100,30 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
         <Scoreboard ctx={ctx} />
         <View style={s.briefingWrap}>
           <Card accent={roundColor} style={s.briefingCard}>
-            <Eyebrow live color={roundColor} dot={roundColor}>Soru Başlangıcı</Eyebrow>
-            <Title size={26} style={{ textAlign: 'center' }}>Hazır Olun</Title>
+            <Eyebrow live color={roundColor} dot={roundColor}>{translate("Soru Başlangıcı")}</Eyebrow>
+            <Title size={26} style={{ textAlign: 'center' }}>{translate("Hazır Olun")}</Title>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
               <Chip
                 icon="help-circle"
-                label={`Soru ${round.idx + 1} / ${totalQuestions}`}
+                label={`${translate('Soru')} ${round.idx + 1} / ${totalQuestions}`}
                 color={colors.cyan}
               />
               <Chip
                 icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
-                label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
+                label={round.kind === 'anagram' ? translate("Harfleri Düzenle") : round.kind === 'social' ? translate("Grup Oylaması") : translate("Bilmeceyi Çöz")}
                 color={roundColor}
               />
             </View>
             {prize && (
               <View style={{ alignItems: 'center', gap: 2, marginVertical: 4 }}>
                 <Text style={{ fontSize: 36 }}>{prize.emoji}</Text>
-                <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>Ödül: {prize.name_tr}</Text>
+                <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>{translate('Ödül:')} {prize.name_tr}</Text>
               </View>
             )}
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{instructions}</Muted>
             {me.is_host ? (
               <Btn
-                title={canContinue ? 'Devam Et' : `Devam Et · ${waitSeconds} sn`}
+                title={canContinue ? translate("Devam Et") : `${translate('Devam Et')} · ${waitSeconds} ${translate('sn')}`}
                 icon={canContinue ? 'play' : 'hourglass'}
                 tone={canContinue ? 'success' : 'ghost'}
                 size="lg"
@@ -135,7 +135,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             ) : (
               <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <ActivityIndicator size="small" color={roundColor} />
-                <Muted style={{ textAlign: 'center' }}>Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.</Muted>
+                <Muted style={{ textAlign: 'center' }}>{translate('Kurucunun devam etmesi bekleniyor… Devam edilince süre başlayacak.')}</Muted>
               </View>
             )}
           </Card>
@@ -265,7 +265,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
               <Chip
                 color={tierColor}
                 icon={round.kind === 'anagram' ? 'shuffle' : round.kind === 'social' ? 'people' : 'extension-puzzle'}
-                label={round.kind === 'anagram' ? 'Harfleri Düzenle' : round.kind === 'social' ? 'Grup Oylaması' : 'Bilmeceyi Çöz'}
+                label={round.kind === 'anagram' ? translate("Harfleri Düzenle") : round.kind === 'social' ? translate("Grup Oylaması") : translate("Bilmeceyi Çöz")}
               />
               {prize && (
                 <View style={s.prizeTag}>
