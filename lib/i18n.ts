@@ -35,6 +35,8 @@ export function useLanguage() {
 
 /** Localize existing game copy without changing server-side identifiers. */
 const gameCopy: Record<string, string> = {
+  "Hızlı eşleştirme": "Quick Memory",
+  "Gösterilen sırayı hatırla ve aynı sırayla dokun": "Remember the sequence and tap it in the same order",
   "Sonraki Oyuna Geç": "Next Game",
   "Sonuçları İncele": "Review Results",
   "TAKIM": "TEAM",

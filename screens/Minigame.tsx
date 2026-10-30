@@ -20,6 +20,7 @@ import {
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
 import { serverNow } from '../lib/serverTime';
+import { minigameVariant } from '../lib/minigameVariant';
 import { memoryFrame } from '../lib/memoryTimeline';
 import { api, GameError } from '../lib/api';
 import { avatarFor } from '../lib/art';
@@ -99,11 +100,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const canContinueBriefing = now >= briefingReadyAt;
   const briefingWaitSeconds = Math.max(0, Math.ceil((briefingReadyAt - now) / 1000));
 
-  // mg.id'ye göre her devre arasında senkronize ve adil mini-oyun varyantı:
-  const code = (mg.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const mod = code % 3;
-  const variant: 'reflex' | 'memory' | 'balance' =
-    mg.kind === 'social_guess' ? 'reflex' : mod === 0 ? 'reflex' : mod === 1 ? 'memory' : 'balance';
+  const variant = minigameVariant(mg.kind, mg.id);
 
   const tap = async (target?: string, guess?: number) => {
     if (mine || busy || data.room.paused) return;
@@ -293,7 +290,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             onSubmit={(guess) => tap(undefined, guess)}
             busy={busy}
           />
-        ) : mg.kind === 'reflex' ? (
+        ) : (mg.kind === 'reflex' || mg.kind === 'memory') ? (
           variant === 'memory' ? (
             <MemoryGame
               seed={mg.id || ''}
@@ -402,7 +399,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         )}
 
-        {!live && mg.kind === 'reflex' && (
+        {!live && (mg.kind === 'reflex' || mg.kind === 'memory') && (
           <ReflexResults
             title={getLanguage()==='en'?(variant === 'memory' ? 'Memory Results' : variant === 'balance' ? 'Balance Results' : 'Reflex Results'):(variant === 'memory' ? 'Hafıza Sonuçları' : variant === 'balance' ? 'Denge Sonuçları' : 'Refleks Sonuçları')}
             players={data.players}
@@ -414,7 +411,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>{translate("Mini oyun sonuçları")}</Eyebrow>
-            {mg.kind==='reflex'&&variant==='memory'&&me.is_host&&<Btn title="Tekrar Oyna" icon="refresh" tone="success" disabled={busy||data.room.paused} onPress={async()=>{if(busy)return;setBusy(true);try{await api.replayMemory(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>}
+            {(mg.kind==='memory'||mg.kind==='reflex'&&variant==='memory')&&me.is_host&&<Btn title="Tekrar Oyna" icon="refresh" tone="success" disabled={busy||data.room.paused} onPress={async()=>{if(busy)return;setBusy(true);try{await api.replayMemory(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>}
             {mg.kind==='survivor_memory'&&(me.is_host?
               <Btn title={translate("Tekrar Oyna")} icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
