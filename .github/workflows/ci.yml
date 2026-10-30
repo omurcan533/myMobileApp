@@ -26,7 +26,7 @@ jobs:
       - name: Room reconnect regression tests
         run: node --experimental-strip-types --test scripts/room-reconnect.test.mjs scripts/server-time.test.mjs scripts/coalesced-task.test.mjs
       - name: Gameplay regression tests
-        run: node --experimental-strip-types --test scripts/gameplay-ui.test.mjs scripts/gameplay-database.test.mjs scripts/pong-timeline.test.mjs
+        run: node --experimental-strip-types --test scripts/gameplay-ui.test.mjs scripts/gameplay-database.test.mjs scripts/pong-timeline.test.mjs scripts/line-quick-results.test.mjs
       - name: Nickname onboarding tests
         run: node --experimental-strip-types --test scripts/nickname-onboarding.test.mjs
       - name: Player management tests

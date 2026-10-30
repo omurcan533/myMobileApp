@@ -24,6 +24,9 @@ export function PlayHeader({ctx,left,label,instructions,onPause,onJoker,busy=fal
    </React.Fragment>)}
    <Pressable accessibilityRole="button" accessibilityLabel="Oyun menüsü ve kurallar" onPress={()=>setOpen(true)} style={s.menu}><Ionicons name="ellipsis-horizontal" color={colors.text} size={22}/></Pressable>
   </View>
+  <View style={s.pauseRow}>
+   <Btn title={ctx.data.room.paused?'Devam Et':ctx.me.is_captain?'Mola':'Mola · Kaptan'} icon={ctx.data.room.paused?'play':'pause'} size="sm" tone="ghost" disabled={busy||!ctx.me.is_captain} onPress={onPause}/>
+  </View>
   <Sheet visible={open} onClose={()=>setOpen(false)}>
    <Title size={20}>Oyun Menüsü</Title>
    <Muted>{instructions}</Muted>
@@ -36,6 +39,7 @@ export function PlayHeader({ctx,left,label,instructions,onPause,onJoker,busy=fal
  </>;
 }
 const s=StyleSheet.create({
+ pauseRow:{flexShrink:0,alignItems:'flex-end',marginBottom:6},
  row:{height:48,flexShrink:0,flexDirection:'row',alignItems:'center',gap:6,marginBottom:6},
  team:{flex:1,minWidth:0,height:44,borderWidth:1,borderRadius:12,backgroundColor:'#101C31',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:6,gap:4},
  score:{color:colors.text,fontSize:20,fontWeight:'900',flexShrink:1},

@@ -25,10 +25,15 @@ export function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCa
       if (!mg) return false;
       if (mg.status === 'live') {
         if (!mg.starts_at || !d.room.phase_ends_at) return false;
+        if (mg.kind === 'line_connect') {
+          const players = d.players.filter(player => player.team_side != null && !player.is_bot);
+          return now >= ms(room.phase_ends_at) + 300 || (players.length > 0 && players.every(player =>
+            d.entries.some(entry => entry.minigame_id === mg.id && entry.player_id === player.id && entry.reaction_ms != null)));
+        }
         const entries = d.entries.filter((e) => e.minigame_id === mg.id).length;
         return (
           now >= ms(room.phase_ends_at) + 300 ||
-          (mg.kind !== 'line_connect' && mg.kind !== 'tug_of_war' && d.players.length > 0 && entries >= d.players.length)
+          (mg.kind !== 'tug_of_war' && d.players.length > 0 && entries >= d.players.length)
         );
       }
       return false;
