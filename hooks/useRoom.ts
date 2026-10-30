@@ -61,7 +61,14 @@ export function useRoom(roomId: string) {
     });
     ch.on('postgres_changes',{event:'*',schema:'public',table:'minigame_entries'},payload=>{
       const entry=(payload.eventType==='DELETE'?payload.old:payload.new) as Partial<MinigameEntry>;
-      if(!entry.minigame_id||games.some(g=>g.id===entry.minigame_id))schedule();
+      // PostgreSQL DELETE events may only contain the primary key (REPLICA IDENTITY
+      // DEFAULT). Without minigame_id we cannot determine the affected room, so
+      // refresh rather than leaving a removed player's entry visible until polling.
+      if(payload.eventType==='DELETE'&&!entry.minigame_id){
+        schedule();
+        return;
+      }
+      if(entry.minigame_id&&games.some(g=>g.id===entry.minigame_id))schedule();
     });
     ch.subscribe(status=>{if(status==='SUBSCRIBED')schedule();});
     const poll=setInterval(()=>void load(),6000);
