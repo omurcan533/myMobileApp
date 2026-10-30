@@ -53,7 +53,8 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   if(!completedRef.current&&complete(next,boardRef.current)){
    completedRef.current=true;setCompleted(true);
    activeRef.current=null;setActive(null);
-   winRef.current?.(next.map(path=>path.map(p=>[Math.round(p[0]),Math.round(p[1])] as Point)));
+   Promise.resolve().then(()=>winRef.current?.(next.map(path=>path.map(p=>[Math.round(p[0]),Math.round(p[1])] as Point))))
+    .catch(()=>{completedRef.current=false;setCompleted(false);});
   }
  },[]);
  const endpointAt=useCallback((p:Point)=>{

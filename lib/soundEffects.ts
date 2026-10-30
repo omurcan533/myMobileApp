@@ -8,17 +8,25 @@ class SoundEngine {
   private enabled: boolean = true;
 
   private getContext(): AudioContext | null {
-    if (typeof window === 'undefined') return null;
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
+    try {
+      if (typeof window === 'undefined') return null;
+      if (this.ctx?.state === 'closed') this.ctx = null;
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+        }
       }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => undefined);
+      }
+      return this.ctx;
+    } catch {
+      // Android browsers can refuse or lose an audio context after backgrounding.
+      // A cosmetic sound must never unmount the game screen.
+      this.ctx = null;
+      return null;
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => undefined);
-    }
-    return this.ctx;
   }
 
   public setEnabled(val: boolean) {

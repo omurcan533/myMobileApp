@@ -34,7 +34,7 @@ export function useRoom(roomId: string) {
         if(results.some(r=>r.error))throw new Error('Room refresh failed');
         const [rooms,players,teams,rounds,answers,teamPieces,minigames,canvas,votes,reveals]=results;
         const room=rooms.data?.[0];
-        if(!room){setGoneRoom(roomId);return;}
+        if(!room||room.closed_at){setGoneRoom(roomId);return;}
         const ids=(minigames.data??[]).map(m=>m.id);
         let entries:MinigameEntry[]=[];
         if(ids.length){

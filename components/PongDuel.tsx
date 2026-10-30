@@ -243,7 +243,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    </View>
    {needsModeChoice&&<View style={styles.choice}>
     <Title size={17}>{loc('Takımın kaç kişi oynasın?','How many players on your team?')}</Title>
-    <Muted>{loc('İki takım arkadaşının aynı seçimi yapması gerekir.','Both teammates must make the same choice.')}</Muted>
+    <Muted>{loc('İkiniz de 1 kişi seçerseniz tek oyuncu kontrol eder. Seçim tamamlanmazsa kurucu mevcut iki kişilik düzenle başlatabilir.','If both choose 1 player, one player controls the paddle. Otherwise the host can start with the current two-player setup.')}</Muted>
     <View style={styles.controls}>
      <Tap onPress={()=>void chooseMode('solo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>{loc('1 KİŞİ','1 PLAYER')}</Text></Tap>
      <Tap onPress={()=>void chooseMode('duo')} disabled={choiceBusy} style={styles.control}><Text style={styles.controlText}>{loc('2 KİŞİ','2 PLAYERS')}</Text></Tap>

@@ -30,6 +30,7 @@ import { QuestionScreen } from './screens/Question';
 import { ResultsScreen } from './screens/Results';
 import { VotingScreen } from './screens/Voting';
 import { TeamRevealScreen } from './screens/TeamReveal';
+import { GameErrorBoundary } from './components/GameErrorBoundary';
 
 const ROOM_KEY = 'roomId';
 
@@ -210,7 +211,7 @@ export default function App() {
       ) : !ready || !userId ? (
         <Loading text={translate("Arena hazırlanıyor…")} />
       ) : roomId ? (
-        <RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} />
+        <GameErrorBoundary key={roomId}><RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} /></GameErrorBoundary>
       ) : !avatarChosen ? (
         <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (

@@ -5,6 +5,7 @@ export type Tier = 'base' | 'body' | 'roof';
 export type GameMode = 'quick' | 'standard' | 'long' | 'custom';
 
 export interface Room {
+  closed_at?: string | null;
   id: string;
   code: string;
   host_user_id: string;
@@ -117,6 +118,7 @@ export interface RoundReveal {
 }
 
 export interface Answer {
+  elapsed_ms?: number | null;
   id: string;
   round_id: string;
   player_id: string;

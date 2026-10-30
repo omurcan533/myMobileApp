@@ -22,7 +22,7 @@ const getGameStyles = () => [
   { id: 'math_guess', name: translate("Sayı Tahmini"), description: translate("Sayılarla yarış"), icon: 'calculator' },
   { id: 'social_guess', name: translate("Sosyal Tahmin"), description: translate("Arkadaşların hakkında tahmin et"), icon: 'people' },
   { id: 'survivor_memory', name: translate("Survivor Hafıza Parkuru"), description: translate("Yeşil fayansları ezberle; kaptan sırayla güvenli yolu bulsun"), icon: 'grid' },
-  { id: 'line_connect', name: translate("Çizgi Birleştirme"), description: translate("Aynı renkleri kesişmeden birleştir, ilk bitiren takım kazanır"), icon: 'git-merge' },
+  { id: 'line_connect', name: translate("Çizgi Birleştirme"), description: translate("Aynı renkleri kesişmeden birleştir, süre sonunda en hızlı oyuncu takımına puan kazandırır"), icon: 'git-merge' },
   // Şarkı Tamamlama şimdilik kapalı. İleride nakarat tamamlama olarak yeniden açılabilir.
   // { id: 'song_complete', name: 'Şarkı Tamamlama', description: 'Şarkı adının eksik kısmını bul', icon: 'musical-notes' },
   { id: 'tug_of_war', name: translate("🪢 Halat Çekme"), description: translate("Takım halinde refleksle halatı çek; süreyi kurucu belirler"), icon: 'fitness' },
@@ -36,6 +36,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { data, me, exitRoom } = ctx;
   const GAME_STYLES = getGameStyles();
   const { room, players } = data;
+  const [closeConfirm, setCloseConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [kickingId, setKickingId] = useState<string | null>(null);
   const [kickTarget, setKickTarget] = useState<{ id: string; nickname: string } | null>(null);
@@ -171,6 +172,51 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   return (
     <Screen>
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* ================= OYUNCULAR ================= */}
+        <Reveal delay={100}>
+          <Card style={{ gap: 14 }}>
+            <View style={s.playersHead}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Title size={20}>{translate("Oyuncular")}</Title>
+                <Muted style={{ marginTop: 2 }}>{translate("Kurucu takımları belirleyince herkes sonucu görecek")}</Muted>
+              </View>
+              <View style={s.countBadge}>
+                <Text display style={s.countText}>{players.length}</Text>
+                <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
+              </View>
+            </View>
+            <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
+
+            <View style={s.grid}>
+              {players.map((p) => {
+                const isMe = p.id === me.id;
+                return (
+                  <View key={p.id} style={[s.player, isMe && s.playerMe]}>
+                    {p.is_host && (
+                      <View style={s.crown}>
+                        <Ionicons name="star" size={12} color="#3A2100" />
+                      </View>
+                    )}
+                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
+                    <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
+                    <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
+                    {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
+                  </View>
+                );
+              })}
+              {Array.from({ length: empties }).map((_, i) => (
+                <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
+                  <View style={s.emptyAvatar}>
+                    <Ionicons name="person-add" size={20} color={colors.subtle} />
+                  </View>
+                  <Text style={[s.pName, { color: colors.subtle }]}>{translate("Bekleniyor…")}</Text>
+                  <Text style={s.pRole}> </Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Reveal>
+
         {/* ================= ODA KODU KARTI ================= */}
         <Reveal>
           <View style={s.codeCard}>
@@ -224,51 +270,6 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
         {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>{translate('Bot sayısı:')} {draftBotCount??botCount} · {translate('Toplam oyuncu:')} {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title={translate("Botları Uygula")} tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show(translate("Test botları güncellendi."),'success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
-        {/* ================= OYUNCULAR ================= */}
-        <Reveal delay={100}>
-          <Card style={{ gap: 14 }}>
-            <View style={s.playersHead}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Title size={20}>{translate("Oyuncular")}</Title>
-                <Muted style={{ marginTop: 2 }}>{translate("Kurucu takımları belirleyince herkes sonucu görecek")}</Muted>
-              </View>
-              <View style={s.countBadge}>
-                <Text display style={s.countText}>{players.length}</Text>
-                <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
-              </View>
-            </View>
-            <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
-
-            <View style={s.grid}>
-              {players.map((p) => {
-                const isMe = p.id === me.id;
-                return (
-                  <View key={p.id} style={[s.player, isMe && s.playerMe]}>
-                    {p.is_host && (
-                      <View style={s.crown}>
-                        <Ionicons name="star" size={12} color="#3A2100" />
-                      </View>
-                    )}
-                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
-                    <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
-                    <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
-                    {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
-                  </View>
-                );
-              })}
-              {Array.from({ length: empties }).map((_, i) => (
-                <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
-                  <View style={s.emptyAvatar}>
-                    <Ionicons name="person-add" size={20} color={colors.subtle} />
-                  </View>
-                  <Text style={[s.pName, { color: colors.subtle }]}>{translate("Bekleniyor…")}</Text>
-                  <Text style={s.pRole}> </Text>
-                </View>
-              ))}
-            </View>
-          </Card>
-        </Reveal>
-
         <Reveal delay={130}>
           <Card style={{ gap: 10 }}>
             <Title size={19}>{translate("🧠 Beni Ne Kadar Tanıyorsun?")}</Title>
@@ -299,6 +300,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               <Muted style={{ flex: 1 }}>{translate("Kurucunun takımları belirlemesi bekleniyor…")}</Muted>
             </Card>
           )}
+          {me.is_host && <><Btn title="Odayı Kapat" tone="danger" icon="close-circle" disabled={busy} onPress={() => setCloseConfirm(true)} /><Muted>Tek kişilik bekleme odaları 10 dakika sonra otomatik kapanır.</Muted></>}
           <Btn title={translate("Odadan Ayrıl")} tone="ghost" icon="exit-outline" size="md" onPress={leave} />
         </Reveal>
       </ScrollView>
@@ -314,6 +316,13 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             </View>
           </View>
         </View>
+      </Modal>
+      <Modal visible={closeConfirm} transparent animationType="fade" onRequestClose={() => { if (!busy) setCloseConfirm(false); }}>
+        <View style={s.kickOverlay}><View style={s.kickDialog}>
+          <Title size={22}>Odayı kapat?</Title><Muted>Odadaki herkes ana ekrana döner. Bu oda koduyla tekrar katılınamaz.</Muted>
+          <Btn title="Vazgeç" tone="ghost" disabled={busy} onPress={() => setCloseConfirm(false)} />
+          <Btn title="Odayı Kapat" tone="danger" loading={busy} onPress={async () => { if (busy) return; setBusy(true); try { await api.closeRoom(room.id); ctx.onLeave(); } catch (error) { show((error as Error).message, 'error'); } finally { setBusy(false); } }} />
+        </View></View>
       </Modal>
       {toast}
     </Screen>

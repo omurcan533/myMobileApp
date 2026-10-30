@@ -7,7 +7,7 @@ import type { RoomData } from '../lib/types';
 const ms = (iso: string | null | undefined) => (iso ? Date.parse(iso) : 0);
 
 /** İstemci tarafında "şimdi ilerletme zamanı mı?" kararı. Sunucu yine de doğrular (idempotent). */
-function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: number): boolean {
+export function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: number): boolean {
   const { room } = d;
   if (room.paused || room.phase === 'lobby' || room.phase === 'team_reveal' || room.phase === 'results') return false;
 
@@ -28,7 +28,7 @@ function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCall: num
         const entries = d.entries.filter((e) => e.minigame_id === mg.id).length;
         return (
           now >= ms(room.phase_ends_at) + 300 ||
-          (d.players.length > 0 && entries >= d.players.length)
+          (mg.kind !== 'line_connect' && mg.kind !== 'tug_of_war' && d.players.length > 0 && entries >= d.players.length)
         );
       }
       return false;

@@ -8,6 +8,7 @@ import {Card,Muted,Text,Title} from './ui';
 import type {Player} from '../lib/types';
 import {usePlaySize} from './PlayLayout';
 import {colors,teamColor} from '../lib/theme';
+import {serverNow} from '../lib/serverTime';
 
 type TugState={a:number;b:number;players:{nickname:string;side:string;force:number}[]};
 export function TugOfWar({event,players,myId,isHost,main=false,paused=false,pausedAt=null}:{event:any;players:Player[];myId:string;isHost:boolean;main?:boolean;paused?:boolean;pausedAt?:string|null}){
@@ -20,7 +21,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const {width,height}=useWindowDimensions();
  const wide=width>height&&width>=600;
  const area=usePlaySize(); const compact=area.active;
- const [now,setNow]=useState(0);
+ const [now,setNow]=useState(serverNow);
  const [startedAt,setStartedAt]=useState<string>(event.created_at);
  const [state,setState]=useState<TugState>({a:0,b:0,players:[]});
  const [feedback,setFeedback]=useState('');
@@ -29,13 +30,13 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const [error,setError]=useState('');
  const lastPull=useRef(0);
  useEffect(()=>{
-  if(event.created_at!==startedAt){const initial=setTimeout(()=>{setStartedAt(event.created_at);setFeedback('');setError('');setNow(Date.now());},0);return()=>clearTimeout(initial);}
+  if(event.created_at!==startedAt){const initial=setTimeout(()=>{setStartedAt(event.created_at);setFeedback('');setError('');setNow(serverNow());},0);return()=>clearTimeout(initial);}
  },[event.created_at,startedAt]);
  const channel=useRef<ReturnType<typeof supabase.channel>|null>(null);
  const refresh=async()=>{try{const s=main?await api.minigameTugState(event.id):await api.partyTugState(event.id);if(s)setState({a:s.a,b:s.b,players:'players' in s&&Array.isArray(s.players)?s.players:[]});}catch{}};
  useEffect(()=>{
   const initial=setTimeout(()=>{void refresh();},0);
-  const timer=setInterval(()=>setNow(Date.now()),40);
+  const timer=setInterval(()=>setNow(serverNow()),40);
   const sync=setInterval(refresh,700);
   const ch=supabase.channel('tug:'+event.id);
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
@@ -64,7 +65,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const difference=state.a-state.b;
  const leading=difference===0?null:difference>0?'A':'B';
  const pull=async()=>{
-  if(busy||(main&&paused)||remaining===0||!side||(main&&Date.now()<Date.parse(startedAt))||Date.now()-lastPull.current<470)return;
+  if(busy||(main&&paused)||remaining===0||!side||(main&&serverNow()<Date.parse(startedAt))||Date.now()-lastPull.current<470)return;
   lastPull.current=Date.now();
   setFeedback(hit?loc('🎯 İSABET! +','🎯 HIT! +')+force+loc(' kuvvet',' force'):loc('💥 ISKALADIN! -45 kuvvet','💥 MISS! -45 force'));
   setLastHit(hit);
@@ -81,7 +82,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
   setBusy(true);setError('');
   try{
    const next=await api.partyTugReplay(event.id);
-   setStartedAt(next);setNow(Date.now());setState({a:0,b:0,players:[]});setFeedback('');lastPull.current=0;
+   setStartedAt(next);setNow(serverNow());setState({a:0,b:0,players:[]});setFeedback('');lastPull.current=0;
    channel.current?.send({type:'broadcast',event:'pull',payload:{replay:true}}).catch(()=>{});
   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  };
@@ -96,7 +97,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
   <View style={{height:7,backgroundColor:'#283850',borderRadius:6,overflow:'hidden'}}><View style={{width:`${Math.min(100,elapsedMs/(duration*10))}%`,height:7,backgroundColor:'#FFD177'}}/></View>
   <Card accent={teamColor(leading)} style={{gap:compact?2:7,padding:compact?6:16,alignItems:'center'}}>
    <Title size={compact?18:24} color={teamColor(leading)}>{leading?outcome(leading):loc('BERABERE','DRAW')}</Title>
-   <Text style={{fontSize:compact?13:18,fontWeight:'900'}}>{leading?`${Math.abs(difference)} ${loc('kuvvet fark','force difference')}`:loc('Kuvvetler eşit','Forces are equal')}</Text>
+   <Text style={{color:colors.text,fontSize:compact?13:18,fontWeight:'900'}}>{leading?`${Math.abs(difference)} ${loc('kuvvet fark','force difference')}`:loc('Kuvvetler eşit','Forces are equal')}</Text>
    <Text style={{color:teamColor(side),fontWeight:'800'}}>{loc('Sen:','You:')} {side?team(side):loc('Seyirci','Spectator')}{side&&leading?side===leading?loc(' · Takımın önde',' · Your team leads'):loc(' · Takımın geride',' · Your team trails'):''}</Text>
    {!compact&&<Muted>{remaining>0?loc('Süre bitene kadar sonuç değişebilir.','The outcome can change until time runs out.'):loc('Sonuç toplam kuvvete göre belirlendi.','The result is based on total force.')}</Muted>}
   </Card>

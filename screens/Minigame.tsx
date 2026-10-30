@@ -1,6 +1,6 @@
 import { getLanguage, translate, useLanguage } from '../lib/i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
@@ -19,6 +19,8 @@ import {
   Avatar, Btn, Card, Chip, Sheet, Eyebrow, IconName, Muted, ProgressBar, Pulse, Screen, SectionLabel, Tap, Title, Text, useToast,
 } from '../components/ui';
 import { useNow } from '../hooks/useNow';
+import { serverNow } from '../lib/serverTime';
+import { memoryFrame } from '../lib/memoryTimeline';
 import { api, GameError } from '../lib/api';
 import { avatarFor } from '../lib/art';
 import { latestMinigame, secondsLeft } from '../lib/selectors';
@@ -187,7 +189,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     mg.kind === 'tug_of_war' ? 'İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.'
     : mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
     : mg.kind === 'song_complete' ? '75 popüler Türkçe şarkıdan biri seçilir. Sanatçıya ve şarkı adının eksik kısmına bakarak şarkının tam adını yaz. Oyuncular doğru cevabı bulana kadar tekrar deneyebilir. İlk doğru yanıt veren takım +2 puan ve bonus parça kazanır. Süre 65 saniyedir.'
-    : mg.kind === 'line_connect' ? 'İki takım aynı bulmacayı çözer. Parmağını sürükleyerek aynı renkli noktaları birleştir. Çizgiler kesişemez ve başka renklerin noktalarından geçemez. Tüm çiftleri ilk hatasız tamamlayan takım +2 puan ve bonus parça kazanır. Süre 150 saniyedir.'
+    : mg.kind === 'line_connect' ? 'Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 150 saniye sonunda en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.'
     : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
@@ -273,9 +275,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         ) : mg.kind === 'song_complete' ? (
           <SongCompleteGame key={mg.id} id={mg.id} prompt={mg.prompt ?? ''} live={live} canPlay={go} paused={data.room.paused} winner={mg.winner_side} side={me.team_side} onError={message=>show(message,'error')} />
         ) : mg.kind === 'line_connect' ? (
-          <LineConnectGame key={mg.id} board={mg.line_connect_state as any} disabled={!live || !go || data.room.paused} onWin={async (paths) => {
+          <LineConnectGame key={mg.id} board={mg.line_connect_state as any} disabled={!!mine || !live || !go || data.room.paused} onWin={async (paths) => {
             try { await api.submitLineConnect(mg.id, paths); soundFx.correct(); haptic.success(); }
-            catch (error) { show((error as Error).message, 'error'); }
+            catch (error) { show((error as Error).message, 'error'); throw error; }
           }} />
         ) : mg.kind === 'math_guess' ? (
           <MathGuessGame
@@ -342,7 +344,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {!live && mg.kind === 'pong' && <PongRematch ref={pongRematchRef} ctx={ctx} mg={mg} continueReady={continueReady} continueWait={continueWait} anchorRef={shortcut.anchorRef} onAnchorLayout={shortcut.measure} onShortcutStateChange={setPongShortcut}/>}
 
         {mg.kind === 'line_connect' && lineResult && (
-          <View style={[s.lineResultOverlay, { borderColor: lineResultColor }]}>
+          <View style={{borderWidth:1,borderColor:lineResultColor,borderRadius:18,padding:16,gap:10,overflow:'hidden'}}>
             <LinearGradient
               colors={lineResult === 'won' ? ['#123D38', '#0B2532'] : lineResult === 'lost' ? ['#451D34', '#171C34'] : ['#42351D', '#192338']}
               style={StyleSheet.absoluteFill}
@@ -365,6 +367,15 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             </Text>
           </View>
         )}
+
+        {mg.kind === 'line_connect' && <Card style={{gap:8}}>
+          <Title size={18}>{live ? 'Bitirme Süreleri · Yarış Devam Ediyor' : 'Bitirme Sıralaması'}</Title>
+          {[...data.players].sort((a,b)=>(entries.find(e=>e.player_id===a.id)?.reaction_ms??Infinity)-(entries.find(e=>e.player_id===b.id)?.reaction_ms??Infinity)).map((player,index)=>{
+            const entry=entries.find(e=>e.player_id===player.id);
+            return <Text key={player.id} style={{color:colors.text}}>{index+1}. {player.nickname} · {entry?.reaction_ms!=null ? `${(entry.reaction_ms/1000).toFixed(2)} sn` : live ? 'Çözüyor…' : 'Tamamlayamadı'}{!live&&index===0&&entry?' 🏆':''}</Text>;
+          })}
+          {!!mine&&live&&<Muted>Süren kaydedildi. Diğer oyuncular süre sonuna kadar devam ediyor.</Muted>}
+        </Card>}
 
         {/* Katılım Durumu */}
         {mg.kind !== 'pong' && <View style={s.progressWrap}>
@@ -400,6 +411,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>{translate("Mini oyun sonuçları")}</Eyebrow>
+            {mg.kind==='reflex'&&variant==='memory'&&me.is_host&&<Btn title="Tekrar Oyna" icon="refresh" tone="success" disabled={busy||data.room.paused} onPress={async()=>{if(busy)return;setBusy(true);try{await api.replayMemory(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>}
             {mg.kind==='survivor_memory'&&(me.is_host?
               <Btn title={translate("Tekrar Oyna")} icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
@@ -578,60 +590,29 @@ function MemoryGame({
   onComplete: () => void;
 }) {
   const sequence = useMemo(() => seededSequence(seed), [seed]);
-  const [activeStep, setActiveStep] = useState<number | null>(null);
-  const [showingStep, setShowingStep] = useState<number | null>(null);
-  const [showing, setShowing] = useState(!mineDone);
+  const [demoStarted, setDemoStarted] = useState<number|null>(null);
   const [playerIdx, setPlayerIdx] = useState(0);
   const [errorFlash, setErrorFlash] = useState(false);
-  const startTime = useRef(0);
-  const demonstratedRef = useRef(false);
-
-  useEffect(() => {
-    if (!live || !go || mineDone) return;
-    if (demonstratedRef.current) return;
-    demonstratedRef.current = true;
-
-    setShowing(true);
-    setPlayerIdx(0);
-    setShowingStep(null);
-    setErrorFlash(false);
-
-    const stepDuration = 650; // 650ms adım aralığı (akıcı & hızlı)
-    const activeDuration = 480; // 480ms yanar
-    const startDelay = 500; // Başlamadan önce 0.5s hazırlık
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    sequence.forEach((val, step) => {
-      // Kartı yak & ses ver
-      const tOn = setTimeout(() => {
-        setActiveStep(val);
-        setShowingStep(step + 1);
-        soundFx.pop();
-        haptic.light();
-      }, startDelay + step * stepDuration);
-      timers.push(tOn);
-
-      // Kartı söndür
-      const tOff = setTimeout(() => {
-        setActiveStep(null);
-      }, startDelay + step * stepDuration + activeDuration);
-      timers.push(tOff);
-    });
-
-    const doneTimer = setTimeout(() => {
-      setShowing(false);
-      setShowingStep(null);
-      startTime.current = Date.now();
-      soundFx.whistle();
-    }, startDelay + sequence.length * stepDuration + 150);
-    timers.push(doneTimer);
-
-    return () => timers.forEach(clearTimeout);
-  }, [live, go, mineDone, sequence]);
+  const clock = useNow(80);
+  const frame = memoryFrame(sequence,demoStarted,clock);
+  const showing = !mineDone && frame.showing;
+  const activeStep = mineDone ? null : frame.activeStep;
+  const showingStep = mineDone ? null : frame.showingStep;
+  const flashTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
+  useEffect(()=>{
+    if(live&&go&&!mineDone&&demoStarted===null){setDemoStarted(serverNow());setPlayerIdx(0);}
+  },[live,go,mineDone,demoStarted]);
+  useEffect(()=>{
+    const replay=()=>{if(live&&go&&!mineDone){setDemoStarted(serverNow());setPlayerIdx(0);}};
+    const listener=AppState.addEventListener('change',state=>{if(state==='active')replay();});
+    const visible=()=>{if(document.visibilityState==='visible')replay();};
+    if(Platform.OS==='web')document.addEventListener('visibilitychange',visible);
+    return()=>{listener.remove();if(Platform.OS==='web')document.removeEventListener('visibilitychange',visible);};
+  },[live,go,mineDone]);
+  useEffect(()=>()=>{if(flashTimer.current)clearTimeout(flashTimer.current);},[]);
 
   const handleTap = (id: number) => {
-    if (showing || mineDone || !live) return;
+    if (showing || mineDone || !live || !go) return;
 
     if (id === sequence[playerIdx]) {
       // Doğru parça
@@ -651,7 +632,8 @@ function MemoryGame({
       soundFx.wrong();
       haptic.error();
       setErrorFlash(true);
-      setTimeout(() => setErrorFlash(false), 800);
+      if(flashTimer.current)clearTimeout(flashTimer.current);
+      flashTimer.current=setTimeout(() => setErrorFlash(false), 800);
       setPlayerIdx(0); // Baştan başla
     }
   };
@@ -664,7 +646,7 @@ function MemoryGame({
     ? { icon: 'close-circle', text: translate('Hatalı! Baştan başla…'), color: colors.red }
     : { icon: 'finger-print', text: `${translate('Sıra sende! Dokun')} (${playerIdx}/${sequence.length})`, color: colors.yellow };
 
-  const isClickable = !showing && !mineDone && live;
+  const isClickable = !showing && !mineDone && live && go;
 
   return (
     <Card style={s.gameContainer}>
@@ -701,6 +683,7 @@ function MemoryGame({
           );
         })}
       </View>
+      {live&&go&&!mineDone&&<Btn title="Sıralamayı Tekrar Göster" tone="ghost" size="sm" onPress={()=>{setPlayerIdx(0);setDemoStarted(serverNow());}}/>}
       {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
     </Card>
   );
