@@ -70,6 +70,7 @@ const gameCopy: Record<string, string> = {
   "Harika! Başarıyla tamamlandı": "Great! Successfully completed",
   "Hatalı! Baştan başla…": "Wrong! Start over…",
   "Sıra sende! Dokun": "Your turn! Tap",
+  "Doğru! Devam et": "Correct! Keep going",
   "Boynuz": "Horn",
   "Göz": "Eye",
   "Teker": "Wheel",
