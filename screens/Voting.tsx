@@ -32,7 +32,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
       .then(() => {
         soundFx.vote();
         haptic.success();
-        show('Oyun gizlice kaydedildi', 'success');
+        show(translate('Oyun gizlice kaydedildi'), 'success');
       })
       .catch((e) => show((e as Error).message, 'error'));
 
@@ -86,7 +86,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
                   <Avatar source={teamMascot(side)} size={34} ring={tColor} />
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} style={[s.teamChipText, { color: tColor }]}>{teamName(side)}</Text>
-                    {mine && <Text style={s.mineTag}>BİZİM TAKIM</Text>}
+                    {mine && <Text style={s.mineTag}>{translate('BİZİM TAKIM')}</Text>}
                   </View>
                 </View>
 
@@ -97,7 +97,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
 
                 {/* Yaratık Adı & Özel Gücü */}
                 <Text display style={s.creatureName} numberOfLines={2}>
-                  {t?.creature_name ?? 'İsimsiz Ucube'}
+                  {t?.creature_name ?? translate('İsimsiz Ucube')}
                 </Text>
                 {t?.creature_title && (
                   <View style={{ backgroundColor: alpha(tColor, 0.15), borderWidth: 1, borderColor: alpha(tColor, 0.4), borderRadius: 10, paddingVertical: 3, paddingHorizontal: 8, marginTop: 4, marginBottom: 8 }}>
@@ -109,7 +109,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
 
                 {/* Oy Butonu */}
                 <Btn
-                  title={voted ? 'Oyun Burada' : 'Oy Ver'}
+                  title={voted ? translate('Oyun Burada') : translate('Oy Ver')}
                   icon={voted ? 'checkmark-circle' : 'happy'}
                   tone={voted ? 'success' : 'primary'}
                   size="md"
@@ -123,7 +123,7 @@ export function VotingScreen({ ctx }: { ctx: Ctx }) {
 
         <View style={s.statusFooter}>
           <Muted style={{ textAlign: 'center' }}>
-            {myVote ? 'Oyun kaydedildi, diğer oyuncular bekleniyor…' : 'Bir yaratık seçip oyunu ver.'}
+            {myVote ? translate('Oyun kaydedildi, diğer oyuncular bekleniyor…') : translate('Bir yaratık seçip oyunu ver.')}
           </Muted>
         </View>
       </ScrollView>
