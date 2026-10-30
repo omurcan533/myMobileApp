@@ -55,15 +55,19 @@ export function useGameDriver(data: RoomData | null, myPlayerId: string | undefi
   const lastCall = useRef(0);
 
   useEffect(() => {
+    let active = true;
     const id = setInterval(async () => {
       const d = ref.current;
-      if (!d || busy.current) return;
+      if (!d || !myPlayerId || busy.current) return;
       const myVoted = d.votes.some((v) => v.voter_id === myPlayerId);
       if (!shouldAdvance(d, serverNow(), myVoted, lastCall.current)) return;
 
       busy.current = true;
       try {
         await new Promise((r) => setTimeout(r, Math.random() * 600));
+        // The user may have left or switched rooms during the jitter delay.
+        // Never advance an old room from a stale timer callback.
+        if (!active || ref.current?.room.id !== d.room.id) return;
         lastCall.current = Date.now();
         await api.advance(d.room.id);
       } catch {
@@ -72,6 +76,6 @@ export function useGameDriver(data: RoomData | null, myPlayerId: string | undefi
         busy.current = false;
       }
     }, 700);
-    return () => clearInterval(id);
+    return () => { active = false; clearInterval(id); };
   }, [myPlayerId]);
 }
