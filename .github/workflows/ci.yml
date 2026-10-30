@@ -31,5 +31,7 @@ jobs:
         run: node --experimental-strip-types --test scripts/nickname-onboarding.test.mjs
       - name: Player management tests
         run: node --experimental-strip-types --test scripts/player-management.test.mjs scripts/player-management-database.test.mjs
+      - name: Short results recap tests
+        run: node --experimental-strip-types --test scripts/results-recap.test.mjs
       - name: Expo lint
         run: npx expo lint
