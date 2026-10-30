@@ -24,13 +24,23 @@ test('a fresh local demonstration can show the sequence after reconnect or tab r
  assert.equal(memoryFrame(sequence,20000,21250).activeStep,4);
 });
 
-test('game driver waits for deadline even when every line player has finished',()=>{
+test('line driver resolves only at deadline or when every human has a valid finish',()=>{
  const source=ts.transpileModule(readFileSync(new URL('../hooks/useGameDriver.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
  const exports={};
  vm.runInNewContext(source,{exports,require:name=>name.endsWith('/selectors')?{latestMinigame:games=>games.at(-1)}:{}});
  const now=Date.parse('2026-10-30T20:00:00Z');
- const d={room:{phase:'minigame',paused:false,phase_ends_at:new Date(now+5000).toISOString()},minigames:[{id:'game',kind:'line_connect',status:'live',starts_at:new Date(now-5000).toISOString()}],players:[{id:'a'},{id:'b'}],entries:[{minigame_id:'game'},{minigame_id:'game'}]};
+ const d={room:{phase:'minigame',paused:false,phase_ends_at:new Date(now+5000).toISOString()},minigames:[{id:'game',kind:'line_connect',status:'live',starts_at:new Date(now-5000).toISOString()}],players:[{id:'a',team_side:'A'},{id:'b',team_side:'B'},{id:'bot',team_side:'B',is_bot:true}],entries:[{minigame_id:'game',player_id:'a',reaction_ms:1000}]};
  assert.equal(exports.shouldAdvance(d,now,false,0),false);
+ d.entries.push({minigame_id:'other',player_id:'b',reaction_ms:500});
+ assert.equal(exports.shouldAdvance(d,now,false,0),false);
+ d.entries.push({minigame_id:'game',player_id:'b',reaction_ms:null});
+ assert.equal(exports.shouldAdvance(d,now,false,0),false);
+ d.entries.at(-1).reaction_ms=1500;
+ assert.equal(exports.shouldAdvance(d,now,false,0),true);
+ d.room.paused=true;
+ assert.equal(exports.shouldAdvance(d,now,false,0),false);
+ d.room.paused=false;
+ d.entries=[];
  assert.equal(exports.shouldAdvance(d,now+5300,false,0),true);
 });
 

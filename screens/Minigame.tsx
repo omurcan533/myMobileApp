@@ -189,7 +189,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     mg.kind === 'tug_of_war' ? 'İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.'
     : mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
     : mg.kind === 'song_complete' ? '75 popüler Türkçe şarkıdan biri seçilir. Sanatçıya ve şarkı adının eksik kısmına bakarak şarkının tam adını yaz. Oyuncular doğru cevabı bulana kadar tekrar deneyebilir. İlk doğru yanıt veren takım +2 puan ve bonus parça kazanır. Süre 65 saniyedir.'
-    : mg.kind === 'line_connect' ? 'Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 150 saniye sonunda en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.'
+    : mg.kind === 'line_connect' ? 'Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 30 saniye dolunca veya herkes tamamlayınca en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.'
     : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
     : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
     : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
@@ -199,6 +199,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const lineResult = mg.kind === 'line_connect' && !live
     ? mg.winner_side === me.team_side ? 'won' : mg.winner_side ? 'lost' : 'draw'
     : null;
+  const lineWinner = data.players.find(player => player.id === mg.line_connect_state?.winner_player_id);
+  const lineWinnerEntry = entries.find(entry => entry.player_id === lineWinner?.id);
   const lineResultColor = lineResult === 'won' ? colors.mint : lineResult === 'lost' ? '#FF718A' : colors.yellow;
   const briefingSeconds = Math.max(1, Math.ceil((goAt - now) / 1000));
 
@@ -365,6 +367,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Text style={[s.lineResultTeam, { color: lineResultColor }]}>
               {mg.winner_side ? `Kazanan: ${teamName(mg.winner_side)}` : 'Berabere'}
             </Text>
+            {!!lineWinner && <Text style={[s.lineResultTeam,{color:lineResultColor}]}>{`🏆 İlk tamamlayan: ${lineWinner.nickname}${lineWinnerEntry?.reaction_ms != null ? ` · ${(lineWinnerEntry.reaction_ms/1000).toFixed(2)} sn` : ''}\nTakımına +2 puan kazandırdı.`}</Text>}
           </View>
         )}
 
@@ -372,9 +375,9 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           <Title size={18}>{live ? 'Bitirme Süreleri · Yarış Devam Ediyor' : 'Bitirme Sıralaması'}</Title>
           {[...data.players].sort((a,b)=>(entries.find(e=>e.player_id===a.id)?.reaction_ms??Infinity)-(entries.find(e=>e.player_id===b.id)?.reaction_ms??Infinity)).map((player,index)=>{
             const entry=entries.find(e=>e.player_id===player.id);
-            return <Text key={player.id} style={{color:colors.text}}>{index+1}. {player.nickname} · {entry?.reaction_ms!=null ? `${(entry.reaction_ms/1000).toFixed(2)} sn` : live ? 'Çözüyor…' : 'Tamamlayamadı'}{!live&&index===0&&entry?' 🏆':''}</Text>;
+            return <Text key={player.id} style={{color:colors.text}}>{index+1}. {player.nickname} · {entry?.reaction_ms!=null ? `${(entry.reaction_ms/1000).toFixed(2)} sn` : live ? 'Çözüyor…' : 'Tamamlayamadı'}{!live&&player.id===lineWinner?.id?' 🏆':''}</Text>;
           })}
-          {!!mine&&live&&<Muted>Süren kaydedildi. Diğer oyuncular süre sonuna kadar devam ediyor.</Muted>}
+          {!!mine&&live&&<Muted>Süren kaydedildi. Herkes tamamlayınca veya 30 saniye dolunca sonuçlar açılır.</Muted>}
         </Card>}
 
         {/* Katılım Durumu */}
