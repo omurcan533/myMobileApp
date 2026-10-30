@@ -46,8 +46,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   const [code, setCode] = useState('');
   const [openRooms, setOpenRooms] = useState<OpenRoom[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
-  const [mode, setMode] = useState<GameMode>('standard');
-  const [modeIndex, setModeIndex] = useState(1);
+  const [mode, setMode] = useState<GameMode>('custom');
+  const [modeIndex, setModeIndex] = useState(3);
   const { width: windowWidth } = useWindowDimensions();
   const [modeCarouselWidth, setModeCarouselWidth] = useState(0);
   const modeSlideWidth = modeCarouselWidth || Math.max(220, windowWidth - 72);
@@ -107,13 +107,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     };
   }, []);
 
-  // İlk açılışta standart mod ikinci kartta görünmeli; carousel konumunu
+  // İlk açılışta Özel mod dördüncü kartta görünmeli; carousel konumunu
   // seçili mod ve pagination noktasıyla eşleştir.
   useEffect(() => {
     if (modeCarouselWidth <= 0) return;
-    modeCarouselRef.current?.scrollTo({ x: modeCarouselWidth, animated: false });
-    setModeIndex(1);
-    setMode('standard');
+    modeCarouselRef.current?.scrollTo({ x: modeCarouselWidth * 3, animated: false });
+    setModeIndex(3);
+    setMode('custom');
   }, [modeCarouselWidth]);
 
   const lvl = levelOf(profile);
