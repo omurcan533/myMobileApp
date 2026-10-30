@@ -47,6 +47,12 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const sendQueue=useRef<Record<number,Promise<void>>>({});
  const stopped=useRef(false);
  const timing=useRef(createPongDiagnostics());
+ const lastFrameArrival=useRef<number|null>(null);
+ const recordFrameArrival=()=>{
+  const now=performance.now();
+  if(lastFrameArrival.current!==null)timing.current('frameArrivalInterval',now-lastFrameArrival.current);
+  lastFrameArrival.current=now;
+ };
  const players=useMemo(()=>data.players,[data.players]);
  const playerName=(id?:string)=>players.find(p=>p.id===id)?.nickname??loc('Oyuncu','Player');
 
@@ -63,7 +69,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const needsModeChoice=live&&!mg.starts_at&&teamSize===2&&players.length===3;
 
  useEffect(()=>{
-  stopped.current=false;previousScores.current=null;setGameError(null);setGoal(null);setServerFinished(false);
+  stopped.current=false;previousScores.current=null;lastFrameArrival.current=null;setGameError(null);setGoal(null);setServerFinished(false);
   setState((mg.pong_state as State|null)??null);
  },[mg.id]);
  useEffect(()=>{
@@ -103,6 +109,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    const frame=payload?.state as State|undefined;
    if(!frame||typeof frame.x!=='number'||typeof frame.tick!=='string')return;
    timing.current('broadcastSnapshotAge',serverNow()-Date.parse(frame.tick));
+   recordFrameArrival();
    setState(previous=>{
     if(previous&&Date.parse(frame.tick!)<=Date.parse(previous.tick??''))return previous;
     return frame;
@@ -140,6 +147,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
      }else{
       failures=0;
       if(updated){
+       recordFrameArrival();
        applySnapshot(updated as State);
        void cheerChannel.current?.send({type:'broadcast',event:'pong_frame',payload:{state:updated}});
       }
