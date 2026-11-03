@@ -1,5 +1,5 @@
 import 'react-native-url-polyfill/auto';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
 import { api } from './lib/api';
+import { ACCOUNT_DELETED_KEY, type DeletionResult } from './lib/accountDeletion';
 import { soundFx } from './lib/soundEffects';
 import { syncServerTime } from './lib/serverTime';
 import { alpha, colors } from './lib/theme';
@@ -112,25 +113,48 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [avatarId, setAvatarId] = useState<AvatarId>('fox');
   const [avatarChosen, setAvatarChosen] = useState(false);
+  const [accountState, setAccountState] = useState<'active' | 'deleted' | 'signedOut'>('active');
+  const [cleanupFailed, setCleanupFailed] = useState(false);
+  const bootGeneration = useRef(0);
 
-  const boot = useCallback(() => Promise.all([
-    ensureAnonymousSession(), syncServerTime(), initializeLanguage(),
-  ]).then(async ([user]) => {
-      const [pieces, saved] = await Promise.all([supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY)]);
-      setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((p) => [p.id, p])));
-      const soundEnabled = await AsyncStorage.getItem('soundEnabled');
-      if (soundEnabled !== null) soundFx.setEnabled(soundEnabled === 'true');
-      const savedAvatar = await AsyncStorage.getItem('avatarId');
-      if (AVATAR_OPTIONS.some((a) => a.id === savedAvatar)) {
-        setAvatarId(savedAvatar as AvatarId);
-        // Returning players already completed avatar selection. When their
-        // previous room closes or they are kicked, show Home, not onboarding.
-        setAvatarChosen(true);
+  const boot = useCallback(async () => {
+    const generation = ++bootGeneration.current;
+    if (await AsyncStorage.getItem(ACCOUNT_DELETED_KEY) === 'true') {
+      if (generation === bootGeneration.current) setAccountState('deleted');
+      return;
+    }
+    const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime(), initializeLanguage()]);
+    const [pieces, saved, soundEnabled, savedAvatar] = await Promise.all([
+      supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY),
+      AsyncStorage.getItem('soundEnabled'), AsyncStorage.getItem('avatarId'),
+    ]);
+    if (generation !== bootGeneration.current) return;
+    setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((piece) => [piece.id, piece])));
+    soundFx.setEnabled(soundEnabled === null || soundEnabled === 'true');
+    if (AVATAR_OPTIONS.some(avatar => avatar.id === savedAvatar)) {
+      setAvatarId(savedAvatar as AvatarId);
+      setAvatarChosen(true);
+    }
+    setUserId(user.id);
+    if (saved) setRoomId(saved);
+    setReady(true);
+  }, []);
+
+  const accountDeleted = useCallback((result: DeletionResult) => {
+    bootGeneration.current++;
+    setCleanupFailed(result.localCleanupFailed); setAccountState('deleted');
+    setRoomId(null); setUserId(null); setReady(false); setAvatarChosen(false);
+  }, []);
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'SIGNED_OUT') {
+        bootGeneration.current++;
+        setRoomId(null); setUserId(null); setReady(false); setAvatarChosen(false);
+        setAccountState(current => current === 'deleted' ? current : 'signedOut');
       }
-      setUserId(user.id);
-      if (saved) setRoomId(saved);
-      setReady(true);
-  }), []);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => { void boot().catch(e => setError((e as Error).message)); }, [boot]);
 
@@ -196,7 +220,18 @@ export default function App() {
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="light" />
-      {error ? (
+      {accountState !== 'active' ? (
+        <Screen>
+          <View style={s.center}>
+            <Title>{accountState === 'deleted' ? translate('Hesabın silindi') : translate('Oturumun kapandı')}</Title>
+            <Muted style={{ textAlign: 'center' }}>{accountState === 'deleted' ? translate('Yeni bir oyuna başlamak istersen yeni bir anonim hesap oluşturabilirsin.') : translate('Devam etmek için yeni bir anonim oturum başlat.')}</Muted>
+            {cleanupFailed && <Muted>{translate('Sunucudaki hesabın silindi, ancak cihaz verileri tamamen temizlenemedi. Destek adresinden yardım alabilirsin.')}</Muted>}
+            <Btn title={translate('Yeni anonim hesapla başla')} icon="refresh" onPress={() => {
+              void AsyncStorage.removeItem(ACCOUNT_DELETED_KEY).then(() => { setAccountState('active'); setCleanupFailed(false); setError(null); setAvatarId('fox'); return boot(); }).catch(e => { setAccountState('active'); setError((e as Error).message); });
+            }} />
+          </View>
+        </Screen>
+      ) : error ? (
         <Screen>
           <View style={s.center}>
             <View style={s.errorIcon}><Ionicons name="cloud-offline" size={40} color={colors.red} /></View>
@@ -212,7 +247,7 @@ export default function App() {
       ) : !avatarChosen ? (
         <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (
-        <HomeScreen onEnter={enter} avatarId={avatarId} onAvatarChange={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id).catch(console.warn); }} />
+        <HomeScreen onEnter={enter} avatarId={avatarId} onAccountDeleted={accountDeleted} onAvatarChange={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id).catch(console.warn); }} />
       )}
     </SafeAreaProvider>
   );

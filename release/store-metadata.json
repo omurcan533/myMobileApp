@@ -20,5 +20,7 @@
     }
   },
   "supportEmail": "yilmazomurcan@gmail.com",
-  "supportUrl": "https://omurcan533.github.io/myMobileApp/support.html"
+  "supportUrl": "https://omurcan533.github.io/myMobileApp/support.html",
+  "privacyPolicyUrl": "https://omurcan533.github.io/myMobileApp/privacy.html",
+  "accountDeletionUrl": "https://omurcan533.github.io/myMobileApp/delete-account.html"
 }

@@ -40,3 +40,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Generated public-only configuration for static account deletion page
+/public/backend-config.json

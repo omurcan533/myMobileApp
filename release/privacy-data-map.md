@@ -39,3 +39,11 @@
 - Google hesap silme: https://support.google.com/googleplay/android-developer/answer/13327111
 - Google Data safety: https://support.google.com/googleplay/android-developer/answer/10787469
 - Anonim Supabase hesabı: https://supabase.com/docs/guides/auth/auth-anonymous
+
+## 4 Kasım güncellemesi
+
+Herkese açık TR/EN politika: public/privacy.html; silme sayfası: public/delete-account.html. Profil içi silme ve önceden üretilen web koduyla silme uygulanmıştır. Silme kodlarının yalnızca SHA-256 özeti app_privacy.deletion_tokens tablosunda tutulur; anon/authenticated rolleri erişemez. Edge Function, taze Auth doğrulaması veya 256 bit silme koduyla yalnızca ilgili hesabı silebilir. Sunucu anahtarı istemciye veya statik sayfalara verilmez.
+
+Uygulama içi silme, onaylanmış sunucu başarısından sonra ilgili yerel profil/tercih anahtarlarını temizler ve yerel oturumu kapatır. Web silme başka cihazın depolamasını temizleyemez. Diğer oyuncuların bağımsız yazdığı içerikler, ortak toplamlar, sağlayıcı günlükleri ve yedekler için tüm veriler anında silinir iddiası yapılmaz. Anonim hesaplar için süreli otomatik silme etkin değildir.
+
+Yukarıdaki eksik kararların hesap silme ve güvenli web doğrulama maddeleri uygulanmıştır. Yayıncı hukuki bilgileri, sağlayıcı log/yedek saklama ayarları, hedef kitle ve moderasyon kararları mağaza başvurusu öncesinde tamamlanmalıdır.

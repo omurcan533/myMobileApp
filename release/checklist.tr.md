@@ -11,8 +11,8 @@ Apple Developer, Google Play Console ve Expo/EAS hesaplarına henüz başlanmad�
 - [x] iOS bundleIdentifier ve Android package: com.omurcan533.ucubeatolyesi. Mağaza hesapları açılınca kimlik uygunluğu ayrıca doğrulanacak.
 - [x] Cihazda görünen ad Ucube Atölyesi olarak ayarlandı. İngilizce arayüzde Oddity Workshop kullanılıyor.
 - [ ] Expo projesini hesaba bağla, EAS projectId ve imzalamayı yapılandır. Başlangıç eas.json bu çalışma kopyasına eklendi; henüz build alınmadı.
-- [ ] Gizlilik politikası ve destek bağlantılarını oluştur, uygulama içinden erişilebilir yap.
-- [ ] Anonim oturum ve oyuncu verileri için veri silme akışını değerlendir ve uygula; yalnızca cihaz depolamasını temizlemek sunucu verisini silmez.
+- [x] TR/EN gizlilik politikası, destek ve webden hesap silme sayfaları; uygulama içinden bağlantılar. Sağlayıcı log/yedek saklama ayarları ve yayıncı bilgileri ayrıca doğrulanacak.
+- [x] Anonim hesabı ve bağlı sunucu verilerini silme; açık onay, kimlik doğrulama ve web silme kodu.
 - [ ] Açık odalar ve takım mesajları nedeniyle içerik bildirimi, kullanıcı engelleme ve moderasyon akışlarını incele. Kurucunun oyuncu çıkarabilmesi tek başına bunların yerine geçmez.
 - [ ] Mevcut beş avatarla yayın mı yapılacağını belirle. Eski sohbetteki 20 ek avatar mevcut assets/art içinde yok; bunlar yayın için zorunlu değildir.
 
@@ -68,4 +68,19 @@ Bu liste depo incelemesine dayanır. İngilizce içerik geçişi canlı veritaba
 - [x] Kullanıcının seçtiği herkese açık destek e-postası: yilmazomurcan@gmail.com.
 - [x] TR/EN destek sayfası ve uygulama içi destek bağlantısı.
 - [x] Gizlilik veri dökümü ve inceleme/ekran görüntüsü çekim planı.
-- [ ] Nihai gizlilik politikası, sunucu verisi silme ve moderasyon tamamlanacak. Destek sayfası gizlilik politikası yerine kullanılmaz.
+- [x] Gizlilik politikası ve sunucu hesabı silme tamamlandı; moderasyon hâlâ yayın engeli.
+
+## 4 Kasım — hesap ve veri silme
+
+- [x] Uygulama içinde SİL / DELETE yazarak onaylanan hesap silme; sunucu doğrulamadan yerel profil temizlenmez.
+- [x] Sunucu, istemcinin gönderdiği kullanıcı kimliğine güvenmez; güncel Auth doğrulamasıyla yalnızca kendi hesabını siler.
+- [x] Uygulamayı kaldırdıktan sonra webden silme için 256 bit özel kod; yalnızca SHA-256 özeti özel şemada saklanır. Yeni kod eskisini geçersiz kılar.
+- [x] Sahip olunan odalar kapanır; başka kurucuların odaları ve hesapları korunur. Ayrılan kaptan/mimar rolü yeniden atanır; etkilenen parti etkinliği duraklaması çözülür.
+- [x] Hesap silme sonrası otomatik yeni anonim hesap açılmaz; kullanıcının açık eylemi gerekir.
+- [x] 69 otomatik test, TypeScript, Expo lint, Deno typecheck/lint, web export; canlı sunucuda yalnızca geçici QA hesaplarıyla yetki/silme/kod tekrar kullanımı doğrulandı.
+- [ ] iPhone üzerinde yeni silme onayı, kod kopyalama ve yerel profil temizliği manuel testi yarına bırakıldı. Yeni deneme hesabı kullan.
+
+Gizlilik: https://omurcan533.github.io/myMobileApp/privacy.html
+Hesap silme: https://omurcan533.github.io/myMobileApp/delete-account.html
+
+Kalan teknik işler: içerik bildirimi, kullanıcı engelleme ve moderasyon; varsayılan Expo ikonunun değiştirilmesi; gerçek cihaz oyun testleri ve mağaza ekran görüntüleri. Ücretli geliştirici hesapları, kimlik/sözleşme, yaş/hedef kitle ve mağaza beyanları henüz tamamlanmadı.

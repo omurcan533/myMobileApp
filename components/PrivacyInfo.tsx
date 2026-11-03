@@ -3,8 +3,10 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { colors } from '../lib/theme';
 import { Btn, Card, Muted, Text, Title } from './ui';
 import { translate, useLanguage } from '../lib/i18n';
+import { AccountDeletion } from './AccountDeletion';
+import type { DeletionResult } from '../lib/accountDeletion';
 
-export function PrivacyInfo() {
+export function PrivacyInfo({ onAccountDeleted }: { onAccountDeleted: (result: DeletionResult) => void }) {
   useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [linkFailed, setLinkFailed] = useState(false);
@@ -38,7 +40,12 @@ export function PrivacyInfo() {
             .catch(() => setLinkFailed(true));
         }}
       />
+      <Btn title={translate('Gizlilik politikası')} tone="ghost" icon="document-text-outline" onPress={() => {
+        setLinkFailed(false);
+        void Linking.openURL('https://omurcan533.github.io/myMobileApp/privacy.html').catch(() => setLinkFailed(true));
+      }} />
       <Text selectable style={styles.body}>yilmazomurcan@gmail.com</Text>
+      <AccountDeletion onDeleted={onAccountDeleted} />
       {linkFailed && <Muted>{translate('Sayfa açılamadı. Yukarıdaki e-posta adresinden bize ulaşabilirsin.')}</Muted>}
     </Card>
   );

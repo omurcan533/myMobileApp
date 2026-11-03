@@ -11,6 +11,7 @@ import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
 import { NicknameStep, validNickname } from '../components/NicknameStep';
 import { PrivacyInfo } from '../components/PrivacyInfo';
+import type { DeletionResult } from '../lib/accountDeletion';
 import { supabase } from '../lib/supabase';
 import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
@@ -36,7 +37,7 @@ const getSteps = (): { icon: IconName; color: string; title: string; text: strin
   { icon: 'trophy', color: colors.gold, title: translate("Gizli oylama"), text: translate("En çılgın yaratığa gizlice oy ver. Resmi şampiyon puanla, en komik tasarım oylarla belirlenir.") },
 ];
 
-export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (roomId: string) => void; avatarId: AvatarId; onAvatarChange: (id: AvatarId) => void }) {
+export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted }: { onEnter: (roomId: string) => void; avatarId: AvatarId; onAvatarChange: (id: AvatarId) => void; onAccountDeleted: (result: DeletionResult) => void }) {
   const language = useLanguage();
   const tabs: TabItem<Tab>[] = TABS.map((tab) => ({ ...tab, label: tab.key === 'play' ? t('play') : tab.key === 'how' ? t('how') : t('profile') }));
   const [tab, setTab] = useState<Tab>('play');
@@ -558,7 +559,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </View>
                 </Card>
               </Reveal>
-              <PrivacyInfo />
+              <PrivacyInfo onAccountDeleted={onAccountDeleted} />
             </>
           )}
         </ScrollView>

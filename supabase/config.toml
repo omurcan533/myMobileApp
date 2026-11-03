@@ -1,0 +1,5 @@
+project_id = "ucube-atolyesi"
+
+[functions.delete-account]
+# The function verifies a fresh Auth user or a 256-bit deletion-only code itself.
+verify_jwt = false
