@@ -71,7 +71,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
     if (gone) { onLeave(); return; }
     if (data && !me) {
       onLeave();
-      Alert.alert('Odadan Çıkarıldın', 'Oda kurucusu seni odadan çıkardı.');
+      Alert.alert(translate('Odadan Çıkarıldın'), translate('Oda kurucusu seni odadan çıkardı.'));
     }
   }, [gone, data, me, onLeave]);
 
