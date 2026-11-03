@@ -7,7 +7,7 @@ const id=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`;
 test('account deletion atomically removes own rooms and linked data, cleans court FKs and preserves other users',async()=>{
  const db=new PGlite();try{
  await db.exec(read('./fixtures/account-deletion-schema.sql'));
- await db.exec(read('../supabase/migrations/20261103221426_account_deletion_cleanup.sql'));
+ await db.exec(read('../supabase/migrations/20261103223650_account_deletion_cleanup.sql'));
  await db.exec(`insert into auth.users values('${id(1)}'),('${id(2)}'),('${id(3)}');
  insert into auth.sessions values('${id(1)}'),('${id(2)}');
  insert into rooms(id,host_user_id) values('${id(10)}','${id(1)}'),('${id(20)}','${id(2)}');
