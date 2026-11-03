@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "myMobileApp",
+    "name": "Ucube Atölyesi",
     "slug": "myMobileApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050A14",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.omurcan533.ucubeatolyesi"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.omurcan533.ucubeatolyesi"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -32,6 +34,7 @@
     ],
     "experiments": {
       "baseUrl": "/myMobileApp"
-    }
+    },
+    "scheme": "ucubeatolyesi"
   }
 }
