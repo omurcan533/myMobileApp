@@ -1,5 +1,17 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  "Destek ve iletişim": "Support and contact",
+  "Sayfa açılamadı. Yukarıdaki e-posta adresinden bize ulaşabilirsin.": "The page could not be opened. You can contact us at the email address above.",
+  "Gizlilik ve veriler": "Privacy and data",
+  "Takma adla oynasan da oyun verilerin sunucuda işlenir.": "Your game data is processed on the server even when you play with a nickname.",
+  "Ayrıntıları gizle": "Hide details",
+  "Verilerim nasıl kullanılıyor?": "How is my data used?",
+  "Cihazında: takma adın, avatarın, dil ve ses tercihin, oyun istatistiklerin ve oturum bilgilerin saklanır.": "On your device: your nickname, avatar, language and sound preferences, game statistics, and session details are stored.",
+  "Sunucuda: anonim kullanıcı kimliğin, oda katılımın, oyun hamlelerin, cevapların, puanların ve yazdığın mesajlar işlenir. Çevrim içi oyun için Supabase kullanılır.": "On the server: your anonymous user ID, room participation, game actions, answers, scores, and messages are processed. Supabase powers online play.",
+  "Diğer oyuncular: odadaki takma adını, avatarını ve oyunda paylaştığın içerikleri görebilir. Açık oda listesi oda kodunu ve kurucunun takma adını gösterir.": "Other players can see your room nickname, avatar, and content you share in the game. The open room list shows the room code and the host’s nickname.",
+  "Kişisel sorular: oda kurucusu bu isteğe bağlı özelliği açarsa yanıtların odada paylaşılır ve hafıza oyunlarında kullanılabilir. Paylaşmak istemediğin bilgileri yazma; özelliğin kapatılmasını isteyebilirsin.": "Personal questions: if the host enables this optional feature, your answers are shared in the room and may be used in memory games. Do not enter information you do not want to share; you can ask the host to disable the feature.",
+  "Uygulamayı kaldırmak veya cihaz verilerini temizlemek, sunucudaki anonim hesabını ve oyun kayıtlarını otomatik olarak silmez.": "Uninstalling the app or clearing device data does not automatically delete your anonymous server account or game records.",
+  "Bu cevaplar odadaki oyuncularla paylaşılır ve oyunlarda kullanılabilir. Paylaşmak istemediğin bilgileri yazma. Bu etkinlik isteğe bağlıdır; oda kurucusundan kapatmasını isteyebilirsin.": "These answers are shared with players in the room and may be used in games. Do not enter information you do not want to share. This activity is optional; you can ask the host to disable it.",
   "Hızlı": "Quick",
   "Standart": "Standard",
   "Epik": "Epic",

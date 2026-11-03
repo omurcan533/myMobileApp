@@ -10,6 +10,7 @@ import {
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
 import { NicknameStep, validNickname } from '../components/NicknameStep';
+import { PrivacyInfo } from '../components/PrivacyInfo';
 import { supabase } from '../lib/supabase';
 import { art, avatarFor, AVATAR_OPTIONS, type AvatarId } from '../lib/art';
 import { getProfile, levelOf, Profile } from '../lib/profile';
@@ -557,6 +558,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </View>
                 </Card>
               </Reveal>
+              <PrivacyInfo />
             </>
           )}
         </ScrollView>

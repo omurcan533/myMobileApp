@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "status": "draft-pending-device-tests-and-store-setup",
+  "locales": {
+    "tr-TR": {
+      "name": "Ucube Atölyesi",
+      "subtitle": "Takımını kur, ucubeni tasarla",
+      "shortDescription": "Arkadaşlarınla takım ol, bulmacaları çöz ve kendi ucubeni tasarla!",
+      "promotionalText": "Takımlar hazır mı? Bulmacaları çöz, mini oyunlarda yarış, parçaları topla ve atölyenin en unutulmaz ucubesini birlikte tasarla.",
+      "keywords": "parti,takım,arkadaş,bulmaca,mini oyun,hafıza,refleks,atölye,ucube",
+      "description": "Arkadaşlarını topla, takımlara ayrıl ve Ucube Atölyesi'nde yaratıcılığını konuştur! Bulmacaları ve mini oyunları tamamla, parçalar kazan ve takımınla kendi ucubeni tasarla.\n\nBİR ODA, İKİ TAKIM\nOdanı oluştur, kodunu arkadaşlarınla paylaş veya açık odalara katıl. Takımlar belirlendikten sonra ortak hedefiniz için yarışın.\n\nHER TURDA FARKLI BİR MEYDAN OKUMA\nAnagramlar, bilmeceler, hafıza ve refleks oyunları arasında yeteneklerini dene. Pong, renkleri birleştirme ve diğer mini oyunlarla mücadeleyi çeşitlendir.\n\nKAZAN, TOPLA, TASARLA\nTurlardan kazandığın parçalarla takımının yaratığını oluştur. Eserine bir isim ver ve atölyenin sonuçlarını birlikte keşfet.\n\nKENDİ TEMPOSUNDA OYNA\nHızlı, Standart, Epik ve Özel seçeneklerinden birini seç. Özel modda oda kurucusu oynanacak oyunları belirleyebilir.\n\nTÜRKÇE VE İNGİLİZCE\nArayüz dilini kendin seç. Odanın soru dili kurucu tarafından belirlenir; tüm oyuncular aynı bulmacalarla yarışır.\n\nÇevrim içi oyun için internet bağlantısı gerekir. Oyuna başlamak için en az iki oyuncu gerekir. Diğer oyuncuların yazdığı içerikler uygulama tarafından çevrilmez."
+    },
+    "en-US": {
+      "name": "Ucube Atölyesi",
+      "subtitle": "Team up. Build your oddity.",
+      "shortDescription": "Team up with friends, solve puzzles, and build your own oddball creature!",
+      "promotionalText": "Gather your team, solve puzzles, compete in mini games, and collect parts to create a creature your workshop will never forget.",
+      "keywords": "party,team,friends,puzzle,minigames,memory,reflex,workshop,creature,oddity",
+      "description": "Bring your friends together, split into teams, and get creative in Ucube Atölyesi — Oddity Workshop! Solve puzzles, compete in mini games, collect parts, and design a creature with your team.\n\nONE ROOM, TWO TEAMS\nCreate a room and share its code with friends, or join an open room. Once teams are set, work together toward your next win.\n\nA NEW CHALLENGE EACH ROUND\nTry anagrams, riddles, memory challenges, and reflex games. Mix things up with Pong, matching-color connections, and other mini games.\n\nWIN, COLLECT, CREATE\nUse the parts you earn to build your team's creature. Give it a name and discover the workshop's results together.\n\nPLAY AT YOUR OWN PACE\nChoose Quick, Standard, Epic, or Custom mode. In Custom mode, the host can choose which games to include.\n\nTURKISH AND ENGLISH\nChoose your own interface language. The host sets the room's question language, so everyone competes with the same puzzles.\n\nOnline play requires an internet connection. At least two players are needed to start. Player-written content is not translated by the app."
+    }
+  },
+  "supportEmail": "yilmazomurcan@gmail.com",
+  "supportUrl": "https://omurcan533.github.io/myMobileApp/support.html"
+}
