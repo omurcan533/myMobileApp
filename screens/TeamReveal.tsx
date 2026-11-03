@@ -1,5 +1,5 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Animated, Easing, Image, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,17 +31,15 @@ function DieFace({ value, rolling = false, size = 88 }: { value: number; rolling
   const [displayVal, setDisplayVal] = useState(value);
 
   useEffect(() => {
-    if (!rolling) {
-      setDisplayVal(value);
-      return;
-    }
+    if (!rolling) return;
     const interval = setInterval(() => {
       setDisplayVal(Math.floor(Math.random() * 6) + 1);
     }, 65);
     return () => clearInterval(interval);
   }, [rolling, value]);
 
-  const pips = DIE_PIPS[displayVal] || [4];
+  const faceValue = rolling ? displayVal : value;
+  const pips = DIE_PIPS[faceValue] || [4];
   const dotSize = Math.max(5, Math.floor(size * 0.19));
   const radius = Math.max(8, Math.floor(size * 0.22));
   const borderWidth = Math.max(1.5, Math.floor(size * 0.03));
@@ -88,8 +86,8 @@ function DieFace({ value, rolling = false, size = 88 }: { value: number; rolling
                   width: dotSize,
                   height: dotSize,
                   borderRadius: dotSize / 2,
-                  backgroundColor: displayVal === 1 ? '#DC2626' : '#0F172A',
-                  shadowColor: displayVal === 1 ? '#DC2626' : 'transparent',
+                  backgroundColor: faceValue === 1 ? '#DC2626' : '#0F172A',
+                  shadowColor: faceValue === 1 ? '#DC2626' : 'transparent',
                   shadowOpacity: 0.3,
                   shadowRadius: 2,
                 }}
@@ -125,17 +123,16 @@ function PlayerSpotlight({
   const targetY = 135;
 
   // Animasyon Değerleri
-  const revealScale = useRef(new Animated.Value(0.4)).current;
-  const revealOpacity = useRef(new Animated.Value(0)).current;
-  const neonGlow = useRef(new Animated.Value(0)).current;
-  const shakeVal = useRef(new Animated.Value(0)).current;
-  const flightVal = useRef(new Animated.Value(0)).current;
-  const impactBounce = useRef(new Animated.Value(1)).current;
+  const [revealScale] = useState(() => new Animated.Value(0.4));
+  const [revealOpacity] = useState(() => new Animated.Value(0));
+  const [neonGlow] = useState(() => new Animated.Value(0));
+  const [shakeVal] = useState(() => new Animated.Value(0));
+  const [flightVal] = useState(() => new Animated.Value(0));
+  const [impactBounce] = useState(() => new Animated.Value(1));
 
   const [phaseText, setPhaseText] = useState<'reveal' | 'shake' | 'flight'>('reveal');
   const hasImpacted = useRef(false);
-  const impactCallback = useRef(onImpact);
-  impactCallback.current = onImpact;
+  const notifyImpact = useEffectEvent((impactSide: Side) => onImpact?.(impactSide));
 
   useEffect(() => {
     // 1. AŞAMA: The Reveal (0 - 900ms)
@@ -184,7 +181,7 @@ function PlayerSpotlight({
         // 5. AŞAMA: The Impact (2500ms - Çarpma anı)
         if (!hasImpacted.current) {
           hasImpacted.current = true;
-          impactCallback.current?.(side);
+          notifyImpact(side);
 
           Animated.sequence([
             Animated.timing(impactBounce, { toValue: 0.86, duration: 75, useNativeDriver: true }),
@@ -198,7 +195,7 @@ function PlayerSpotlight({
       clearTimeout(shakeTimer);
       clearTimeout(flightTimer);
     };
-  }, [side]);
+  }, [side, revealScale, revealOpacity, neonGlow, shakeVal, flightVal, impactBounce]);
 
   // Kavisli Yol (Arc Motion / Bezier Curve):
   // X: Düz gitmek yerine dışa doğru geniş kavis çizer (Team A için sola, Team B için sağa savrulur)
@@ -350,8 +347,8 @@ function PlayerSpotlight({
 }
 
 function PlayerRowItem({ player, color, rolls }: { player: Player; color: string; rolls?: CaptainDuelRoll[] }) {
-  const scale = useRef(new Animated.Value(0.72)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [scale] = useState(() => new Animated.Value(0.72));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.parallel([
@@ -505,17 +502,16 @@ function GiantDiceDuelArena({
   const currentRoundRolls = (duel.rolls || []).filter((r) => r.round === duel.round);
   const maxRollInRound = currentRoundRolls.length > 0 ? Math.max(...currentRoundRolls.map((r) => r.total)) : 0;
 
-  const [isRolling, setIsRolling] = useState(false);
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const prevRollKey = useRef<string | null>(null);
+  const [rollRequested, setIsRolling] = useState(false);
+  const [settledRollKey, setSettledRollKey] = useState<string | null>(null);
+  const [shakeAnim] = useState(() => new Animated.Value(0));
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const currentKey = duel.current_roll ? `${duel.current_roll.player_id}-${duel.current_roll.rolled_at}` : null;
+  const isRolling = rollRequested || currentKey !== settledRollKey;
 
   useEffect(() => {
-    if (currentKey && currentKey !== prevRollKey.current) {
-      prevRollKey.current = currentKey;
-      setIsRolling(true);
+    if (currentKey) {
       soundFx.diceRoll();
       haptic.light();
 
@@ -529,6 +525,7 @@ function GiantDiceDuelArena({
 
       const timer = setTimeout(() => {
         setIsRolling(false);
+        setSettledRollKey(currentKey);
         haptic.heavy();
         soundFx.diceStop();
         scaleAnim.setValue(1.15);
@@ -788,23 +785,24 @@ function GiantDiceDuelArena({
 }
 
 export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
+  return <TeamReveal key={ctx.data.room.phase_started_at ?? ctx.data.room.id} ctx={ctx} />;
+}
+
+function TeamReveal({ ctx }: { ctx: Ctx }) {
   useLanguage();
   const phaseStartedAt = ctx.data.room.phase_started_at;
-  const [timeline, setTimeline] = useState(() => ({ phaseStartedAt, startedAt: Date.now() }));
-  const timelineForRender = timeline.phaseStartedAt === phaseStartedAt
-    ? timeline
-    : { phaseStartedAt, startedAt: Date.now() };
-  const [, setClock] = useState(0);
-  const elapsed = Math.max(0, Date.now() - timelineForRender.startedAt);
+  const [startedAt] = useState(Date.now);
+  const [clock, setClock] = useState(Date.now);
+  const elapsed = Math.max(0, clock - startedAt);
   const { height } = useWindowDimensions();
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
 
   // 5. Aşama: Hedef takım kutusu için Elastik Çarpma & Neon Parlama animasyonları
-  const impactA = useRef(new Animated.Value(1)).current;
-  const glowA = useRef(new Animated.Value(0)).current;
-  const impactB = useRef(new Animated.Value(1)).current;
-  const glowB = useRef(new Animated.Value(0)).current;
+  const [impactA] = useState(() => new Animated.Value(1));
+  const [glowA] = useState(() => new Animated.Value(0));
+  const [impactB] = useState(() => new Animated.Value(1));
+  const [glowB] = useState(() => new Animated.Value(0));
 
   const handleImpact = (side: Side) => {
     haptic.heavy();
@@ -823,11 +821,6 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
       Animated.timing(glowVal, { toValue: 0, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: true }),
     ]).start();
   };
-
-  useEffect(() => {
-    if (timeline.phaseStartedAt === phaseStartedAt) return;
-    setTimeline({ phaseStartedAt, startedAt: Date.now() });
-  }, [phaseStartedAt, timeline.phaseStartedAt]);
 
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 80);
@@ -854,7 +847,7 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
     if (lastLaunchKey.current === key) return;
     lastLaunchKey.current = key;
     soundFx.teamLaunch();
-  }, [activePlayer?.id, phaseStartedAt]);
+  }, [activePlayer, phaseStartedAt]);
 
   const captainDuel = ctx.data.room.captain_duel;
   const hasInteractiveDuel = !!captainDuel;
@@ -866,7 +859,11 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
   // Kurucu "Zar Düellosuna Başla" butonuna bastı mı?
   const isDuelStarted = captainDuel?.started === true || hasAnyRoll;
 
-  const [showCaptainsSummary, setShowCaptainsSummary] = useState(false);
+  const [summaryRollKey, setSummaryRollKey] = useState<string | null>(null);
+  const completedRollKey = captainDuel?.active_side === 'done'
+    ? captainDuel.current_roll?.rolled_at ?? 'done'
+    : null;
+  const showCaptainsSummary = completedRollKey !== null && summaryRollKey === completedRollKey;
 
   useEffect(() => {
     if (captainDuel?.active_side === 'done') {
@@ -875,18 +872,10 @@ export function TeamRevealScreen({ ctx }: { ctx: Ctx }) {
         : 0;
       const isFreshRoll = Date.now() - lastRollTime < 5000;
 
-      if (!isFreshRoll) {
-        setShowCaptainsSummary(true);
-      } else {
-        const timer = setTimeout(() => {
-          setShowCaptainsSummary(true);
-        }, 3600);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      setShowCaptainsSummary(false);
+      const timer = setTimeout(() => setSummaryRollKey(completedRollKey), isFreshRoll ? 3600 : 0);
+      return () => clearTimeout(timer);
     }
-  }, [captainDuel?.active_side, captainDuel?.current_roll?.rolled_at]);
+  }, [captainDuel?.active_side, captainDuel?.current_roll?.rolled_at, completedRollKey]);
 
   const isDuelActive = hasInteractiveDuel && isDuelStarted && !showCaptainsSummary;
   const captainsFinished = hasInteractiveDuel ? captainDuel.active_side === 'done' : elapsed >= 10000;

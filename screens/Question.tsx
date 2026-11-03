@@ -1,5 +1,5 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,12 +23,16 @@ const answerSeconds = (answer: Answer, round: Round) =>
 const TIER_COLOR: Record<Tier, string> = { base: colors.cyan, body: colors.violet, roof: colors.magenta };
 
 export function QuestionScreen({ ctx }: { ctx: Ctx }) {
+  return <QuestionRound key={currentRound(ctx.data.rounds)?.id ?? 'waiting'} ctx={ctx} />;
+}
+
+function QuestionRound({ ctx }: { ctx: Ctx }) {
   useLanguage();
   const { data, me, catalog } = ctx;
   const { room } = data;
   const now = effNow(room, useNow());
   const round = useMemo(() => currentRound(data.rounds), [data.rounds]);
-  const shortcut=useNextShortcut(me.is_host&&round?.status==='resolved',round?.id);
+  const {anchorRef,viewportRef,measure,show:showShortcut}=useNextShortcut(me.is_host&&round?.status==='resolved',round?.id);
   const advancing=useRef<string|null>(null);
   const totalQuestions = useMemo(() => totalQuestionsForRoom(room.mode, data.rounds.length), [room.mode, data.rounds.length]);
   const [areaHeight,setAreaHeight]=useState(500);
@@ -38,11 +42,6 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
   const [busy, setBusy] = useState(false);
   const { toast, show } = useToast();
 
-  useEffect(() => {
-    setText('');
-    setFinal('');
-    setConfirmAnswer(null);
-  }, [round?.id]);
 
   const myTeam = data.teams.find((t) => t.side === me.team_side);
   const prize = round ? catalog[round.piece_id] : undefined;
@@ -244,8 +243,8 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
     <Screen key={round.id+String(isOpen)} active={isOpen}>
       {isOpen&&<PlayHeader ctx={ctx} left={left} label={`Soru ${round.idx+1}/${totalQuestions}`} instructions="Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin." onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
       <KeyboardAvoidingView onLayout={e=>setAreaHeight(e.nativeEvent.layout.height)} style={{ flex: 1,minHeight:0 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-       <PlayArea active={isOpen} viewportRef={shortcut.viewportRef} onLayout={shortcut.measure}>
-        <ScrollView key={round.id+':'+String(isOpen)} onScroll={shortcut.measure} onContentSizeChange={shortcut.measure} scrollEventThrottle={16} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+       <PlayArea active={isOpen} viewportRef={viewportRef} onLayout={measure}>
+        <ScrollView key={round.id+':'+String(isOpen)} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {!isOpen&&<Scoreboard ctx={ctx} />}
 
           {/* ================= ROZET & TUR BİLGİSİ ================= */}
@@ -550,7 +549,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
             <Card accent={colors.cyan} style={s.advanceCard}>
               <Eyebrow icon="eye" color={colors.cyan}>Tur sonucu</Eyebrow>
               {me.is_host ? (
-               <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
+               <View ref={anchorRef} collapsable={false} onLayout={measure}>
                 <Btn
                   title={continueReady ? 'Sonraki Aşamaya Geç' : `Sonucu İncele · ${continueWait} sn`}
                   icon={continueReady ? 'play-forward' : 'hourglass'}
@@ -585,7 +584,7 @@ export function QuestionScreen({ ctx }: { ctx: Ctx }) {
         </ScrollView>
        </PlayArea>
       </KeyboardAvoidingView>
-      <NextShortcut visible={shortcut.show&&!room.paused} ready={continueReady} wait={continueWait} busy={busy} onPress={continueGame}/>
+      <NextShortcut visible={showShortcut&&!room.paused} ready={continueReady} wait={continueWait} busy={busy} onPress={continueGame}/>
 
       {/* ================= OYUN DURAKLATILDI ================= */}
       {room.paused && (

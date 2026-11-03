@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AppState, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, Float, GemIcon, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
+  Avatar, Btn, Card, Chip, Eyebrow, Float, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
   SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
@@ -107,13 +107,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
     };
   }, []);
 
-  // İlk açılışta Özel mod son kartta görünmeli; carousel konumunu
-  // seçili mod ve pagination noktasıyla eşleştir.
+  // Only realign after a layout change; ordinary swipes and button animations
+  // keep control of scrolling and preserve the player's selected mode.
+  const alignCarousel = useEffectEvent((width: number) => {
+    modeCarouselRef.current?.scrollTo({ x: width * modeIndex, animated: false });
+  });
   useEffect(() => {
-    if (modeCarouselWidth <= 0) return;
-    modeCarouselRef.current?.scrollTo({ x: modeCarouselWidth * 3, animated: false });
-    setModeIndex(3);
-    setMode('custom');
+    if (modeCarouselWidth > 0) alignCarousel(modeCarouselWidth);
   }, [modeCarouselWidth]);
 
   const lvl = levelOf(profile);

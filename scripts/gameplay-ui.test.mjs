@@ -56,3 +56,36 @@ test('an audio context lost after backgrounding can be recreated safely',()=>{
  assert.doesNotThrow(()=>fx.diceRoll());assert.doesNotThrow(()=>fx.diceStop());
  assert.equal(constructions,2);
 });
+
+test('balance completion fires once after commit, never inside a state updater',()=>{
+ const source=readFileSync(new URL('../screens/Minigame.tsx',import.meta.url),'utf8');
+ const parsed=ts.createSourceFile('Minigame.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ const component=parsed.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text==='BalanceGame');
+ assert.ok(component);
+ const slots=[],effects=new Map(),timers=new Map();
+ let index=0,inUpdater=false,inRender=false,nextId=1,completed=0,successSounds=0;
+ const same=(a,b)=>a&&a.length===b.length&&a.every((v,i)=>Object.is(v,b[i]));
+ const context={exports:{},React:{createElement:()=>null},
+  useState(initial){const i=index++;if(!(i in slots))slots[i]=initial;return [slots[i],update=>{inUpdater=true;try{slots[i]=typeof update==='function'?update(slots[i]):update;}finally{inUpdater=false;}}];},
+  useRef(initial){const i=index++;return slots[i]??={current:initial};},
+  useEffect(fn,deps){const i=index++;if(!slots[i]||!same(slots[i].deps,deps))effects.set(i,{fn,deps});},
+  useEffectEvent:fn=>(...args)=>{assert.equal(inUpdater,false);assert.equal(inRender,false);return fn(...args);},
+  setInterval(fn){const id=nextId++;timers.set(id,fn);return id;},clearInterval:id=>timers.delete(id),
+  Math:Object.assign(Object.create(Math),{random:()=>0.5}),
+  soundFx:{correct(){successSounds++;}},haptic:{success(){}},
+  Card:'Card',Text:'Text',Title:'Title',Muted:'Muted',Chip:'Chip',Btn:'Btn',View:'View',s:{},
+  colors:{mint:'#fff'},alpha:()=>'',translate:value=>value,
+  Eyebrow:'Eyebrow',ProgressBar:'ProgressBar',gradients:{success:[]},
+ };
+ const code=ts.transpileModule(component.getText(parsed)+'\nexports.BalanceGame=BalanceGame;',{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+ vm.runInNewContext(code,context);
+ const props={live:true,go:true,mineDone:false,reactionMs:null,onComplete(){completed++;}};
+ const render=()=>{
+  index=0;inRender=true;try{context.exports.BalanceGame(props);}finally{inRender=false;}
+  for(const [i,e]of effects){slots[i]?.cleanup?.();slots[i]={deps:e.deps,cleanup:e.fn()};}effects.clear();
+ };
+ render();
+ for(let i=0;i<40;i++){for(const tick of [...timers.values()])tick();render();}
+ assert.equal(completed,1);assert.equal(successSounds,1);
+ props.live=false;render();assert.equal(timers.size,0);
+});

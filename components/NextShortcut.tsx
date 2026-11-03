@@ -28,10 +28,15 @@ export function useNextShortcut(enabled:boolean,resultKey:string|undefined){
    anchor.measureInWindow((_x,y,_width,height)=>{target={y,height};finish()});
   });
  },[enabled,resultKey]);
+ const cancelMeasurement=useCallback(()=>{
+  generation.current++;
+  if(frame.current!==null)cancelAnimationFrame(frame.current);
+  frame.current=null;
+ },[]);
  useEffect(()=>{
   measure();
-  return()=>{generation.current++;if(frame.current!==null)cancelAnimationFrame(frame.current);frame.current=null};
- },[measure]);
+  return cancelMeasurement;
+ },[measure,cancelMeasurement]);
  return {anchorRef,viewportRef,measure,show:enabled&&measurement.key===resultKey&&measurement.measured&&!measurement.visible};
 }
 

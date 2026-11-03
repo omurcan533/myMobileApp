@@ -1,5 +1,5 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,15 +52,13 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const { toast, show } = useToast();
 
   const selectedGames = room.selected_games ?? DEFAULT_GAMES;
-  const [draftGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
+  const [editedGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
   const canEditGames = room.mode === 'custom' && me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
 
-  // Synchronize with the server only outside editing mode. Taps never send requests.
-  useEffect(() => {
-    if (gamesLocked && !editingGames && !savingGames) setDraftGames([...selectedGames]);
-  }, [room.selected_games, gamesLocked, editingGames, savingGames]);
+  // Locked selections come straight from the server; edits remain local until saved.
+  const draftGames = gamesLocked && !editingGames && !savingGames ? selectedGames : editedGames;
 
   const toggleGame = (gameId: string) => {
     if (room.mode !== 'custom' || !me.is_host || gamesLocked && !editingGames || savingGames || busy) return;

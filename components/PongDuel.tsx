@@ -1,5 +1,5 @@
 import { getLanguage, useLanguage } from '../lib/i18n';
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { PongArena, PongFrameState } from './PongArena';
@@ -20,10 +20,14 @@ type Props = {ctx:Ctx;mg:Minigame;live:boolean;onControlHoldChange?:(holding:boo
 const emojiList=['👏','🔥','😂','😱','❤️'];
 const dirs=[-1,1];
 
-export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:Props){
+export const PongDuel=memo(function PongDuel(props:Props){
+ return <PongMatch key={props.mg.id} {...props}/>;
+});
+
+function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
  useLanguage();
  const en=getLanguage()==='en';
- const loc=(tr:string,english:string)=>en?english:tr;
+ const loc=useCallback((tr:string,english:string)=>en?english:tr,[en]);
  const {data,me}=ctx;
  const {width:screenWidth,height:screenHeight}=useWindowDimensions();
  const area=usePlaySize();
@@ -32,6 +36,19 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const compactControls=screenHeight<780;
  const matchSeconds=Math.max(0,Math.ceil((Date.parse(data.room.phase_ends_at??'')-serverNow())/1000));
  const [state,setState]=useState<State|null>((mg.pong_state as State|null)??null);
+ const [previousPongState,setPreviousPongState]=useState(mg.pong_state);
+ // Reconcile changed room snapshots before commit, without an effect render.
+ // Unchanged props must not overwrite a newer broadcast or a mode-choice reply.
+ if(mg.pong_state!==previousPongState){
+  setPreviousPongState(mg.pong_state);
+  const incoming=mg.pong_state as State|null;
+  if(incoming)setState(old=>{
+   if(!old)return incoming;
+   const oldTick=Date.parse(old.tick??'');
+   const newTick=Date.parse(incoming.tick??'');
+   return Number.isFinite(oldTick)&&Number.isFinite(newTick)&&newTick<oldTick?old:incoming;
+  });
+ }
  const [reaction,setReaction]=useState<string|null>(null);
  const [goal,setGoal]=useState<{side:'A'|'B';score:number}|null>(null);
  const [controlError,setControlError]=useState<string|null>(null);
@@ -52,7 +69,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const metricSamples=useRef<Record<string,number[]>>({});
  const [metricSummary,setMetricSummary]=useState('');
  const lastMetricUpdate=useRef(0);
- const recordMetric=(metric:string,ms:number)=>{
+ const recordMetric=useCallback((metric:string,ms:number)=>{
   timing.current(metric,ms);
   if(!diagnosticsEnabled.current||!Number.isFinite(ms))return;
   const values=metricSamples.current[metric]??[];
@@ -67,7 +84,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    return name+': median '+Math.round(median)+'ms / p95 '+Math.round(p95)+'ms ('+items.length+')';
   }).join('\\n');
   setMetricSummary(summary);
- };
+ },[]);
  const toggleDiagnostics=()=>{
   const next=!diagnosticsEnabled.current;
   diagnosticsEnabled.current=next;
@@ -77,11 +94,11 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   setShowDiagnostics(next);
  };
  const lastFrameArrival=useRef<number|null>(null);
- const recordFrameArrival=()=>{
+ const recordFrameArrival=useCallback(()=>{
   const now=performance.now();
   if(lastFrameArrival.current!==null)recordMetric('frameArrivalInterval',now-lastFrameArrival.current);
   lastFrameArrival.current=now;
- };
+ },[recordMetric]);
  const players=useMemo(()=>data.players,[data.players]);
  const playerName=(id?:string)=>players.find(p=>p.id===id)?.nickname??loc('Oyuncu','Player');
 
@@ -98,34 +115,22 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  const needsModeChoice=live&&!mg.starts_at&&teamSize===2&&players.length===3;
 
  useEffect(()=>{
-  stopped.current=false;previousScores.current=null;lastFrameArrival.current=null;setGameError(null);setGoal(null);setServerFinished(false);
-  setState((mg.pong_state as State|null)??null);
- },[mg.id]);
- useEffect(()=>{
-  const incoming=mg.pong_state as State|null;
-  if(!incoming)return;
-  setState(old=>{
-   if(!old)return incoming;
-   const oldTick=Date.parse(old.tick??'');
-   const newTick=Date.parse(incoming.tick??'');
-   if(Number.isFinite(oldTick)&&Number.isFinite(newTick)&&newTick<oldTick)return old;
-   return incoming;
-  });
- },[mg.pong_state]);
- useEffect(()=>{
-  if(!live||!goAt||serverNow()>=goAt){setClock(serverNow());return;}
-  const interval=setInterval(()=>setClock(serverNow()),120);
-  return ()=>clearInterval(interval);
+  if(!live||!goAt)return;
+  const remaining=Math.max(0,goAt-serverNow());
+  const interval=remaining>0?setInterval(()=>setClock(serverNow()),120):undefined;
+  const boundary=setTimeout(()=>{if(interval)clearInterval(interval);setClock(serverNow());},remaining+1);
+  return ()=>{if(interval)clearInterval(interval);clearTimeout(boundary);};
  },[live,goAt]);
+ const scoreA=state?.scoreA,scoreB=state?.scoreB;
  useEffect(()=>{
-  if(!state)return;
+  if(scoreA===undefined||scoreB===undefined)return;
   const old=previousScores.current;
   if(old){
-   if(state.scoreA>old.a)setGoal({side:'A',score:state.scoreA});
-   else if(state.scoreB>old.b)setGoal({side:'B',score:state.scoreB});
+   if(scoreA>old.a)setGoal({side:'A',score:scoreA});
+   else if(scoreB>old.b)setGoal({side:'B',score:scoreB});
   }
-  previousScores.current={a:state.scoreA,b:state.scoreB};
- },[state?.scoreA,state?.scoreB,mg.id]);
+  previousScores.current={a:scoreA,b:scoreB};
+ },[scoreA,scoreB,mg.id]);
  useEffect(()=>{
   if(!goal)return;
   const timeout=setTimeout(()=>setGoal(null),2100);
@@ -147,7 +152,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   cheerChannel.current=channel;
   channel.subscribe();
   return ()=>{cheerChannel.current=null;void supabase.removeChannel(channel);};
- },[mg.id]);
+ },[mg.id,recordMetric,recordFrameArrival]);
 
  // Ağ güncellemeleri yalnızca oyun durumunu sabitler; 60 FPS çizim PongArena içinde yapılır.
  useEffect(()=>{
@@ -206,10 +211,10 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
   void poll();
   const timer=setInterval(poll,me.is_host&&mg.starts_at?125:1000);
   return ()=>{mounted=false;clearInterval(timer);};
- },[live,me.is_host,mg.id,mg.starts_at,data.room.paused]);
+ },[live,me.is_host,mg.id,mg.starts_at,data.room.paused,loc,recordMetric,recordFrameArrival]);
 
  // İstek sırası aynı düğme için korunur: basma ardından bırakma sunucuya ters sırada gitmez.
- const sendHeld=(direction:number,pressed:boolean)=>{
+ const sendHeld=useCallback((direction:number,pressed:boolean)=>{
   const prev=sendQueue.current[direction]??Promise.resolve();
   const queuedAt=performance.now();
   const next=prev.catch(()=>{}).then(async()=>{
@@ -223,20 +228,20 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    }else setControlError(null);
   });
   sendQueue.current[direction]=next;
- };
- const syncHolding=()=>{
+ },[mg.id,recordMetric]);
+ const syncHolding=useCallback(()=>{
   const up=activeDirections.current.has(-1),down=activeDirections.current.has(1);
   setHeld({up,down});
   onControlHoldChange?.(up||down);
- };
- const stopHold=(direction:number)=>{
+ },[onControlHoldChange]);
+ const stopHold=useCallback((direction:number)=>{
   if(!activeDirections.current.has(direction))return;
   activeDirections.current.delete(direction);
   clearInterval(heartbeats.current[direction]);
   delete heartbeats.current[direction];
   syncHolding();
   sendHeld(direction,false);
- };
+ },[sendHeld,syncHolding]);
  const startHold=(direction:number)=>{
   if(!active||!directions.includes(direction)||activeDirections.current.has(direction))return;
   activeDirections.current.add(direction);
@@ -249,8 +254,8 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
  useEffect(()=>{
   if(active)return;
   Array.from(activeDirections.current).forEach(stopHold);
- },[active]);
- useEffect(()=>()=>{Array.from(activeDirections.current).forEach(stopHold);},[mg.id]);
+ },[active,stopHold]);
+ useEffect(()=>()=>{Array.from(activeDirections.current).forEach(stopHold);},[mg.id,stopHold]);
 
  const chooseMode=async(mode:'solo'|'duo')=>{
   if(choiceBusy)return;
@@ -346,7 +351,7 @@ export const PongDuel=memo(function PongDuel({ctx,mg,live,onControlHoldChange}:P
    <View style={styles.reactions}>{emojiList.map(emoji=><Tap key={emoji} onPress={()=>cheer(emoji)} style={styles.reaction}><Text style={{fontSize:24}}>{emoji}</Text></Tap>)}</View>
   </Card>
  </View>;
-});
+}
 const styles=StyleSheet.create({
  wrapper:{gap:12},gameCard:{gap:7,paddingHorizontal:10},
  matchHeading:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8},

@@ -1,10 +1,9 @@
 import { getLanguage, translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Hint } from '../components/Hint';
-import { supabase } from '../lib/supabase';
 import { PongDuel } from '../components/PongDuel';
 import { TugOfWar } from '../components/TugOfWar';
 import { SurvivorMemoryGame } from '../components/SurvivorMemoryGame';
@@ -38,12 +37,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const originalMg = latestMinigame(data.minigames);
   const [pongShortcut,setPongShortcut]=useState<PongShortcutState|null>(null);
   const pongRematchRef=useRef<PongRematchHandle>(null);
-  const shortcut=useNextShortcut(me.is_host&&originalMg?.status==='done'&&(originalMg.kind!=='pong'||(pongShortcut?.id===originalMg.id&&pongShortcut.available&&!originalMg.rematch_approved_at)),originalMg?.id);
+  const {anchorRef,viewportRef,measure,show:showShortcut}=useNextShortcut(me.is_host&&originalMg?.status==='done'&&(originalMg.kind!=='pong'||(pongShortcut?.id===originalMg.id&&pongShortcut.available&&!originalMg.rematch_approved_at)),originalMg?.id);
   const advancing=useRef<string|null>(null);
   const now = useNow(originalMg?.kind === 'pong' || originalMg?.kind === 'survivor_memory' ? 1000 : 100);
-  const [pongStarts, setPongStarts] = useState<{ id: string; starts_at: string } | null>(null);
-  const mg = useMemo(() => originalMg && originalMg.kind === 'pong' && !originalMg.starts_at && pongStarts?.id === originalMg.id
-    ? { ...originalMg, starts_at: pongStarts.starts_at } : originalMg, [originalMg, pongStarts]);
+  const mg = originalMg;
   const [friendQuizOpen,setFriendQuizOpen]=useState(false);
   const [pongHolding, setPongHolding] = useState(false);
   const pongWebStyle = Platform.OS === 'web' && originalMg?.kind === 'pong'
@@ -63,7 +60,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     if (!mg.winner_side) soundFx.timeUp();
     else if (mg.winner_side === me.team_side) soundFx.victory();
     else soundFx.defeat();
-  }, [mg?.id, mg?.status, mg?.resolved_at, mg?.winner_side, me.team_side]);
+  }, [mg, me.team_side]);
 
 
   if (!mg) {
@@ -199,13 +196,12 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const lineWinner = data.players.find(player => player.id === mg.line_connect_state?.winner_player_id);
   const lineWinnerEntry = entries.find(entry => entry.player_id === lineWinner?.id);
   const lineResultColor = lineResult === 'won' ? colors.mint : lineResult === 'lost' ? '#FF718A' : colors.yellow;
-  const briefingSeconds = Math.max(1, Math.ceil((goAt - now) / 1000));
 
   return (
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
-      <PlayArea active={live&&!isPreparing} viewportRef={shortcut.viewportRef} onLayout={shortcut.measure}>
-      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={shortcut.measure} onContentSizeChange={shortcut.measure} scrollEventThrottle={16} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+      <PlayArea active={live&&!isPreparing} viewportRef={viewportRef} onLayout={measure}>
+      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
       {(isPreparing||!live)&&<View style={s.headerRow}>
@@ -340,7 +336,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {mg.kind === 'social_guess' && !isPreparing && <><Btn size="sm" tone="ghost" title="Dostluk Hafızası" onPress={()=>setFriendQuizOpen(true)}/><Sheet visible={friendQuizOpen} onClose={()=>setFriendQuizOpen(false)}><FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused}/><Btn title="Oyuna Dön" onPress={()=>setFriendQuizOpen(false)}/></Sheet></>}
 
-        {!live && mg.kind === 'pong' && <PongRematch ref={pongRematchRef} ctx={ctx} mg={mg} continueReady={continueReady} continueWait={continueWait} anchorRef={shortcut.anchorRef} onAnchorLayout={shortcut.measure} onShortcutStateChange={setPongShortcut}/>}
+        {!live && mg.kind === 'pong' && <PongRematch ref={pongRematchRef} ctx={ctx} mg={mg} continueReady={continueReady} continueWait={continueWait} anchorRef={anchorRef} onAnchorLayout={measure} onShortcutStateChange={setPongShortcut}/>}
 
         {mg.kind === 'line_connect' && lineResult && (
           <View style={{borderWidth:1,borderColor:lineResultColor,borderRadius:18,padding:16,gap:10,overflow:'hidden'}}>
@@ -417,7 +413,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
               :<Muted>{translate("Oda kurucusu yeni bir parkurla tekrar oynatabilir.")}</Muted>)}
             {me.is_host ? (
-             <View ref={shortcut.anchorRef} collapsable={false} onLayout={shortcut.measure}>
+             <View ref={anchorRef} collapsable={false} onLayout={measure}>
               <Btn
                 title={continueReady ? translate('Sonraki Oyuna Geç') : `${translate('Sonuçları İncele')} · ${continueWait} ${translate('sn')}`}
                 icon={continueReady ? 'play-forward' : 'hourglass'}
@@ -435,7 +431,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         )}
       </ScrollView>
       </PlayArea>
-      <NextShortcut visible={shortcut.show&&!data.room.paused} ready={continueReady} wait={continueWait} busy={mg.kind==='pong'?!!pongShortcut?.busy:busy}
+      <NextShortcut visible={showShortcut&&!data.room.paused} ready={continueReady} wait={continueWait} busy={mg.kind==='pong'?!!pongShortcut?.busy:busy}
         onPress={()=>{if(mg.kind==='pong')void pongRematchRef.current?.continueGame();else void continueGame()}}/>
       {data.room.paused && (
         <View style={s.paused}>
@@ -601,7 +597,10 @@ function MemoryGame({
   const showingStep = mineDone ? null : frame.showingStep;
   const flashTimer=useRef<ReturnType<typeof setTimeout>|undefined>(undefined);
   useEffect(()=>{
-    if(live&&go&&!mineDone&&demoStarted===null){setDemoStarted(serverNow());setPlayerIdx(0);setLastCorrect(null);}
+    if (!live || !go || mineDone || demoStarted !== null) return;
+    // Start the timed demonstration after commit, and cancel it if play stops.
+    const timer = setTimeout(() => { setDemoStarted(serverNow()); setPlayerIdx(0); setLastCorrect(null); }, 0);
+    return () => clearTimeout(timer);
   },[live,go,mineDone,demoStarted]);
   useEffect(()=>{
     const replay=()=>{if(live&&go&&!mineDone){setDemoStarted(serverNow());setPlayerIdx(0);}};
@@ -714,45 +713,41 @@ function BalanceGame({
   live: boolean; go: boolean; mineDone: boolean; reactionMs: number | null;
   onComplete: () => void;
 }) {
-  const [pos, setPos] = useState(50); // 0 ile 100 arası
-  const [score, setScore] = useState(0); // 0 ile 100 (tam dolunca kazanır)
+  const [balance, setBalance] = useState({ pos: 50, score: 0 });
+  const { pos, score } = balance;
   const isDoneRef = useRef(false);
+  const complete = useEffectEvent(onComplete);
 
   useEffect(() => {
     if (!live || !go || mineDone) return;
     isDoneRef.current = false;
 
     const interval = setInterval(() => {
-      setPos((prev) => {
-        // Rastgele rüzgar / kayma kuvveti
-        const drift = (Math.random() - 0.5) * 8;
-        const next = Math.max(5, Math.min(95, prev + drift));
-
-        // Hedef yeşil alan: 35 ile 65 arası
-        if (next >= 35 && next <= 65) {
-          setScore((s) => {
-            const n = s + 4;
-            if (n >= 100 && !isDoneRef.current) {
-              isDoneRef.current = true;
-              soundFx.correct();
-              haptic.success();
-              onComplete();
-            }
-            return Math.min(100, n);
-          });
-        }
-        return next;
+      const drift = (Math.random() - 0.5) * 8;
+      setBalance(previous => {
+        const next = Math.max(5, Math.min(95, previous.pos + drift));
+        return { pos: next, score: next >= 35 && next <= 65 ? Math.min(100, previous.score + 4) : previous.score };
       });
     }, 80);
 
     return () => clearInterval(interval);
   }, [live, go, mineDone]);
 
+  // Updaters may run during render or be replayed by React. Award completion
+  // only after the committed score reaches the target, once per active game.
+  useEffect(() => {
+    if (!live || !go || mineDone || score < 100 || isDoneRef.current) return;
+    isDoneRef.current = true;
+    soundFx.correct();
+    haptic.success();
+    complete();
+  }, [live, go, mineDone, score]);
+
   const nudge = (dir: -1 | 1) => {
     if (mineDone || !live) return;
     soundFx.pop();
     haptic.light();
-    setPos((prev) => Math.max(5, Math.min(95, prev + dir * 14)));
+    setBalance(previous => ({ ...previous, pos: Math.max(5, Math.min(95, previous.pos + dir * 14)) }));
   };
 
   const isBalanced = pos >= 35 && pos <= 65;

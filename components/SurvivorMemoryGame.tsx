@@ -1,5 +1,5 @@
 import { translate, useLanguage } from '../lib/i18n';
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useEffectEvent,useState} from 'react';
 import {ActivityIndicator,StyleSheet,View,Pressable,TextInput,Animated,Keyboard,Platform,ViewStyle} from 'react-native';
 import {api,GameError} from '../lib/api';
 import {serverNow} from '../lib/serverTime';
@@ -59,11 +59,12 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   const boundary=setTimeout(()=>{if(tick)clearInterval(tick);setClock(serverNow())},Math.max(0,remaining)+1);
   return()=>{if(tick)clearInterval(tick);clearTimeout(boundary)};
  },[live,startsAt]);
+ const reportPreviewError=useEffectEvent((message:string)=>onError?.(message));
  const previewing=!!startsAt&&clock<Date.parse(startsAt)&&live;
  useEffect(()=>{
   if(!previewing)return;
   let mounted=true;
-  api.survivorPreview(id).then(p=>{if(mounted&&p)setPreview(p)}).catch(e=>onError?.(e.message));
+  api.survivorPreview(id).then(p=>{if(mounted&&p)setPreview(p)}).catch(e=>reportPreviewError(e.message));
   return()=>{mounted=false};
  },[id,previewing]);
  const serverProgress = side ? state?.[side] : undefined;
@@ -81,7 +82,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
    });
   }},0);
   return()=>clearTimeout(timer);
- },[own?.attempt,own?.reveal?.row,own?.reveal?.selectedCol,own?.reveal?.outcome]);
+ },[own?.attempt,own?.reveal,own?.row]);
  const choose=async(row:number,col:number)=>{
   if(!live||paused||!startsAt||serverNow()<Date.parse(startsAt)||!isCaptain||requestBusy.current||row!==(own?.row??0)||row>=7)return;
   requestBusy.current=true;

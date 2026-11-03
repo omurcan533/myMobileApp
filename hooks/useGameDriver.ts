@@ -55,7 +55,7 @@ export function shouldAdvance(d: RoomData, now: number, myVoted: boolean, lastCa
  */
 export function useGameDriver(data: RoomData | null, myPlayerId: string | undefined) {
   const ref = useRef(data);
-  ref.current = data;
+  useEffect(() => { ref.current = data; }, [data]);
   const busy = useRef(false);
   const lastCall = useRef(0);
 

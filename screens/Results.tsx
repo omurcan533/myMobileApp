@@ -1,5 +1,5 @@
 import { getLanguage, translate, useLanguage } from '../lib/i18n';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,14 +74,14 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
  const {width,height}=useWindowDimensions();
  const compact=height<720||width<350;
  const [step,setStep]=useState(0);
- const fade=useRef(new Animated.Value(0)).current;
- const lift=useRef(new Animated.Value(24)).current;
- const scale=useRef(new Animated.Value(0.88)).current;
- const sparkle=useRef(new Animated.Value(0)).current;
+ const [fade] = useState(() => new Animated.Value(0));
+ const [lift] = useState(() => new Animated.Value(24));
+ const [scale] = useState(() => new Animated.Value(0.88));
+ const [sparkle] = useState(() => new Animated.Value(0));
  const total=awards.length+2;
  const opening=step===0,closingScene=step===total-1;
  const award=!opening&&!closingScene?awards[step-1]:null;
- const next=()=>setStep(s=>Math.min(s+1,total-1));
+ const next=useCallback(()=>setStep(s=>Math.min(s+1,total-1)),[total]);
  useEffect(()=>{
   fade.setValue(0);lift.setValue(24);scale.setValue(0.88);sparkle.setValue(0);
   const entrance=Animated.parallel([
@@ -91,15 +91,15 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
    Animated.timing(sparkle,{toValue:1,duration:1900,easing:Easing.out(Easing.quad),useNativeDriver:true}),
   ]);
   entrance.start();
-  if(award){soundFx.victory();haptic.success();}
+  if(!opening && !closingScene){soundFx.victory();haptic.success();}
   return ()=>entrance.stop();
- },[step,fade,lift,scale,sparkle]);
+ },[step,fade,lift,scale,sparkle,opening,closingScene]);
  // The closing scene stays until the user chooses to leave; no abrupt exit mid-speech.
  useEffect(()=>{
   if(closingScene)return;
   const timer=setTimeout(next,opening?1500:3000);
   return ()=>clearTimeout(timer);
- },[step,opening,closingScene]);
+ },[step,opening,closingScene,next]);
  const player=award?players.find(p=>p.id===award.playerId):null;
  const tint=player?.team_side?teamColor(player.team_side):'#FFCF78';
  const avatarSize=compact?100:136;

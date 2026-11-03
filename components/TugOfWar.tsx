@@ -1,5 +1,5 @@
 import { getLanguage, useLanguage } from '../lib/i18n';
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {View,Pressable,useWindowDimensions} from 'react-native';
 import {api} from '../lib/api';
 import {TugArena} from './TugArena';
@@ -36,7 +36,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
  const refreshInFlight=useRef(false);
  const refreshQueued=useRef(false);
  const mounted=useRef(true);
- const refresh=async()=>{
+ const refresh=useCallback(async()=>{
   if(refreshInFlight.current){refreshQueued.current=true;return;}
   refreshInFlight.current=true;
   try{
@@ -48,7 +48,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
     }catch{}
    }while(mounted.current&&refreshQueued.current);
   }finally{refreshInFlight.current=false;}
- };
+ },[main,event.id]);
  useEffect(()=>{
   mounted.current=true;
   const initial=setTimeout(()=>{void refresh();},0);
@@ -59,7 +59,7 @@ export function TugOfWar({event,players,myId,isHost,main=false,paused=false,paus
   ch.on('broadcast',{event:'pull'},()=>{refresh();}).subscribe();
   channel.current=ch;
   return()=>{mounted.current=false;refreshQueued.current=false;clearTimeout(initial);clearInterval(timer);clearInterval(sync);supabase.removeChannel(ch);channel.current=null;};
- },[event.id]);
+ },[event.id,refresh]);
  const durationMatch=String(event.prompt??'').match(/^Halat çekme süresi: (30|60|90|120) saniye\./);
  const duration=main?(event.target_num||60):(durationMatch?Number(durationMatch[1]):60);
  const clockNow=main&&paused&&pausedAt?Date.parse(pausedAt):now;

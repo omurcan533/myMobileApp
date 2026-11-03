@@ -11,14 +11,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Btn, Float, Muted, Screen, Text, Title } from './components/ui';
 import { AvatarSelect } from './components/AvatarSelect';
 import { PartyBreak } from './components/PartyBreak';
-import { AVATAR_OPTIONS, AvatarId } from './lib/art';
+import { art, AVATAR_OPTIONS, AvatarId } from './lib/art';
 import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
 import { api } from './lib/api';
 import { soundFx } from './lib/soundEffects';
 import { syncServerTime } from './lib/serverTime';
-import { art } from './lib/art';
 import { alpha, colors } from './lib/theme';
 import type { Ctx, Piece } from './lib/types';
 import { initializeLanguage, useLanguage, translate } from './lib/i18n';
@@ -55,13 +54,15 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
   const { data, gone } = useRoom(roomId);
   const me = data?.players.find((p) => p.user_id === userId);
   useGameDriver(data, me?.id);
+  const hasBots = data?.players.some(player => player.is_bot) ?? false;
+  const phase = data?.room.phase;
   useEffect(()=>{
-    if (!data || !me?.is_host || !data.players.some(p=>(p as any).is_bot)) return;
-    if (data.room.phase!=='team_reveal' && data.room.phase!=='minigame') return;
+    if (!me?.is_host || !hasBots) return;
+    if (phase !== 'team_reveal' && phase !== 'minigame') return;
     let running=false;
     const advance=async()=>{if(running)return;running=true;try{await api.advanceTestBots(roomId);await api.botSurvivorStep(roomId);}catch(e){console.warn('Test bot action:',e);}finally{running=false;}};
     advance();const timer=setInterval(advance,1800);return()=>clearInterval(timer);
-  },[roomId,me?.is_host,data?.room.phase,data?.players.some(p=>(p as any).is_bot)]);
+  },[roomId, me?.is_host, phase, hasBots]);
   const exitRoom = useCallback(async () => {
     await api.leaveRoom(roomId);
     onLeave();
@@ -112,10 +113,9 @@ export default function App() {
   const [avatarId, setAvatarId] = useState<AvatarId>('fox');
   const [avatarChosen, setAvatarChosen] = useState(false);
 
-  const boot = useCallback(async () => {
-    setError(null);
-    try {
-      const [user] = await Promise.all([ensureAnonymousSession(), syncServerTime(), initializeLanguage()]);
+  const boot = useCallback(() => Promise.all([
+    ensureAnonymousSession(), syncServerTime(), initializeLanguage(),
+  ]).then(async ([user]) => {
       const [pieces, saved] = await Promise.all([supabase.from('pieces').select('*'), AsyncStorage.getItem(ROOM_KEY)]);
       setCatalog(Object.fromEntries(((pieces.data ?? []) as Piece[]).map((p) => [p.id, p])));
       const soundEnabled = await AsyncStorage.getItem('soundEnabled');
@@ -130,12 +130,9 @@ export default function App() {
       setUserId(user.id);
       if (saved) setRoomId(saved);
       setReady(true);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, []);
+  }), []);
 
-  useEffect(() => { boot(); }, [boot]);
+  useEffect(() => { void boot().catch(e => setError((e as Error).message)); }, [boot]);
 
   // Mobil web (Safari/Chrome) için rubberband, klavye kayması ve beyaz boşluk koruması
   useEffect(() => {
@@ -205,7 +202,7 @@ export default function App() {
             <View style={s.errorIcon}><Ionicons name="cloud-offline" size={40} color={colors.red} /></View>
             <Title>{translate("Bağlanamadık")}</Title>
             <Muted style={{ textAlign: 'center', maxWidth: 300 }}>{error}</Muted>
-            <Btn title={translate("Tekrar dene")} icon="refresh" onPress={boot} style={{ marginTop: 18, alignSelf: 'stretch' }} />
+            <Btn title={translate("Tekrar dene")} icon="refresh" onPress={() => { setError(null); void boot().catch(e => setError((e as Error).message)); }} style={{ marginTop: 18, alignSelf: 'stretch' }} />
           </View>
         </Screen>
       ) : !ready || !userId ? (

@@ -10,6 +10,7 @@ function mount(file,props,{saved=null,storageFails=false,rooms=[]}={}){
  const react={__esModule:true,createElement:(type,props,...children)=>({type,props:{...props,children}}),Fragment:'Fragment',
   useState(initial){const i=index++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
   useRef(initial){const i=index++;return slots[i]??={current:initial};},
+  useEffectEvent:fn=>fn,
   useEffect(fn,deps){const i=index++;if(!slots[i]||deps.some((d,j)=>d!==slots[i][j])){slots[i]=deps;effects.push(fn);}},
  };react.default=react;
  const ui=new Proxy({},{get:(_,name)=>name});

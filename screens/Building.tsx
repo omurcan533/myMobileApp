@@ -21,7 +21,7 @@ import type { Ctx } from '../lib/types';
 export function BuildingScreen({ ctx }: { ctx: Ctx }) {
   useLanguage();
   const { data, me } = ctx;
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const now = useNow();
   const left = secondsLeft(data.room.phase_ends_at, effNow(data.room, now));
   const [open, setOpen] = useState(false);

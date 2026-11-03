@@ -119,13 +119,13 @@ check('Devre arası mini oyun oynandı', sawMinigame);
 let r = await phaseOf();
 check('Tüm turlar bitince inşa fazı', r.phase === 'building', `faz=${r.phase}`);
 
-const { data: rounds } = await A.from('room_rounds').select('status').eq('room_id', room);
+await A.from('room_rounds').select('status').eq('room_id', room);
         const early = await B.rpc('advance_game', { p_room: room });
         if (open) check('Tur çözülür çözülmez advance_game bekletiyor (3 sn gösterim)', early.data?.advanced === false);
         await sleep(3300);
         const nonHostAdvance = await B.rpc('advance_game_host', { p_room: room });
         check('Kurucu olmayan sonuçtan sonra ilerletemiyor', !!nonHostAdvance.error);
-        const adv = await A.rpc('advance_game_host', { p_room: room });
+        await A.rpc('advance_game_host', { p_room: room });
 
 // ---- İNŞA ----
 const { data: myPieces } = await A.from('team_pieces').select('id').eq('room_id', room).eq('side', aSide);

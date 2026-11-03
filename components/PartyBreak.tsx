@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ScrollView,View,TextInput,Modal,Pressable} from 'react-native';
 import {api} from '../lib/api';
@@ -17,16 +17,6 @@ const UCUBE_QUESTIONS=[
  'Kim gizli bir ajan olsa kimliğini ilk beş dakikada ele verir?',
  'Kim bir yemek yarışmasında mutfağı birbirine katar?',
  'Kim arkadaş grubunun en komik bahanesini üretir?',
-];
-const COURT_CHARGES=[
- 'Arkadaş grubunun en yaratıcı bahanelerini üretmekle suçlanıyor!',
- 'Her fotoğrafta en iyi pozu kapmakla suçlanıyor!',
- 'Grubun bütün planlarını son dakika değiştirmekle suçlanıyor!',
- 'Bir espriyi herkesten önce anlamış gibi yapmakla suçlanıyor!',
- 'Her tartışmada son sözü söylemekle suçlanıyor!',
- 'Şarkının sözlerini uydurup özgüvenle söylemekle suçlanıyor!',
- 'Sohbette konuyu hiç beklenmedik yere bağlamakla suçlanıyor!',
- 'Herkesi güldürüp kendisi hiç gülmemekle suçlanıyor!',
 ];
 const TASKS=[
 '60 saniyede aranızdan en az iki kişiyi güldür!',
@@ -56,20 +46,21 @@ const [mission,setMission]=useState<{key:number;status:'active'|'done'|'skipped'
 const [missionOpen,setMissionOpen]=useState(false);
 const [missionBusy,setMissionBusy]=useState(false);
 const refreshMission=()=>api.partyMySecretMission(roomId).then(setMission).catch(()=>{});
+const hasMission=mission!==null;
 useEffect(()=>{
  let active=true;
  const check=async()=>{try{const result=await api.partyMySecretMission(roomId);if(active)setMission(result);}catch{}};
  check();
- const timer=setInterval(()=>{if(!mission)check();},3500);
+ const timer=setInterval(()=>{if(!hasMission)check();},3500);
  return ()=>{active=false;clearInterval(timer);};
-},[roomId,mission?.key]);
+},[roomId,hasMission]);
 const finishMission=async(status:'done'|'skipped')=>{setMissionBusy(true);try{await api.partySecretMissionFinish(roomId,status);await refreshMission();}catch(e){setError((e as Error).message);}finally{setMissionBusy(false);}};
 
 const [tick,setTick]=useState(0);
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
-const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null),[ageMedals,setAgeMedals]=useState<any[]>([]);
-const refresh=async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent(e);if(!e)setWinner(null);}catch{}};
-useEffect(()=>{const first=setTimeout(()=>{void refresh();},0);const t=setInterval(()=>{void refresh();},2500);return()=>{clearTimeout(first);clearInterval(t);};},[roomId]);
+const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null);
+const refresh=useCallback(async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent(e);if(!e)setWinner(null);}catch{}},[roomId]);
+useEffect(()=>{const first=setTimeout(()=>{void refresh();},0);const t=setInterval(()=>{void refresh();},2500);return()=>{clearTimeout(first);clearInterval(t);};},[refresh]);
 const run=async(fn:()=>Promise<any>)=>{setBusy(true);setError('');try{await fn();await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
 const start=(kind:string)=>run(async()=>{
 // Ucube Mahkemesi başlatma akışı şimdilik devre dışı:
@@ -119,7 +110,7 @@ useEffect(() => {
   };
   trigger();
   return () => { cancelled = true; };
-}, [autoKey, roomId, isHost, players.length]);
+}, [autoKey, roomId, isHost, players.length, refresh]);
 const votes=event?.votes??[];
 const scenes = SCENE_PAIRS[puzzleIndex(event?.id??'')];
 const differenceCount = scenes[0].filter((emoji,i)=>emoji!==scenes[1][i]).length;
