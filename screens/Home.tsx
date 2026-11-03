@@ -16,7 +16,7 @@ import { getProfile, levelOf, Profile } from '../lib/profile';
 import { soundFx } from '../lib/soundEffects';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { GameMode } from '../lib/types';
-import { t, useLanguage, saveLanguage, translate } from '../lib/i18n';
+import { t, useLanguage, saveLanguage, translate, format } from '../lib/i18n';
 
 export const GAME_TITLE = 'Ucube Atölyesi';
 
@@ -80,7 +80,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
         const rooms = await api.openRooms();
         if (active) setOpenRooms(rooms);
       } catch (error) {
-        console.warn('Açık odalar yüklenemedi:', error);
+        console.warn(translate("Açık odalar yüklenemedi:"), error);
       } finally {
         if (active) setRoomsLoading(false);
       }
@@ -150,7 +150,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
   };
 
   if (!nameLoaded) return <Screen><View style={{flex:1,justifyContent:'center',alignItems:'center'}}>
-    <Muted>{language==='en'?'Preparing your player profile…':'Oyuncu profilin hazırlanıyor…'}</Muted>
+    <Muted>{language==='en'?'Preparing your player profile…':translate("Oyuncu profilin hazırlanıyor…")}</Muted>
   </View></Screen>;
 
   if (nameRequired) return <NicknameStep initialValue={nick} avatarId={avatarId} onContinue={async name => {
@@ -206,13 +206,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   />
                   <View style={s.heroText}>
                     <Eyebrow live color={colors.mint} dot={colors.mint}>{t('gameArena')}</Eyebrow>
-                    <Title size={31} style={{ marginTop: 8 }}>{GAME_TITLE}</Title>
+                    <Title size={31} style={{ marginTop: 8 }}>{translate(GAME_TITLE)}</Title>
                     <Muted style={{ marginTop: 6, maxWidth: 190 }}>
                       {t('heroDescription')}
                     </Muted>
                     <View style={s.heroChips}>
                       <Chip icon="people" label={t('teams')} color={colors.cyan} size="sm" />
-                      <Chip icon="time" label="5-20 dk" color={colors.magenta} size="sm" />
+                      <Chip icon="time" label={translate("5-20 dk")} color={colors.magenta} size="sm" />
                     </View>
                   </View>
                 </View>
@@ -234,7 +234,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                         }
                       }, 420);
                     }}
-                    placeholder="örn. Çorap Avcısı"
+                    placeholder={translate("örn. Çorap Avcısı")}
                     maxLength={20}
                   />
                 </Card>
@@ -424,7 +424,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                           </View>
                           <View style={{ flex: 1, gap: 3 }}>
                             <Text display style={{ fontSize: 15, color: colors.text, fontWeight: '700' }}>{room.host_nickname}{translate("'ın Odası")}</Text>
-                            <Muted>{modeLabel[room.mode] ?? room.mode} {translate('mod')} · {room.player_count}/12 {translate('oyuncu')}</Muted>
+                            <Muted>{modeLabel[room.mode] ?? room.mode} {translate('mod')} · {room.player_count}/12 {translate('oyuncu')} · {room.game_language === 'en' ? 'English' : 'Türkçe'}</Muted>
                           </View>
                           <Chip label={waiting ? translate("Bekliyor") : translate("Devam ediyor")} color={waiting ? colors.mint : colors.violet} size="sm" />
                         </View>
@@ -464,7 +464,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                       <Ionicons name={st.icon} size={24} color="#0A1020" />
                     </LinearGradient>
                     <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={[s.stepNo, { color: st.color }]}>ADIM {i + 1}</Text>
+                      <Text style={[s.stepNo, { color: st.color }]}>{translate("ADIM")} {i + 1}</Text>
                       <Text display style={s.stepTitle}>{st.title}</Text>
                       <Muted>{st.text}</Muted>
                     </View>
@@ -485,7 +485,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                   </Float>
                   <Title size={26} style={{ marginTop: 14 }}>{displayName}</Title>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                    <Chip label={`Seviye ${lvl.level}`} icon="flash" color={colors.gold} />
+                    <Chip label={format("Seviye {0}", lvl.level)} icon="flash" color={colors.gold} />
                     <Chip label={`${lvl.xp} XP`} icon="sparkles" color={colors.cyan} />
                   </View>
                   <View style={{ alignSelf: 'stretch', marginTop: 18, gap: 6 }}>
@@ -519,7 +519,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange }: { onEnter: (ro
                     {AVATAR_OPTIONS.map((option) => (
                       <Tap key={option.id} onPress={() => onAvatarChange(option.id)} style={[s.avatarChoice, avatarId === option.id && s.avatarChoiceSelected]}>
                         <Avatar source={option.source} size={48} ring={avatarId === option.id ? colors.cyan : colors.borderLight} />
-                        <Text style={s.avatarChoiceLabel}>{option.label}</Text>
+                        <Text style={s.avatarChoiceLabel}>{translate(option.label)}</Text>
                         {avatarId === option.id && <Ionicons name="checkmark-circle" size={16} color={colors.cyan} />}
                       </Tap>
                     ))}

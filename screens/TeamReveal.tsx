@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { translate, useLanguage, format } from '../lib/i18n';
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Animated, Easing, Image, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -321,18 +321,18 @@ function PlayerSpotlight({
         <View style={s.spotlightInfo}>
           <Text style={[s.assignment, { color }]}>
             {phaseText === 'shake'
-              ? 'HESAPLANIYOR… ⚡'
+              ? translate("HESAPLANIYOR… ⚡")
               : phaseText === 'flight'
-              ? `TAKIM ${side}'YE GİDİYOR!`
-              : 'YENİ OYUNCU'}
+              ? format("TAKIM {0}'YE GİDİYOR!", side)
+              : translate("YENİ OYUNCU")}
           </Text>
           <Text numberOfLines={1} display style={s.spotlightName}>
             {player.nickname}
           </Text>
           <Text style={[s.assignment, { color }]}>
             {phaseText === 'shake'
-              ? 'SİSTEM TARAF SEÇİYOR…'
-              : `TAKIM ${side}'YE KATILIYOR`}
+              ? translate("SİSTEM TARAF SEÇİYOR…")
+              : format("TAKIM {0}'YE KATILIYOR", side)}
           </Text>
         </View>
 
@@ -367,7 +367,7 @@ function PlayerRowItem({ player, color, rolls }: { player: Player; color: string
       <View style={{ flex: 1, paddingVertical: 6, gap: 3 }}>
         <Text numberOfLines={1} style={[s.playerName, { flex: 0 }]}>{player.nickname}</Text>
         {rolls && <Text style={{ color: colors.gold, fontSize: 12, fontWeight: '800' }}>
-          Zar: {rolls.length ? rolls.map((roll) => roll.total).join(' → ') : 'Atılmadı'}
+           {translate("Zar:")} {rolls.length ? rolls.map((roll) => roll.total).join(' → ') : translate("Atılmadı")}
         </Text>}
       </View>
       {player.is_captain && <Ionicons name="star" size={13} color={colors.gold} />}
@@ -433,9 +433,9 @@ function TeamColumn({
         <View>
           <View style={[s.teamBadge, { backgroundColor: alpha(color, 0.2), borderColor: alpha(color, 0.55) }]}>
             <View style={[s.teamDot, { backgroundColor: color }]} />
-            <Text display style={s.teamTitle}>TAKIM {side}</Text>
+            <Text display style={s.teamTitle}>{translate("TAKIM")} {side}</Text>
           </View>
-          <Text style={s.teamSubtitle}>{players.length} oyuncu</Text>
+          <Text style={s.teamSubtitle}>{players.length}  {translate("oyuncu")}</Text>
         </View>
       </View>
 
@@ -457,7 +457,7 @@ function CaptainCard({ player, side, winningRoll }: { player: Player; side: Side
       <LinearGradient colors={[alpha(color, 0.34), 'rgba(5,10,20,0.94)']} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
       <Avatar source={avatarFor(player.nickname)} size={46} ring={colors.gold} glow />
       <View style={s.captainInfo}>
-        <Text style={[s.captainTeam, { color }]}>TAKIM {side} KAPTANI</Text>
+        <Text style={[s.captainTeam, { color }]}>{translate("TAKIM")} {side}  {translate("KAPTANI")}</Text>
         <Text numberOfLines={1} style={s.captainName}>{player.nickname}</Text>
         {winningRoll && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -579,7 +579,7 @@ function GiantDiceDuelArena({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 18 }}>🎲</Text>
           <Text display style={[s.arenaTitle, { color: activeColor }]}>
-            {isDuelDone ? 'DÜELLO TAMAMLANDI' : `TAKIM ${activeDisplaySide} KAPTANLIK DÜELLOSU`}
+            {isDuelDone ? translate("DÜELLO TAMAMLANDI") : format("TAKIM {0} KAPTANLIK DÜELLOSU", activeDisplaySide)}
           </Text>
         </View>
         <View
@@ -589,7 +589,7 @@ function GiantDiceDuelArena({
           ]}
         >
           <Text style={[s.roundBadgeText, isTiebreaker && { color: colors.gold }]}>
-            {isDuelDone ? '👑 KAPTANLAR BELLİ OLDU' : isTiebreaker ? `⚡ ${duel.round}. TUR: EŞİTLİK BOZMA` : `${duel.round}. TUR`}
+            {isDuelDone ? translate("👑 KAPTANLAR BELLİ OLDU") : isTiebreaker ? format("⚡ {0}. TUR: EŞİTLİK BOZMA", duel.round) : format("{0}. TUR", duel.round)}
           </Text>
         </View>
       </View>
@@ -600,11 +600,9 @@ function GiantDiceDuelArena({
           <Ionicons name="trophy" size={32} color={colors.gold} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={[s.turnLabel, { color: colors.gold }]}>
-              🎉 HER İKİ KAPTAN DA SEÇİLDİ!
-            </Text>
+               {translate("🎉 HER İKİ KAPTAN DA SEÇİLDİ!")} </Text>
             <Text style={s.turnSubtitle}>
-              Kaptanlık düellosu başarıyla tamamlandı, oyun başlayabilir!
-            </Text>
+               {translate("Kaptanlık düellosu başarıyla tamamlandı, oyun başlayabilir!")} </Text>
           </View>
           <Ionicons name="ribbon" size={26} color={colors.gold} />
         </View>
@@ -615,8 +613,7 @@ function GiantDiceDuelArena({
           )}
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={[s.turnLabel, { color: colors.gold }]}>
-              🎲 {lastRoller?.nickname ?? 'Oyuncu'} ZARLARI ATIYOR…
-            </Text>
+              🎲 {lastRoller?.nickname ?? translate("Oyuncu")}  {translate("ZARLARI ATIYOR…")} </Text>
             <Text style={s.turnSubtitle}>{translate("Zarlar yuvarlanıyor, tüm oda canlı izliyor!")}</Text>
           </View>
           <Pulse amount={1.2}>
@@ -643,12 +640,12 @@ function GiantDiceDuelArena({
           )}
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={[s.turnLabel, { color: isMyTurn ? colors.gold : colors.cyan }]}>
-              {isMyTurn ? '👉 SENİN SIRAN!' : `SIRA: ${turnPlayer?.nickname ?? 'Oyuncu'}`}
+              {isMyTurn ? translate("👉 SENİN SIRAN!") : format("SIRA: {0}", turnPlayer?.nickname ?? translate("Oyuncu"))}
             </Text>
             <Text style={s.turnSubtitle}>
               {isMyTurn
-                ? 'Lider olmak için zarları at!'
-                : `${turnPlayer?.nickname ?? 'Oyuncu'} butona basarak zarlarını atıyor…`}
+                ? translate("Lider olmak için zarları at!")
+                : format("{0} butona basarak zarlarını atıyor…", turnPlayer?.nickname ?? translate("Oyuncu"))}
             </Text>
           </View>
           {isMyTurn && (
@@ -704,13 +701,12 @@ function GiantDiceDuelArena({
         {isDuelDone && !isRolling ? (
           <View style={{ alignItems: 'center', paddingVertical: 6, gap: 4 }}>
             <Text style={{ color: colors.gold, fontWeight: '900', fontSize: 14 }}>
-              👑 Kaptanlar Seçildi! Sonuçlar gösteriliyor…
-            </Text>
+               {translate("👑 Kaptanlar Seçildi! Sonuçlar gösteriliyor…")} </Text>
           </View>
         ) : isMyTurn ? (
           <Pulse amount={1.03}>
             <Btn
-              title="ZARLARI AT 🎲🎲"
+              title={translate("ZARLARI AT 🎲🎲")}
               tone="gold"
               size="lg"
               loading={busy || isRolling}
@@ -723,11 +719,10 @@ function GiantDiceDuelArena({
             <View style={s.spectatorRow}>
               <Ionicons name="eye" size={16} color={colors.cyan} />
               <Text style={s.spectatorText}>
-                {turnPlayer?.nickname} zarlarını atıyor… Canlı izleniyor
-              </Text>
+                {turnPlayer?.nickname}  {translate("zarlarını atıyor… Canlı izleniyor")} </Text>
             </View>
             <Btn
-              title={`${turnPlayer?.nickname ?? 'Oyuncu'} Yerine At (Kurucu)`}
+              title={format("{0} Yerine At (Kurucu)", turnPlayer?.nickname ?? translate("Oyuncu"))}
               tone="ghost"
               size="md"
               loading={busy || isRolling}
@@ -738,8 +733,7 @@ function GiantDiceDuelArena({
           <View style={s.spectatorRow}>
             <Ionicons name="eye" size={18} color={colors.cyan} />
             <Text style={s.spectatorText}>
-              {turnPlayer?.nickname} zarlarını atıyor… Canlı izleniyor
-            </Text>
+              {turnPlayer?.nickname}  {translate("zarlarını atıyor… Canlı izleniyor")} </Text>
           </View>
         )}
       </View>
@@ -776,8 +770,7 @@ function GiantDiceDuelArena({
         <View style={s.tieNotice}>
           <Ionicons name="flash" size={14} color={colors.gold} />
           <Text style={s.tieNoticeText}>
-            Önceki tur berabere bitti! En yüksek atanlar arasında tekrar zar atılıyor.
-          </Text>
+             {translate("Önceki tur berabere bitti! En yüksek atanlar arasında tekrar zar atılıyor.")} </Text>
         </View>
       )}
     </View>
@@ -950,30 +943,30 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
           <View style={s.heading}>
             <Eyebrow live color={colors.mint} dot={colors.mint}>
               {isPlacingTeams
-                ? 'Takım Dağılımı'
+                ? translate("Takım Dağılımı")
                 : !isDuelStarted
-                ? 'Takımlar Hazır'
+                ? translate("Takımlar Hazır")
                 : isDuelActive
-                ? 'Canlı Kaptanlık Düellosu'
-                : 'Takımlar ve Liderler'}
+                ? translate("Canlı Kaptanlık Düellosu")
+                : translate("Takımlar ve Liderler")}
             </Eyebrow>
             <Text display style={s.title}>
               {isPlacingTeams
-                ? 'Taraflar Belli Oluyor'
+                ? translate("Taraflar Belli Oluyor")
                 : !isDuelStarted
-                ? 'Kadrolar Belirlendi! ⚔️'
+                ? translate("Kadrolar Belirlendi! ⚔️")
                 : isDuelActive
-                ? 'Zarları At, Lider Ol! 🎲'
-                : 'Takımlar ve Kaptanlar'}
+                ? translate("Zarları At, Lider Ol! 🎲")
+                : translate("Takımlar ve Kaptanlar")}
             </Text>
             <Text style={s.subtitle}>
               {isPlacingTeams
-                ? 'Oyuncular sırayla takımlarına yerleşiyor'
+                ? translate("Oyuncular sırayla takımlarına yerleşiyor")
                 : !isDuelStarted
-                ? 'Takımlar oluşturuldu, kaptanlar zar düellosuyla seçilecek'
+                ? translate("Takımlar oluşturuldu, kaptanlar zar düellosuyla seçilecek")
                 : isDuelActive
-                ? 'Oyuncular sırayla 2 zar atıyor, en yüksek atan kaptan seçiliyor'
-                : 'Takım dağılımı ve kaptanlar tamamlandı'}
+                ? translate("Oyuncular sırayla 2 zar atıyor, en yüksek atan kaptan seçiliyor")
+                : translate("Takım dağılımı ve kaptanlar tamamlandı")}
             </Text>
           </View>
           <RoomExitButton onExit={ctx.exitRoom} />
@@ -1028,8 +1021,8 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
                   <Text display style={s.readyTitle}>{translate("Takımlar Belirlendi! ⚔️")}</Text>
                   <Text style={s.readySubtitle}>
                     {ctx.me.is_host
-                      ? 'Kaptanlık zar düellosunu başlatmak için aşağıdaki butona tıklayın'
-                      : 'Kurucunun kaptanlık zar düellosunu başlatması bekleniyor…'}
+                      ? translate("Kaptanlık zar düellosunu başlatmak için aşağıdaki butona tıklayın")
+                      : translate("Kurucunun kaptanlık zar düellosunu başlatması bekleniyor…")}
                   </Text>
                 </View>
               </View>
@@ -1097,14 +1090,13 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
             <View style={s.hostWaiting}>
               <Ionicons name="sparkles" size={18} color={colors.gold} />
               <Text style={s.hostWaitingText}>
-                Takım yerleşimi yapılıyor… Sırayla takımlar oluşturuluyor
-              </Text>
+                 {translate("Takım yerleşimi yapılıyor… Sırayla takımlar oluşturuluyor")} </Text>
             </View>
           ) : !isDuelStarted ? (
             ctx.me.is_host ? (
               <View style={s.hostActions}>
                 <Btn
-                  title="Takımları Yeniden Karıştır"
+                  title={translate("Takımları Yeniden Karıştır")}
                   icon="shuffle"
                   tone="ghost"
                   size="md"
@@ -1112,7 +1104,7 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
                   onPress={shuffleTeams}
                 />
                 <Btn
-                  title="Kaptanlık Zar Düellosuna Başla"
+                  title={translate("Kaptanlık Zar Düellosuna Başla")}
                   icon="dice"
                   tone="success"
                   size="lg"
@@ -1124,21 +1116,19 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
               <View style={s.hostWaiting}>
                 <Ionicons name="hourglass" size={18} color={colors.cyan} />
                 <Text style={s.hostWaitingText}>
-                  Takımlar oluşturuldu! Kurucunun zar düellosunu başlatması bekleniyor…
-                </Text>
+                   {translate("Takımlar oluşturuldu! Kurucunun zar düellosunu başlatması bekleniyor…")} </Text>
               </View>
             )
           ) : !captainsFinished ? (
             <View style={s.hostWaiting}>
               <Ionicons name="dice" size={18} color={colors.gold} />
               <Text style={s.hostWaitingText}>
-                Tüm kaptanlar zar düellosuyla seçilince oyun başlayabilir
-              </Text>
+                 {translate("Tüm kaptanlar zar düellosuyla seçilince oyun başlayabilir")} </Text>
             </View>
           ) : ctx.me.is_host ? (
             <View style={s.hostActions}>
               <Btn
-                title="Takımları Karıştır"
+                title={translate("Takımları Karıştır")}
                 icon="shuffle"
                 tone="ghost"
                 size="md"
@@ -1146,7 +1136,7 @@ function TeamReveal({ ctx }: { ctx: Ctx }) {
                 onPress={shuffleTeams}
               />
               <Btn
-                title="Oyuna Başla"
+                title={translate("Oyuna Başla")}
                 icon="rocket"
                 tone="success"
                 loading={busy}

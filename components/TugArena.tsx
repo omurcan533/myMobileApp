@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React from 'react';
 import Svg,{Defs,LinearGradient,Stop,Rect,Circle,Path,Line,G,Ellipse,Polygon,Text as SvgText} from 'react-native-svg';
 import {colors} from '../lib/theme';
@@ -76,6 +77,6 @@ export function TugArena({blue,red,time,wide,height}:{blue:number;red:number;tim
   <Rect x="232" y="18" width="256" height="16" rx="8" fill="#111D2E" stroke="#8398A7" strokeWidth="1"/>
   <Rect x="360" y="21" width={Math.max(0,120*intensity)} height="10" rx="4" fill={diff>=0?BLUE:RED} transform={diff>=0?`translate(${-120*intensity},0)`:undefined}/>
   <Line x1="360" y1="16" x2="360" y2="37" stroke="#FFF0B0" strokeWidth="3"/>
-  <SvgText x="360" y="62" fill="#FFE9AF" fontSize="14" fontWeight="800" textAnchor="middle">{diff===0?'BERABERE':diff>0?'◀ TAKIM A ÖNDE':'TAKIM B ÖNDE ▶'}</SvgText>
+  <SvgText x="360" y="62" fill="#FFE9AF" fontSize="14" fontWeight="800" textAnchor="middle">{diff===0?translate("BERABERE"):diff>0?translate("◀ TAKIM A ÖNDE"):translate("TAKIM B ÖNDE ▶")}</SvgText>
  </Svg>;
 }

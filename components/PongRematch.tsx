@@ -1,3 +1,4 @@
+import { translate, format } from '../lib/i18n';
 import React, { forwardRef,useEffect,useImperativeHandle,useRef,useState } from 'react';
 import { View } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -60,7 +61,7 @@ export const PongRematch=forwardRef<PongRematchHandle,Props>(function PongRematc
   if (error) show(error.message,'error');
   else {
    setState(old => ({...old,['rematch_'+myRole]:target}));
-   show('Rövanş rolün takım arkadaşına devredildi.','success');
+   show(translate("Rövanş rolün takım arkadaşına devredildi."),'success');
   }
   setBusy(false);
  };
@@ -83,28 +84,28 @@ export const PongRematch=forwardRef<PongRematchHandle,Props>(function PongRematc
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 12 }}>
-    <Eyebrow color={colors.cyan}>RÖVANŞ OYLAMASI</Eyebrow>
-    <Title size={22}>Bir maç daha?</Title>
-    <Muted>Rövanş sayısında sınır yok! Her maçın ardından yeniden oylama yapılır; çoğunluk EVET derse tekrar oynarsınız.</Muted>
-    <Muted>Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.</Muted>
-    <Text style={{ color: colors.text, fontWeight: '800' }}>Evet: {yes} / {needed} gerekli · {votes.length}/{data.players.length} oy</Text>
-    <Muted>Oylamada süre sınırı yok. Kurucu istediği zaman sonraki oyuna geçebilir.</Muted>
-    {approved ? <View style={{ gap: 8 }}><Title size={18}>🎉 Rövanş kabul edildi!</Title><Muted>Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.</Muted>{me.is_host && <Btn title="Rövanşı Hazırla" tone="success" disabled={busy} onPress={start} />}</View> : (
+    <Eyebrow color={colors.cyan}>{translate("RÖVANŞ OYLAMASI")}</Eyebrow>
+    <Title size={22}>{translate("Bir maç daha?")}</Title>
+    <Muted>{translate("Rövanş sayısında sınır yok! Her maçın ardından yeniden oylama yapılır; çoğunluk EVET derse tekrar oynarsınız.")}</Muted>
+    <Muted>{translate("Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.")}</Muted>
+    <Text style={{ color: colors.text, fontWeight: '800' }}>{translate("Evet:")} {yes} / {needed}  {translate("gerekli ·")} {votes.length}/{data.players.length}  {translate("oy")}</Text>
+    <Muted>{translate("Oylamada süre sınırı yok. Kurucu istediği zaman sonraki oyuna geçebilir.")}</Muted>
+    {approved ? <View style={{ gap: 8 }}><Title size={18}>{translate("🎉 Rövanş kabul edildi!")}</Title><Muted>{translate("Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.")}</Muted>{me.is_host && <Btn title={translate("Rövanşı Hazırla")} tone="success" disabled={busy} onPress={start} />}</View> : (
      <View style={{ flexDirection: 'row', gap: 10 }}>
-      <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? '✓ EVET' : 'EVET'} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
-      <View style={{ flex: 1 }}><Btn title={myVote?.yes === false ? '✓ HAYIR' : 'HAYIR'} tone="ghost" disabled={busy} onPress={() => vote(false)} /></View>
+      <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? translate("✓ EVET") : translate("EVET")} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
+      <View style={{ flex: 1 }}><Btn title={myVote?.yes === false ? translate("✓ HAYIR") : translate("HAYIR")} tone="ghost" disabled={busy} onPress={() => vote(false)} /></View>
      </View>
     )}
    </Card>
-   {me.is_host && !approved && <View ref={anchorRef} collapsable={false} onLayout={onAnchorLayout}><Btn title={continueReady?'Rövanşı Atla · Sonraki Oyuna Geç':`Sonuçları İncele · ${continueWait} sn`} tone="primary" disabled={busy||!continueReady||data.room.paused} onPress={continueAfterVote} /></View>}
+   {me.is_host && !approved && <View ref={anchorRef} collapsable={false} onLayout={onAnchorLayout}><Btn title={continueReady?translate("Rövanşı Atla · Sonraki Oyuna Geç"):format("Sonuçları İncele · {0} sn", continueWait)} tone="primary" disabled={busy||!continueReady||data.room.paused} onPress={continueAfterVote} /></View>}
    {myRole && (
     <Card style={{ gap: 10 }}>
-     <Title size={18}>Rolü Devret</Title>
-     <Muted>Rövanşta kendi {myRole.endsWith('1') ? '▲ YUKARI' : '▼ AŞAĞI'} rolünü aynı takımdan başka bir oyuncuya devredebilirsin. Bu seçim yalnızca rövanş için geçerlidir.</Muted>
-     <Text style={{ color: colors.text, fontWeight: '800' }}>Mevcut rol: {data.players.find(p=>p.id===(state['rematch_'+myRole] ?? state[myRole]))?.nickname ?? 'Oyuncu'}</Text>
+     <Title size={18}>{translate("Rolü Devret")}</Title>
+     <Muted>{translate("Rövanşta kendi")} {myRole.endsWith('1') ? translate("▲ YUKARI") : translate("▼ AŞAĞI")}  {translate("rolünü aynı takımdan başka bir oyuncuya devredebilirsin. Bu seçim yalnızca rövanş için geçerlidir.")}</Muted>
+     <Text style={{ color: colors.text, fontWeight: '800' }}>{translate("Mevcut rol:")} {data.players.find(p=>p.id===(state['rematch_'+myRole] ?? state[myRole]))?.nickname ?? translate("Oyuncu")}</Text>
      {candidates.length ? candidates.map(p=>(
-      <Btn key={p.id} title={p.nickname + ' oyuncusuna devret'} tone="ghost" disabled={busy} onPress={()=>transfer(p.id)} />
-     )) : <Muted>Takımında rolü devredebileceğin uygun oyuncu bulunmuyor.</Muted>}
+      <Btn key={p.id} title={p.nickname + translate(" oyuncusuna devret")} tone="ghost" disabled={busy} onPress={()=>transfer(p.id)} />
+     )) : <Muted>{translate("Takımında rolü devredebileceğin uygun oyuncu bulunmuyor.")}</Muted>}
     </Card>
    )}
    {toast}

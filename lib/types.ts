@@ -5,6 +5,7 @@ export type Tier = 'base' | 'body' | 'roof';
 export type GameMode = 'quick' | 'standard' | 'long' | 'custom';
 
 export interface Room {
+  game_language?: 'tr' | 'en';
   closed_at?: string | null;
   id: string;
   code: string;

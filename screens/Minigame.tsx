@@ -1,4 +1,4 @@
-import { getLanguage, translate, useLanguage } from '../lib/i18n';
+import { getLanguage, translate, useLanguage, format } from '../lib/i18n';
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -155,7 +155,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     try {
       if(mg.kind==='tug_of_war')await api.minigameTugDuration(mg.id,tugDuration);
       if(mg.kind==='math_guess'&&mathIndex===1){
-        if(!mathCount)throw new Error('Önce 1, 3 veya 5 soru seç.');
+        if(!mathCount)throw new Error(translate("Önce 1, 3 veya 5 soru seç."));
         await api.configureMathQuestions(mg.id,mathCount);
       }
       await api.confirmBriefing(data.room.id);
@@ -169,27 +169,27 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const reflexMs = mine?.reaction_ms;
 
   const mode: { icon: IconName; label: string; color: string } =
-    mg.kind === 'tug_of_war' ? { icon: 'fitness', label: 'Halat Çekme', color: colors.mint }
-    : mg.kind === 'survivor_memory' ? { icon: 'grid', label: 'Survivor Hafıza Parkuru', color: colors.mint }
-    : mg.kind === 'song_complete' ? { icon: 'musical-notes', label: 'Şarkı Tamamlama', color: colors.magenta }
-    : mg.kind === 'line_connect' ? { icon: 'git-merge', label: 'Çizgi Birleştirme', color: colors.mint }
-    : mg.kind === 'pong' ? { icon: 'game-controller', label: 'Pong Düellosu', color: colors.cyan }
-    : mg.kind === 'social_guess' ? { icon: 'people', label: 'Grup içi itiraf', color: colors.violet }
-    : mg.kind === 'math_guess' ? { icon: 'calculator', label: 'Hızlı Matematik & Tahmin', color: colors.cyan }
-    : variant === 'memory' ? { icon: 'bulb', label: 'Hızlı eşleştirme', color: colors.cyan }
-    : variant === 'balance' ? { icon: 'options', label: 'Hassas denge', color: colors.mint }
-    : { icon: 'flash', label: 'Refleks basma', color: colors.yellow };
+    mg.kind === 'tug_of_war' ? { icon: 'fitness', label: translate("Halat Çekme"), color: colors.mint }
+    : mg.kind === 'survivor_memory' ? { icon: 'grid', label: translate("Survivor Hafıza Parkuru"), color: colors.mint }
+    : mg.kind === 'song_complete' ? { icon: 'musical-notes', label: translate("Şarkı Tamamlama"), color: colors.magenta }
+    : mg.kind === 'line_connect' ? { icon: 'git-merge', label: translate("Çizgi Birleştirme"), color: colors.mint }
+    : mg.kind === 'pong' ? { icon: 'game-controller', label: translate("Pong Düellosu"), color: colors.cyan }
+    : mg.kind === 'social_guess' ? { icon: 'people', label: translate("Grup içi itiraf"), color: colors.violet }
+    : mg.kind === 'math_guess' ? { icon: 'calculator', label: translate("Hızlı Matematik & Tahmin"), color: colors.cyan }
+    : variant === 'memory' ? { icon: 'bulb', label: translate("Hızlı eşleştirme"), color: colors.cyan }
+    : variant === 'balance' ? { icon: 'options', label: translate("Hassas denge"), color: colors.mint }
+    : { icon: 'flash', label: translate("Refleks basma"), color: colors.yellow };
   const briefingInstructions =
-    mg.kind === 'tug_of_war' ? 'İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.'
-    : mg.kind === 'survivor_memory' ? '7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.'
-    : mg.kind === 'song_complete' ? '75 popüler Türkçe şarkıdan biri seçilir. Sanatçıya ve şarkı adının eksik kısmına bakarak şarkının tam adını yaz. Oyuncular doğru cevabı bulana kadar tekrar deneyebilir. İlk doğru yanıt veren takım +2 puan ve bonus parça kazanır. Süre 65 saniyedir.'
-    : mg.kind === 'line_connect' ? 'Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 30 saniye dolunca veya herkes tamamlayınca en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.'
-    : mg.kind === 'pong' ? 'Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.'
-    : mg.kind === 'math_guess' ? 'Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.'
-    : mg.kind === 'social_guess' ? 'Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.'
-    : variant === 'memory' ? 'Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.'
-    : variant === 'balance' ? 'Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.'
-    : 'Sinyalin yeşile dönmesini bekle. Yeşil olduğunda olabildiğince hızlı dokun; erken dokunma.';
+    mg.kind === 'tug_of_war' ? translate("İki takımın tüm oyuncuları halatı aynı anda çeker. İbre yeşil alandayken basarak kuvvet kazan; dışarıda basarsan takımın kuvvet kaybeder. Kurucu süreyi seçer ve oyunu başlatır. Kazanan takım +2 puan ve bonus parça kazanır.")
+    : mg.kind === 'survivor_memory' ? translate("7 sırada yeşil fayansı ezberle. Başlangıçta 9 saniye tüm renkler gösterilir, sonra kapanır. Her takımın yalnızca kaptanı seçim yapar. Beyaz fayans ek deneme hakkı verir. İlk bitiren takım +2 puan ve parça kazanır.")
+    : mg.kind === 'song_complete' ? translate("Sanatçıya ve eksik şarkı adına bakarak tam şarkı adını yaz. Doğru cevabı bulana kadar tekrar deneyebilirsin. İlk doğru yanıt takımına +2 puan ve bonus parça kazandırır. Süre 65 saniye.")
+    : mg.kind === 'line_connect' ? translate("Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 30 saniye dolunca veya herkes tamamlayınca en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.")
+    : mg.kind === 'pong' ? translate("Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.")
+    : mg.kind === 'math_guess' ? translate("Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.")
+    : mg.kind === 'social_guess' ? translate("Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.")
+    : variant === 'memory' ? translate("Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.")
+    : variant === 'balance' ? translate("Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.")
+    : translate("Sinyalin yeşile dönmesini bekle. Yeşil olduğunda olabildiğince hızlı dokun; erken dokunma.");
   const lineResult = mg.kind === 'line_connect' && !live
     ? mg.winner_side === me.team_side ? 'won' : mg.winner_side ? 'lost' : 'draw'
     : null;
@@ -207,10 +207,10 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       {(isPreparing||!live)&&<View style={s.headerRow}>
         <View style={s.header}>
           <Eyebrow live icon={mode.icon} color={mode.color} dot={mode.color}>{mode.label}</Eyebrow>
-          <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? 'Pong Maçı' : mg.kind === 'tug_of_war' ? 'Halat Çekme' : 'Devre Arası'}</Title>
+          <Title size={mg.kind === 'pong' ? 23 : 30}>{mg.kind === 'pong' ? translate("Pong Maçı") : mg.kind === 'tug_of_war' ? translate("Halat Çekme") : translate("Devre Arası")}</Title>
         </View>
         <Btn
-          title={me.is_captain ? (data.room.paused ? 'Devam Et' : 'Mola') : 'Mola · Kaptan'}
+          title={me.is_captain ? (data.room.paused ? translate("Devam Et") : translate("Mola")) : translate("Mola · Kaptan")}
           icon={data.room.paused ? 'play' : 'pause'}
           tone={data.room.paused && me.is_captain ? 'success' : 'ghost'}
           size="md"
@@ -219,7 +219,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         />
       </View>}
 
-        {(isPreparing||!live)&&mg.kind !== 'pong' && <Hint id="minigame" text="Mini oyunu kazanan takım bonus parça alır!" />}
+        {(isPreparing||!live)&&mg.kind !== 'pong' && <Hint id="minigame" text={translate("Mini oyunu kazanan takım bonus parça alır!")} />}
 
 
         {isPreparing ? (
@@ -228,14 +228,14 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
             {mg.kind==='math_guess'&&<View style={{gap:10}}>
-              <Title size={19}>{mathIndex===1?'Kaç tahmin sorusu oynansın?':`Soru ${mathIndex} / ${mg.math_state?.count??1}`}</Title>
-              {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count} soru</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
+              <Title size={19}>{mathIndex===1?translate("Kaç tahmin sorusu oynansın?"):format("Soru {0} / {1}", mathIndex, mg.math_state?.count??1)}</Title>
+              {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count}  {translate("soru")}</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
               <Muted>{translate("Her sorunun ayrı tahmin süresi ve sonucu var.")}</Muted>
             </View>}
             {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
             {me.is_host ? (
               <Btn
-                title={canContinueBriefing ? 'Oyunu Başlat' : `Kuralları Oku · ${briefingWaitSeconds} sn`}
+                title={canContinueBriefing ? translate("Oyunu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
                 icon={canContinueBriefing ? 'play' : 'hourglass'}
                 tone={canContinueBriefing ? 'success' : 'ghost'}
                 size="lg"
@@ -257,8 +257,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
            {!live&&<Card style={{gap:12}}>
             <Title size={21}>{translate("🔁 Rövanş süresi")}</Title>
             <Muted>{translate("Yeniden oynamak için yeni bir süre seçebilirsin.")}</Muted>
-            {me.is_host?<><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{([30,60,90,120] as const).map(seconds=><Pressable key={seconds} onPress={()=>setTugDuration(seconds)} style={{padding:12,borderRadius:12,borderWidth:2,borderColor:tugDuration===seconds?'#7BF4C5':'#50627A',backgroundColor:tugDuration===seconds?'#166B59':'#25354B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{seconds} sn</Text></Pressable>)}</View>
-            <Btn title={busy?'Başlatılıyor…':`🔁 Tekrar Oyna · ${tugDuration} sn`} disabled={busy} onPress={async()=>{setBusy(true);try{await api.minigameTugReplay(mg.id,tugDuration);}catch(e){show((e as Error).message,'error');}finally{setBusy(false);}}}/></>:<Muted>{translate("Oda kurucusu yeni tur başlatabilir.")}</Muted>}
+            {me.is_host?<><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{([30,60,90,120] as const).map(seconds=><Pressable key={seconds} onPress={()=>setTugDuration(seconds)} style={{padding:12,borderRadius:12,borderWidth:2,borderColor:tugDuration===seconds?'#7BF4C5':'#50627A',backgroundColor:tugDuration===seconds?'#166B59':'#25354B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{seconds}  {translate("sn")}</Text></Pressable>)}</View>
+            <Btn title={busy?translate("Başlatılıyor…"):format("🔁 Tekrar Oyna · {0} sn", tugDuration)} disabled={busy} onPress={async()=>{setBusy(true);try{await api.minigameTugReplay(mg.id,tugDuration);}catch(e){show((e as Error).message,'error');}finally{setBusy(false);}}}/></>:<Muted>{translate("Oda kurucusu yeni tur başlatabilir.")}</Muted>}
            </Card>}
           </View>
         ) : mg.kind === 'pong' ? (
@@ -279,7 +279,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             key={mg.id}
             ctx={ctx}
             entries={entries}
-            prompt={`${mg.math_state?`Soru ${mathIndex}/${mg.math_state.count} · `:''}${mg.prompt ?? 'Sayıyı tahmin et'}`}
+            prompt={`${mg.math_state?format("Soru {0}/{1} · ", mathIndex, mg.math_state.count):''}${mg.prompt ?? translate("Sayıyı tahmin et")}`}
             targetNum={mg.target_num ?? null}
             live={live}
             mineGuess={mine?.guess_num ?? null}
@@ -334,7 +334,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
           />
         )}
 
-        {mg.kind === 'social_guess' && !isPreparing && <><Btn size="sm" tone="ghost" title="Dostluk Hafızası" onPress={()=>setFriendQuizOpen(true)}/><Sheet visible={friendQuizOpen} onClose={()=>setFriendQuizOpen(false)}><FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused}/><Btn title="Oyuna Dön" onPress={()=>setFriendQuizOpen(false)}/></Sheet></>}
+        {mg.kind === 'social_guess' && !isPreparing && <><Btn size="sm" tone="ghost" title={translate("Dostluk Hafızası")} onPress={()=>setFriendQuizOpen(true)}/><Sheet visible={friendQuizOpen} onClose={()=>setFriendQuizOpen(false)}><FriendMemoryQuiz key={mg.id} minigameId={mg.id} players={data.players} live={live} canPlay={go && !data.room.paused}/><Btn title={translate("Oyuna Dön")} onPress={()=>setFriendQuizOpen(false)}/></Sheet></>}
 
         {!live && mg.kind === 'pong' && <PongRematch ref={pongRematchRef} ctx={ctx} mg={mg} continueReady={continueReady} continueWait={continueWait} anchorRef={anchorRef} onAnchorLayout={measure} onShortcutStateChange={setPongShortcut}/>}
 
@@ -348,29 +348,29 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               <Ionicons name={lineResult === 'won' ? 'trophy' : lineResult === 'lost' ? 'close-circle' : 'time'} size={46} color={lineResultColor} />
             </View>
             <Title size={30} color={lineResultColor} style={{ textAlign: 'center' }}>
-              {lineResult === 'won' ? 'TEBRİKLER, KAZANDINIZ!' : lineResult === 'lost' ? 'BU TURU KAYBETTİNİZ' : 'SÜRE DOLDU!'}
+              {lineResult === 'won' ? translate("TEBRİKLER, KAZANDINIZ!") : lineResult === 'lost' ? translate("BU TURU KAYBETTİNİZ") : translate("SÜRE DOLDU!")}
             </Title>
             <Text style={s.lineResultText}>
               {lineResult === 'won'
-                ? 'Takımınız 6 rengi başarıyla birleştirdi! Bonus parça ve +2 puan kazandınız.'
+                ? translate("Takımınız 6 rengi başarıyla birleştirdi! Bonus parça ve +2 puan kazandınız.")
                 : lineResult === 'lost'
-                ? 'Rakip takım bulmacayı sizden önce tamamladı ve bonus parçayı kazandı.'
-                : 'Bu turda kazanan çıkmadı. Bonus parça verilmedi.'}
+                ? translate("Rakip takım bulmacayı sizden önce tamamladı ve bonus parçayı kazandı.")
+                : translate("Bu turda kazanan çıkmadı. Bonus parça verilmedi.")}
             </Text>
             <Text style={[s.lineResultTeam, { color: lineResultColor }]}>
-              {mg.winner_side ? `Kazanan: ${teamName(mg.winner_side)}` : 'Berabere'}
+              {mg.winner_side ? format("Kazanan: {0}", teamName(mg.winner_side)) : translate("Berabere")}
             </Text>
-            {!!lineWinner && <Text style={[s.lineResultTeam,{color:lineResultColor}]}>{`🏆 İlk tamamlayan: ${lineWinner.nickname}${lineWinnerEntry?.reaction_ms != null ? ` · ${(lineWinnerEntry.reaction_ms/1000).toFixed(2)} sn` : ''}\nTakımına +2 puan kazandırdı.`}</Text>}
+            {!!lineWinner && <Text style={[s.lineResultTeam,{color:lineResultColor}]}>{format("🏆 İlk tamamlayan: {0}{1}\nTakımına +2 puan kazandırdı.", lineWinner.nickname, lineWinnerEntry?.reaction_ms != null ? format(" · {0} sn", (lineWinnerEntry.reaction_ms/1000).toFixed(2)) : '')}</Text>}
           </View>
         )}
 
         {mg.kind === 'line_connect' && <Card style={{gap:8}}>
-          <Title size={18}>{live ? 'Bitirme Süreleri · Yarış Devam Ediyor' : 'Bitirme Sıralaması'}</Title>
+          <Title size={18}>{live ? translate("Bitirme Süreleri · Yarış Devam Ediyor") : translate("Bitirme Sıralaması")}</Title>
           {[...data.players].sort((a,b)=>(entries.find(e=>e.player_id===a.id)?.reaction_ms??Infinity)-(entries.find(e=>e.player_id===b.id)?.reaction_ms??Infinity)).map((player,index)=>{
             const entry=entries.find(e=>e.player_id===player.id);
-            return <Text key={player.id} style={{color:colors.text}}>{index+1}. {player.nickname} · {entry?.reaction_ms!=null ? `${(entry.reaction_ms/1000).toFixed(2)} sn` : live ? 'Çözüyor…' : 'Tamamlayamadı'}{!live&&player.id===lineWinner?.id?' 🏆':''}</Text>;
+            return <Text key={player.id} style={{color:colors.text}}>{index+1}. {player.nickname} · {entry?.reaction_ms!=null ? format("{0} sn", (entry.reaction_ms/1000).toFixed(2)) : live ? translate("Çözüyor…") : translate("Tamamlayamadı")}{!live&&player.id===lineWinner?.id?' 🏆':''}</Text>;
           })}
-          {!!mine&&live&&<Muted>Süren kaydedildi. Herkes tamamlayınca veya 30 saniye dolunca sonuçlar açılır.</Muted>}
+          {!!mine&&live&&<Muted>{translate("Süren kaydedildi. Herkes tamamlayınca veya 30 saniye dolunca sonuçlar açılır.")}</Muted>}
         </Card>}
 
         {/* Katılım Durumu */}
@@ -389,7 +389,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               <Ionicons name={mg.winner_side ? 'trophy' : 'hand-left'} size={38} color={colors.gold} />
             </View>
             <Title size={24} color={mg.winner_side ? teamColor(mg.winner_side) : colors.text}>
-              {mg.winner_side ? `${teamName(mg.winner_side)} Kazandı!` : 'Berabere!'}
+              {mg.winner_side ? format("{0} Kazandı!", teamName(mg.winner_side)) : translate("Berabere!")}
             </Title>
             <Muted>{mg.winner_side ? translate('Bonus parça + 2 puan') : translate('Bu sefer bonus yok.')}</Muted>
           </Card>
@@ -407,7 +407,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         {!live && mg.kind !== 'pong' && (
           <Card accent={colors.cyan} style={{ gap: 10, paddingVertical: 12 }}>
             <Eyebrow icon="eye" color={colors.cyan}>{translate("Mini oyun sonuçları")}</Eyebrow>
-            {(mg.kind==='memory'||mg.kind==='reflex'&&variant==='memory')&&me.is_host&&<Btn title="Tekrar Oyna" icon="refresh" tone="success" disabled={busy||data.room.paused} onPress={async()=>{if(busy)return;setBusy(true);try{await api.replayMemory(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>}
+            {(mg.kind==='memory'||mg.kind==='reflex'&&variant==='memory')&&me.is_host&&<Btn title={translate("Tekrar Oyna")} icon="refresh" tone="success" disabled={busy||data.room.paused} onPress={async()=>{if(busy)return;setBusy(true);try{await api.replayMemory(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>}
             {mg.kind==='survivor_memory'&&(me.is_host?
               <Btn title={translate("Tekrar Oyna")} icon="refresh" tone="success" size="md" loading={busy} disabled={busy||data.room.paused}
                 onPress={async()=>{if(busy)return;setBusy(true);try{await api.survivorReplay(mg.id);}catch(error){show((error as Error).message,'error');}finally{setBusy(false);}}}/>
@@ -698,7 +698,7 @@ function MemoryGame({
           );
         })}
       </View>
-      {live&&go&&!mineDone&&<Btn title="Sıralamayı Tekrar Göster" tone="ghost" size="sm" onPress={()=>{setPlayerIdx(0);setLastCorrect(null);setErrorFlash(false);setDemoStarted(serverNow());}}/>}
+      {live&&go&&!mineDone&&<Btn title={translate("Sıralamayı Tekrar Göster")} tone="ghost" size="sm" onPress={()=>{setPlayerIdx(0);setLastCorrect(null);setErrorFlash(false);setDemoStarted(serverNow());}}/>}
       {mineDone && reactionMs != null && <Chip icon="speedometer" label={`${reactionMs} ms`} color={colors.mint} />}
     </Card>
   );

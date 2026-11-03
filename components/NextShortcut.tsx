@@ -1,3 +1,4 @@
+import { translate, format } from '../lib/i18n';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {StyleSheet,View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -44,7 +45,7 @@ export function NextShortcut({visible,ready,wait,busy,onPress}:{visible:boolean;
  const insets=useSafeAreaInsets();
  if(!visible)return null;
  return <View pointerEvents="box-none" style={[s.wrap,{bottom:Math.max(12,insets.bottom)+8}]}>
-  <Btn title={ready?'Sonraki →':`Sonraki · ${wait>0?`${wait} sn`:'Bekle'}`} size="md" tone="primary"
+  <Btn title={ready?translate("Sonraki →"):format("Sonraki · {0}", wait>0?format("{0} sn", wait):translate("Bekle"))} size="md" tone="primary"
    disabled={!ready||busy} loading={busy} onPress={onPress}/>
  </View>;
 }

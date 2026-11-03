@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, GestureResponderEvent, Image, ImageBackground, ImageSourcePropType, LayoutChangeEvent,
@@ -697,7 +698,7 @@ export function ProgressBar({ pct, colors: g = gradients.primary, height = 10, d
 }
 
 export function TimerBar({
-  left, total, color, label = 'Kalan Süre',
+  left, total, color, label = translate("Kalan Süre"),
 }: {
   left: number; total: number; color?: string; label?: string;
 }) {
@@ -730,7 +731,7 @@ export function TimerBar({
         <Pulse active={isUrgent} amount={1.12}>
           <View style={s.timerBadge}>
             <Text display style={{ color: activeColor, fontSize: 26, fontWeight: '900', lineHeight: 28, textShadowColor: alpha(activeColor, 0.6), textShadowRadius: 10 }}>{secs}</Text>
-            <Text style={s.timerUnit}>sn</Text>
+            <Text style={s.timerUnit}>{translate("sn")}</Text>
           </View>
         </Pulse>
       </View>
@@ -1009,11 +1010,11 @@ export function RoomExitButton({ onExit }: { onExit: () => Promise<void> }) {
       <IconBtn icon="exit-outline" size={38} color={colors.red} onPress={() => setVisible(true)} />
       <Sheet visible={visible} centered onClose={() => setVisible(false)}>
         <View style={{ gap: 14 }}>
-          <Title size={22}>Oyundan ayrıl?</Title>
-          <Muted>Odadan çıkacaksın. Kurucuysan oda başka bir oyuncuya devredilir.</Muted>
+          <Title size={22}>{translate("Oyundan ayrıl?")}</Title>
+          <Muted>{translate("Odadan çıkacaksın. Kurucuysan oda başka bir oyuncuya devredilir.")}</Muted>
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-            <Btn title="Vazgeç" tone="ghost" size="md" onPress={() => setVisible(false)} />
-            <Btn title="Odadan Ayrıl" tone="danger" size="md" loading={busy} onPress={leave} />
+            <Btn title={translate("Vazgeç")} tone="ghost" size="md" onPress={() => setVisible(false)} />
+            <Btn title={translate("Odadan Ayrıl")} tone="danger" size="md" loading={busy} onPress={leave} />
           </View>
         </View>
       </Sheet>

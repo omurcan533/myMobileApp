@@ -1,3 +1,4 @@
+import { translate, format } from './i18n';
 import type { Side } from './types';
 
 /**
@@ -78,9 +79,9 @@ export const teamColor = (s: Side | null | undefined) =>
 export const teamGradient = (s: Side | null | undefined) =>
   s === 'A' ? gradients.teamA : s === 'B' ? gradients.teamB : gradients.card;
 
-export const teamName = (s: Side | null | undefined) => (s ? `Takım ${s}` : 'Takımsız');
+export const teamName = (s: Side | null | undefined) => (s ? format('Takım {0}', s) : translate('Takımsız'));
 
-export const tierLabel = { base: 'Temel Kat', body: 'Gövde Katı', roof: 'Çatı Katı' } as const;
+export const tierLabel = { get base() { return translate('Temel Kat'); }, get body() { return translate('Gövde Katı'); }, get roof() { return translate('Çatı Katı'); } };
 
 /** Renk + alfa yardımcıları (hex → rgba). */
 export const alpha = (hex: string, a: number) => {

@@ -1,3 +1,4 @@
+import { translate, useLanguage } from '../lib/i18n';
 import React, {memo} from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +12,7 @@ import type { Ctx, Side } from '../lib/types';
 
 /** Canlı takip: iki takımın anlık puanı, topladığı parçalar ve kredisi (Fantasy kart tarzı HUD). */
 export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
+  useLanguage();
   const {width,height}=useWindowDimensions();
   const compact=width<=430||height<740;
   const { data, me, catalog } = ctx;
@@ -27,11 +29,11 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
     <View style={s.wrap}>
       <PlayerManager ctx={ctx} />
       <View style={s.topRow}>
-        <Text style={s.roomCode}>ODA {data.room.code}</Text>
+        <Text style={s.roomCode}>{translate("ODA")} {data.room.code}</Text>
         {currentRound && data.room.phase === 'question' && (
           <View style={s.questionBadge}>
             <Ionicons name="help-circle" size={14} color={colors.cyan} />
-            <Text style={s.questionBadgeText}>Soru {currentRound.idx + 1} / {questionCount}</Text>
+            <Text style={s.questionBadgeText}>{translate("Soru")} {currentRound.idx + 1} / {questionCount}</Text>
           </View>
         )}
         <RoomExitButton onExit={ctx.exitRoom} />
@@ -69,7 +71,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
                   {mine && (
                     <View style={s.mineBadge}>
                       <View style={s.mineDot} />
-                      <Text style={s.mineTag}>SENİN TAKIMIN</Text>
+                      <Text style={s.mineTag}>{translate("SENİN TAKIMIN")}</Text>
                     </View>
                   )}
                 </View>
@@ -82,7 +84,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
                       <Text numberOfLines={1} style={[s.memberName, player.id === me.id && s.memberSelfName]}>
                         {player.nickname}
                       </Text>
-                      {player.id === me.id && <Text style={s.memberSelfLabel}>SEN</Text>}
+                      {player.id === me.id && <Text style={s.memberSelfLabel}>{translate("SEN")}</Text>}
                     </View>
                   ))}
                 </ScrollView>
@@ -91,7 +93,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
               <View style={s.scoreRow}>
                 <GemIcon size={20} color={tColor} />
                 <Text display style={[s.score,compact&&{fontSize:24,lineHeight:28}]}>{t?.score ?? 0}</Text>
-                <Text style={s.scoreUnit}>puan</Text>
+                <Text style={s.scoreUnit}>{translate("puan")}</Text>
               </View>
 
               <View style={[s.subRow,compact&&{flexDirection:'row',alignItems:'center',gap:4}]}>
@@ -111,8 +113,8 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
           <Ionicons name={me.is_host ? 'eye' : 'hourglass'} size={16} color={colors.cyan} />
           <Text style={s.hostStatusText}>
             {me.is_host
-              ? 'Sonuçlar ekranda. Hazır olduğunuzda sonraki aşamaya geçin.'
-              : 'Sonuçları inceleyin; kurucu sonraki aşamaya geçince oyun devam edecek.'}
+              ? translate("Sonuçlar ekranda. Hazır olduğunuzda sonraki aşamaya geçin.")
+              : translate("Sonuçları inceleyin; kurucu sonraki aşamaya geçince oyun devam edecek.")}
           </Text>
         </View>
       )}

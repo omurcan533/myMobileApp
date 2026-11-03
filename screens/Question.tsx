@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { translate, useLanguage, format } from '../lib/i18n';
 import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -118,7 +118,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
             {prize && (
               <View style={{ alignItems: 'center', gap: 2, marginVertical: 4 }}>
                 <Text style={{ fontSize: 36 }}>{prize.emoji}</Text>
-                <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>{translate('Ödül:')} {prize.name_tr}</Text>
+                <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>{translate('Ödül:')} {translate(prize.name_tr)}</Text>
               </View>
             )}
             <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{instructions}</Muted>
@@ -145,8 +145,8 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
         {room.paused && (
           <View style={s.paused}>
             <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
-            <Title size={26}>Oyun Duraklatıldı</Title>
-            <Muted>Kaptanlar dilediğinde devam ettirebilir.</Muted>
+            <Title size={26}>{translate("Oyun Duraklatıldı")}</Title>
+            <Muted>{translate("Kaptanlar dilediğinde devam ettirebilir.")}</Muted>
             {me.is_captain && (
               <Btn title={translate("Devam Et")} icon="play" tone="success" disabled={busy} onPress={toggleBriefingPause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
             )}
@@ -200,11 +200,11 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
       if (r.correct === false) {
         soundFx.wrong();
         haptic.error();
-        show('Yanlış! 3 saniye bekle.', 'error');
+        show(translate("Yanlış! 3 saniye bekle."), 'error');
       } else if (r.suggested) {
         soundFx.click();
         haptic.light();
-        show('Öneri takımına iletildi', 'success');
+        show(translate("Öneri takımına iletildi"), 'success');
       } else if (r.correct === true) {
         soundFx.correct();
         haptic.success();
@@ -223,7 +223,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
       await api.playJoker(room.id);
       soundFx.cheer();
       haptic.success();
-      show('Joker kullanıldı! Soru çözüldü ve parça kazanıldı.', 'success');
+      show(translate("Joker kullanıldı! Soru çözüldü ve parça kazanıldı."), 'success');
     });
   const pause = () => run(async () => { await api.togglePause(room.id); });
   const continueGame = () => {
@@ -241,7 +241,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen key={round.id+String(isOpen)} active={isOpen}>
-      {isOpen&&<PlayHeader ctx={ctx} left={left} label={`Soru ${round.idx+1}/${totalQuestions}`} instructions="Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin." onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
+      {isOpen&&<PlayHeader ctx={ctx} left={left} label={format("Soru {0}/{1}", round.idx+1, totalQuestions)} instructions={translate("Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin.")} onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
       <KeyboardAvoidingView onLayout={e=>setAreaHeight(e.nativeEvent.layout.height)} style={{ flex: 1,minHeight:0 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
        <PlayArea active={isOpen} viewportRef={viewportRef} onLayout={measure}>
         <ScrollView key={round.id+':'+String(isOpen)} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -251,11 +251,11 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
           {!isOpen&&<View style={s.metaRow}>
             <View style={s.metaLeft}>
               <Chip color={tColor} icon="shield" label={teamName(me.team_side)} />
-              {me.is_captain && <Chip color={colors.gold} icon="ribbon" label="Kaptan" />}
-              {me.is_architect && <Chip color={colors.magenta} icon="construct" label="Mimar" />}
+              {me.is_captain && <Chip color={colors.gold} icon="ribbon" label={translate("Kaptan")} />}
+              {me.is_architect && <Chip color={colors.magenta} icon="construct" label={translate("Mimar")} />}
             </View>
             <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-              <Chip color={colors.cyan} icon="help-circle" label={`Soru ${round.idx + 1} / ${totalQuestions}`} />
+              <Chip color={colors.cyan} icon="help-circle" label={format("Soru {0} / {1}", round.idx + 1, totalQuestions)} />
               <Chip color={tierColor} label={tierLabel[round.tier as Tier]} />
             </View>
           </View>}
@@ -271,7 +271,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
               {prize && (
                 <View style={s.prizeTag}>
                   <Text style={s.prizeEmoji}>{prize.emoji}</Text>
-                  <Text style={s.prizeName}>{prize.name_tr}</Text>
+                  <Text style={s.prizeName}>{translate(prize.name_tr)}</Text>
                 </View>
               )}
             </View>}
@@ -279,7 +279,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
             <ScrollView nestedScrollEnabled style={{maxHeight:isOpen?Math.max(70,Math.min(180,areaHeight-300)):undefined,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center'}} keyboardShouldPersistTaps="handled">
             {round.kind === 'anagram' ? (
               <View style={s.tiles}>
-                {Array.from(round.prompt.toLocaleUpperCase('tr-TR')).map((ch, i) =>
+                {Array.from(round.prompt.toLocaleUpperCase(room.game_language === 'en' ? 'en-US' : 'tr-TR')).map((ch, i) =>
                   ch === ' ' ? (
                     <View key={i} style={{ width: 14 }} />
                   ) : (
@@ -297,7 +297,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
             </ScrollView>
             {isOpen && round.kind !== 'social' && slots.length > 0 && (
               <View style={s.slotsWrap}>
-                <Text style={s.slotsLabel}>CEVAP</Text>
+                <Text style={s.slotsLabel}>{translate("CEVAP")}</Text>
                 <View style={s.slotsRow}>
                   {slots.map((sl, i) =>
                     sl.sep ? (
@@ -308,7 +308,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                         style={[s.slot, sl.known && s.slotKnown, sl.bought && s.slotBought]}
                       >
                         <Text display style={[s.slotText, sl.bought && { color: colors.cyan }]}>
-                          {sl.known ? sl.ch.toLocaleUpperCase('tr-TR') : ''}
+                          {sl.known ? sl.ch.toLocaleUpperCase(room.game_language === 'en' ? 'en-US' : 'tr-TR') : ''}
                         </Text>
                       </View>
                     ),
@@ -319,10 +319,10 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
 
             {isOpen && round.kind !== 'social' && (
               <View style={s.creditRow}>
-                <CoinPill value={credits} label="kredi" />
+                <CoinPill value={credits} label={translate("kredi")} />
                 {slots.length > 0 && (
                   <Btn
-                    title="Harf Al (1)"
+                    title={translate("Harf Al (1)")}
                     icon="search"
                     tone="violet"
                     size="sm"
@@ -336,7 +336,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
             {showHint && (
               <View style={s.hintBox}>
                 <Ionicons name="bulb" size={16} color={colors.cyan} />
-                <Text style={s.hintText}>İpucu: {round.hints[0]}</Text>
+                <Text style={s.hintText}>{translate("İpucu:")} {round.hints[0]}</Text>
               </View>
             )}
           </Card>
@@ -348,7 +348,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
             round.kind === 'social' ? (
               <View style={{ gap: 12 }}>
                 <Card style={{ gap: 12 }}>
-                  <Eyebrow icon="people" color={colors.violet}>Odadaki Oyuncular (Şıklar)</Eyebrow>
+                  <Eyebrow icon="people" color={colors.violet}>{translate("Odadaki Oyuncular (Şıklar)")}</Eyebrow>
                   <ScrollView nestedScrollEnabled style={{maxHeight:Math.max(120,areaHeight-330)}} contentContainerStyle={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
                     {data.players.map((p) => {
                       const isSelected = (me.is_captain ? final : text) === p.nickname;
@@ -373,7 +373,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                                 if (r.suggested) {
                                   soundFx.pop();
                                   haptic.medium();
-                                  show(`${p.nickname} önerisi takıma iletildi`, 'success');
+                                  show(format("{0} önerisi takıma iletildi", p.nickname), 'success');
                                 }
                               });
                             }
@@ -386,9 +386,9 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                           
                           <View style={{ flex: 1, gap: 2 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <Text numberOfLines={2} style={[s.socialNickText,{fontSize:12,flexShrink:1}]}>{p.nickname}{p.id === me.id ? ' (Sen)' : ''}</Text>
+                              <Text numberOfLines={2} style={[s.socialNickText,{fontSize:12,flexShrink:1}]}>{p.nickname}{p.id === me.id ? translate(" (Sen)") : ''}</Text>
                               {pSuggestions > 0 && (
-                                <Chip label={`${pSuggestions} öneri`} color={colors.cyan} size="sm" icon="chatbubbles" />
+                                <Chip label={format("{0} öneri", pSuggestions)} color={colors.cyan} size="sm" icon="chatbubbles" />
                               )}
                             </View>
                             <Text style={[s.socialTeamText, { color: pColor }]}>{teamName(p.team_side)}</Text>
@@ -402,12 +402,10 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                   </ScrollView>
                   {me.is_captain ? (
                     <Muted style={{ textAlign: 'center', fontSize: 13, marginTop: 4 }}>
-                      Bir oyuncuya dokunup takımının nihai cevabı olarak onayla.
-                    </Muted>
+                       {translate("Bir oyuncuya dokunup takımının nihai cevabı olarak onayla.")} </Muted>
                   ) : (
                     <Muted style={{ textAlign: 'center', fontSize: 13, marginTop: 4 }}>
-                      Bir oyuncuya dokunarak Kaptanına öneride bulun.
-                    </Muted>
+                       {translate("Bir oyuncuya dokunarak Kaptanına öneride bulun.")} </Muted>
                   )}
                 </Card>
               </View>
@@ -418,14 +416,14 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                   value={text}
                   onChangeText={setText}
                   onSubmitEditing={submit}
-                  placeholder="Cevabın…"
+                  placeholder={translate("Cevabın…")}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={80}
                   editable={lockedLeft <= 0}
                 />
                 <Btn
-                  title={lockedLeft > 0 ? `${Math.ceil(lockedLeft)} sn bekle` : 'Cevabı Gönder'}
+                  title={lockedLeft > 0 ? format("{0} sn bekle", Math.ceil(lockedLeft)) : translate("Cevabı Gönder")}
                   icon={lockedLeft > 0 ? 'hourglass' : 'send'}
                   tone="success"
                   disabled={lockedLeft > 0 || !text.trim()}
@@ -437,7 +435,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
               <View style={{ gap: 12 }}>
                 {suggestions.length > 0 && (
                   <Card style={{ gap: 10 }}>
-                    <Eyebrow icon="chatbubbles" color={colors.muted}>Takım tahminleri</Eyebrow>
+                    <Eyebrow icon="chatbubbles" color={colors.muted}>{translate("Takım tahminleri")}</Eyebrow>
                     <View style={s.chips}>
                       {suggestions.map((a) => {
                         const who = data.players.find((p) => p.id === a.player_id)?.nickname ?? '?';
@@ -452,13 +450,13 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                             style={[s.chip, me.is_captain && { borderColor: alpha(colors.cyan, 0.5) }]}
                           >
                             <Text style={s.chipText}>{a.body}</Text>
-                            <Text style={s.chipWho}>{who} · {answerSeconds(a, round)} sn</Text>
+                            <Text style={s.chipWho}>{who} · {answerSeconds(a, round)}  {translate("sn")}</Text>
                           </Tap>
                         );
                       })}
                     </View>
                     {me.is_captain && (
-                      <Muted style={{ fontSize: 12 }}>Bir tahmine dokun → takım adına gönder.</Muted>
+                      <Muted style={{ fontSize: 12 }}>{translate("Bir tahmine dokun → takım adına gönder.")}</Muted>
                     )}
                   </Card>
                 )}
@@ -467,14 +465,14 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                   icon="create"
                   value={me.is_captain ? final : text}
                   onChangeText={me.is_captain ? setFinal : setText}
-                  placeholder={me.is_captain ? 'Nihai cevap (Kaptan)…' : 'Tahminini yaz…'}
+                  placeholder={me.is_captain ? translate("Nihai cevap (Kaptan)…") : translate("Tahminini yaz…")}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={80}
                 />
                 {me.is_captain ? (
                   <Btn
-                    title="Takım Adına Onayla & Gönder"
+                    title={translate("Takım Adına Onayla & Gönder")}
                     tone="primary"
                     icon="shield-checkmark"
                     disabled={!final.trim()}
@@ -483,7 +481,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                   />
                 ) : (
                   <Btn
-                    title="Takıma Öner"
+                    title={translate("Takıma Öner")}
                     tone="violet"
                     icon="chatbubble-ellipses"
                     disabled={!text.trim()}
@@ -502,29 +500,28 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                 <Title size={24}>
                   {round.winner_side
                     ? iWon
-                      ? 'Parça Bizim!'
-                      : `${teamName(round.winner_side)} parçayı aldı`
-                    : 'Kimse bilemedi'}
+                      ? translate("Parça Bizim!")
+                      : format("{0} parçayı aldı", teamName(round.winner_side))
+                    : translate("Kimse bilemedi")}
                 </Title>
                 <View style={s.revealedPill}>
-                  <Text style={s.revealedLabel}>Doğru Cevap</Text>
+                  <Text style={s.revealedLabel}>{translate("Doğru Cevap")}</Text>
                   <Text display style={s.revealedText}>{round.revealed_answer}</Text>
                 </View>
                 {roundAnswers.length > 0 ? (
                   <View style={s.finalAnswers}>
-                    <Eyebrow icon="chatbubbles" color={colors.muted}>Gönderilen Cevaplar</Eyebrow>
+                    <Eyebrow icon="chatbubbles" color={colors.muted}>{translate("Gönderilen Cevaplar")}</Eyebrow>
                     {roundAnswers.map((answer, index) => {
                       const sender = data.players.find((player) => player.id === answer.player_id);
                       const answerColor = answer.is_correct === true ? colors.mint : answer.is_correct === false ? colors.red : colors.cyan;
                       const answerLabel = answer.is_final
-                        ? answer.is_correct === true ? 'Doğru karar' : 'Yanlış karar'
-                        : 'Takım önerisi';
+                        ? answer.is_correct === true ? translate("Doğru karar") : translate("Yanlış karar")
+                        : translate("Takım önerisi");
                       return (
                         <View key={answer.id} style={[s.finalAnswerRow, { borderColor: alpha(answerColor, 0.35) }]}>
                           <View style={s.finalAnswerMeta}>
                             <Text numberOfLines={1} style={s.finalAnswerSender}>
-                              {index + 1}. {sender?.nickname ?? 'Oyuncu'} · {teamName(answer.side)} · {answerSeconds(answer, round)} sn
-                            </Text>
+                              {index + 1}. {sender?.nickname ?? translate("Oyuncu")} · {teamName(answer.side)} · {answerSeconds(answer, round)}  {translate("sn")} </Text>
                             <Chip
                               label={answerLabel}
                               icon={answer.is_final ? answer.is_correct ? 'checkmark-circle' : 'close-circle' : 'chatbubble-ellipses'}
@@ -538,7 +535,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                     })}
                   </View>
                 ) : (
-                  <Muted style={{ textAlign: 'center' }}>Bu turda kayıtlı cevap bulunmuyor.</Muted>
+                  <Muted style={{ textAlign: 'center' }}>{translate("Bu turda kayıtlı cevap bulunmuyor.")}</Muted>
                 )}
                 {round.winner_side && <Text style={{ fontSize: 46, marginTop: 4 }}>{prize?.emoji}</Text>}
               </Card>
@@ -547,11 +544,11 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
 
           {!isOpen && round.status === 'resolved' && (
             <Card accent={colors.cyan} style={s.advanceCard}>
-              <Eyebrow icon="eye" color={colors.cyan}>Tur sonucu</Eyebrow>
+              <Eyebrow icon="eye" color={colors.cyan}>{translate("Tur sonucu")}</Eyebrow>
               {me.is_host ? (
                <View ref={anchorRef} collapsable={false} onLayout={measure}>
                 <Btn
-                  title={continueReady ? 'Sonraki Aşamaya Geç' : `Sonucu İncele · ${continueWait} sn`}
+                  title={continueReady ? translate("Sonraki Aşamaya Geç") : format("Sonucu İncele · {0} sn", continueWait)}
                   icon={continueReady ? 'play-forward' : 'hourglass'}
                   tone="primary"
                   size="md"
@@ -561,7 +558,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                 />
                </View>
               ) : (
-                <Muted style={{ textAlign: 'center' }}>Sonraki aşama için kurucu bekleniyor.</Muted>
+                <Muted style={{ textAlign: 'center' }}>{translate("Sonraki aşama için kurucu bekleniyor.")}</Muted>
               )}
             </Card>
           )}
@@ -578,7 +575,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
               style={{ flex: 1 }}
             />
             {me.is_captain && (
-              <Btn title="Mola" icon="pause" tone="ghost" size="md" onPress={pause} style={{ flex: 1 }} />
+              <Btn title={translate("Mola")} icon="pause" tone="ghost" size="md" onPress={pause} style={{ flex: 1 }} />
             )}
           </View>}
         </ScrollView>
@@ -590,8 +587,8 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
       {room.paused && (
         <View style={s.paused}>
           <View style={s.bigIcon}><Ionicons name="pause" size={40} color={colors.cyan} /></View>
-          <Title size={26}>Oyun Duraklatıldı</Title>
-          <Muted>Kaptanlar dilediğinde devam ettirebilir.</Muted>
+          <Title size={26}>{translate("Oyun Duraklatıldı")}</Title>
+          <Muted>{translate("Kaptanlar dilediğinde devam ettirebilir.")}</Muted>
           {me.is_captain && (
             <Btn title={translate("Devam Et")} icon="play" tone="success" onPress={pause} style={{ marginTop: 16, alignSelf: 'stretch' }} />
           )}
@@ -603,19 +600,19 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
         <View style={s.warnCircle}>
           <Ionicons name="warning" size={30} color={colors.gold} />
         </View>
-        <Title size={21} style={{ textAlign: 'center' }}>Takım Adına Gönderilsin mi?</Title>
+        <Title size={21} style={{ textAlign: 'center' }}>{translate("Takım Adına Gönderilsin mi?")}</Title>
         <View style={s.answerPreviewBox}>
           <Text display style={s.confirmBody}>“{confirmAnswer}”</Text>
         </View>
         <Muted style={{ textAlign: 'center' }}>
           {round.kind === 'social'
-            ? 'Takımının ortak seçimi olarak onaylanacak ve parça takımına kazandırılacak!'
-            : 'Dikkat: Cevap yanlışsa bu yapı parçası doğrudan rakip takıma devredilir!'}
+            ? translate("Takımının ortak seçimi olarak onaylanacak ve parça takımına kazandırılacak!")
+            : translate("Dikkat: Cevap yanlışsa bu yapı parçası doğrudan rakip takıma devredilir!")}
         </Muted>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, alignSelf: 'stretch' }}>
-          <Btn title="Vazgeç" tone="ghost" size="md" style={{ flex: 1 }} onPress={() => setConfirmAnswer(null)} />
+          <Btn title={translate("Vazgeç")} tone="ghost" size="md" style={{ flex: 1 }} onPress={() => setConfirmAnswer(null)} />
           <Btn
-            title="Gönder"
+            title={translate("Gönder")}
             icon={round.kind === 'social' ? 'checkmark-circle' : 'rocket'}
             tone={round.kind === 'social' ? 'success' : 'danger'}
             size="md"

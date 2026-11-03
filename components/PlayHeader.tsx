@@ -1,3 +1,4 @@
+import { translate, format } from '../lib/i18n';
 import React, {useState} from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import {Ionicons} from '@expo/vector-icons';
@@ -16,25 +17,25 @@ export function PlayHeader({ctx,left,label,instructions,onPause,onJoker,busy=fal
  return <>
   <View style={s.row}>
    {(['A','B'] as Side[]).map((side,i)=><React.Fragment key={side}>
-    {i===1&&<View style={s.timer}><Text numberOfLines={1} style={s.label}>{label}</Text><Text accessibilityLabel={`Kalan süre ${Math.ceil(left)} saniye`} style={[s.time,left<10&&{color:colors.red}]}>◷ {Math.max(0,Math.ceil(left))}</Text></View>}
-    <Pressable accessibilityRole="button" accessibilityLabel={`Takım ${side}, ${ctx.data.teams.find(t=>t.side===side)?.score??0} puan. Takım bilgilerini aç`} onPress={()=>setOpen(true)} style={[s.team,{borderColor:teamColor(side)}]}>
-     <Text numberOfLines={1} style={{color:teamColor(side),fontSize:10,fontWeight:'800'}}>{side}{ctx.me.team_side===side?' · SEN':''}</Text>
+    {i===1&&<View style={s.timer}><Text numberOfLines={1} style={s.label}>{label}</Text><Text accessibilityLabel={format("Kalan süre {0} saniye", Math.ceil(left))} style={[s.time,left<10&&{color:colors.red}]}>◷ {Math.max(0,Math.ceil(left))}</Text></View>}
+    <Pressable accessibilityRole="button" accessibilityLabel={format("Takım {0}, {1} puan. Takım bilgilerini aç", side, ctx.data.teams.find(t=>t.side===side)?.score??0)} onPress={()=>setOpen(true)} style={[s.team,{borderColor:teamColor(side)}]}>
+     <Text numberOfLines={1} style={{color:teamColor(side),fontSize:10,fontWeight:'800'}}>{side}{ctx.me.team_side===side?translate(" · SEN"):''}</Text>
      <Text adjustsFontSizeToFit numberOfLines={1} style={s.score}>{ctx.data.teams.find(t=>t.side===side)?.score??0}</Text>
     </Pressable>
    </React.Fragment>)}
-   <Pressable accessibilityRole="button" accessibilityLabel="Oyun menüsü ve kurallar" onPress={()=>setOpen(true)} style={s.menu}><Ionicons name="ellipsis-horizontal" color={colors.text} size={22}/></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel={translate("Oyun menüsü ve kurallar")} onPress={()=>setOpen(true)} style={s.menu}><Ionicons name="ellipsis-horizontal" color={colors.text} size={22}/></Pressable>
   </View>
   <View style={s.pauseRow}>
-   <Btn title={ctx.data.room.paused?'Devam Et':ctx.me.is_captain?'Mola':'Mola · Kaptan'} icon={ctx.data.room.paused?'play':'pause'} size="sm" tone="ghost" disabled={busy||!ctx.me.is_captain} onPress={onPause}/>
+   <Btn title={ctx.data.room.paused?translate("Devam Et"):ctx.me.is_captain?translate("Mola"):translate("Mola · Kaptan")} icon={ctx.data.room.paused?'play':'pause'} size="sm" tone="ghost" disabled={busy||!ctx.me.is_captain} onPress={onPause}/>
   </View>
   <Sheet visible={open} onClose={()=>setOpen(false)}>
-   <Title size={20}>Oyun Menüsü</Title>
+   <Title size={20}>{translate("Oyun Menüsü")}</Title>
    <Muted>{instructions}</Muted>
    <Scoreboard ctx={ctx}/>
    <PartyBreak roomId={ctx.data.room.id} players={ctx.data.players} myId={ctx.me.id} isHost={ctx.me.is_host} canStart={false}/>
-   {ctx.me.is_captain&&<Btn title={ctx.data.room.paused?'Devam Et':'Mola'} disabled={busy} onPress={()=>{setOpen(false);onPause();}}/>}
-   {onJoker&&<Btn title="Joker Kullan" tone="gold" disabled={busy} onPress={()=>{setOpen(false);onJoker();}}/>}
-   <Btn title="Oyuna Dön" tone="ghost" onPress={()=>setOpen(false)}/>
+   {ctx.me.is_captain&&<Btn title={ctx.data.room.paused?translate("Devam Et"):translate("Mola")} disabled={busy} onPress={()=>{setOpen(false);onPause();}}/>}
+   {onJoker&&<Btn title={translate("Joker Kullan")} tone="gold" disabled={busy} onPress={()=>{setOpen(false);onJoker();}}/>}
+   <Btn title={translate("Oyuna Dön")} tone="ghost" onPress={()=>setOpen(false)}/>
   </Sheet>
  </>;
 }

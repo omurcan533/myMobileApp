@@ -1,4 +1,4 @@
-import { getLanguage, useLanguage } from '../lib/i18n';
+import { getLanguage, useLanguage, translate } from '../lib/i18n';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -177,7 +177,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
      if(!mounted)return;
      if(error){
       failures++;
-      if(failures>=3){stopped.current=true;setGameError('Oyun senkronizasyonu durdu: '+error.message);}
+      if(failures>=3){stopped.current=true;setGameError(translate("Oyun senkronizasyonu durdu: ")+error.message);}
      }else{
       failures=0;
       if(updated){

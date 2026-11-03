@@ -86,6 +86,10 @@ begin
   exit when variant=1;
  end loop;
  insert into room_minigames(id,room_id,kind,status,resolved_at,created_at) values(g,r,'reflex','done',now(),clock_timestamp());
+ -- WASM timestamps can share a millisecond. Give the replay source a strict
+ -- position after older fixtures and before its new replay, independent of UUID order.
+ update room_minigames set created_at=clock_timestamp()-interval '2 seconds' where room_id=r and id<>g;
+ update room_minigames set created_at=clock_timestamp()-interval '1 second' where id=g;
  next_id:=replay_memory(g);
  if replay_memory(g)<>next_id then raise exception 'replay duplicated'; end if;
  select sum(ascii(c))%3 into variant from regexp_split_to_table(next_id::text,'') c;

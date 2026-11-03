@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { translate, useLanguage, format } from '../lib/i18n';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,6 +46,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const [draftBotCount,setDraftBotCount]=useState<number|null>(null);
   const [factsReady, setFactsReady] = useState(false);
   const [factsToggleBusy, setFactsToggleBusy] = useState(false);
+  const [languageBusy, setLanguageBusy] = useState(false);
   const factsEnabled = room.friend_facts_enabled === true;
   const [factsReviewed, setFactsReviewed] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
@@ -163,7 +164,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   };
 
   const share = () =>
-    Share.share({ message: `${GAME_TITLE}${translate("'ne gel! Oda kodu:")} ${room.code}` }).catch(() => undefined);
+    Share.share({ message: format("{0}'ne gel! Oda kodu: {1}", translate(GAME_TITLE), room.code) }).catch(() => undefined);
 
   const empties = Math.max(0, Math.min(MAX_PLAYERS, Math.max(MIN_SLOTS, players.length + 1)) - players.length);
   const canStart = players.length >= 2;
@@ -182,6 +183,17 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               <View style={s.countBadge}>
                 <Text display style={s.countText}>{players.length}</Text>
                 <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
+              </View>
+            </View>
+            <View style={{ gap: 8 }}>
+              <Text style={{color:colors.text,fontWeight:'700'}}>{translate('Oyun dili')}</Text>
+              <Muted>{translate('Odadaki herkes aynı soruları bu dilde görür.')}</Muted>
+              <View style={{flexDirection:'row',gap:8}}>
+                {(['tr','en'] as const).map(language => <Btn key={language}
+                  title={language === 'tr' ? 'Türkçe' : 'English'}
+                  tone={(room.game_language ?? 'tr') === language ? 'primary' : 'ghost'}
+                  disabled={!me.is_host || languageBusy || busy} loading={languageBusy && room.game_language !== language}
+                  onPress={async()=>{setLanguageBusy(true);try{await api.setRoomGameLanguage(room.id,language);show(translate('Oyun dili kaydedildi.'),'success');}catch(error){show((error as Error).message,'error');}finally{setLanguageBusy(false);}}} />)}
               </View>
             </View>
             <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
@@ -299,7 +311,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               <Muted style={{ flex: 1 }}>{translate("Kurucunun takımları belirlemesi bekleniyor…")}</Muted>
             </Card>
           )}
-          {me.is_host && <><Btn title="Odayı Kapat" tone="danger" icon="close-circle" disabled={busy} onPress={() => setCloseConfirm(true)} /><Muted>Tek kişilik bekleme odaları 10 dakika sonra otomatik kapanır.</Muted></>}
+          {me.is_host && <><Btn title={translate("Odayı Kapat")} tone="danger" icon="close-circle" disabled={busy} onPress={() => setCloseConfirm(true)} /><Muted>{translate("Tek kişilik bekleme odaları 10 dakika sonra otomatik kapanır.")}</Muted></>}
           <Btn title={translate("Odadan Ayrıl")} tone="ghost" icon="exit-outline" size="md" onPress={leave} />
         </Reveal>
       </ScrollView>
@@ -318,9 +330,9 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
       </Modal>
       <Modal visible={closeConfirm} transparent animationType="fade" onRequestClose={() => { if (!busy) setCloseConfirm(false); }}>
         <View style={s.kickOverlay}><View style={s.kickDialog}>
-          <Title size={22}>Odayı kapat?</Title><Muted>Odadaki herkes ana ekrana döner. Bu oda koduyla tekrar katılınamaz.</Muted>
-          <Btn title="Vazgeç" tone="ghost" disabled={busy} onPress={() => setCloseConfirm(false)} />
-          <Btn title="Odayı Kapat" tone="danger" loading={busy} onPress={async () => { if (busy) return; setBusy(true); try { await api.closeRoom(room.id); ctx.onLeave(); } catch (error) { show((error as Error).message, 'error'); } finally { setBusy(false); } }} />
+          <Title size={22}>{translate("Odayı kapat?")}</Title><Muted>{translate("Odadaki herkes ana ekrana döner. Bu oda koduyla tekrar katılınamaz.")}</Muted>
+          <Btn title={translate("Vazgeç")} tone="ghost" disabled={busy} onPress={() => setCloseConfirm(false)} />
+          <Btn title={translate("Odayı Kapat")} tone="danger" loading={busy} onPress={async () => { if (busy) return; setBusy(true); try { await api.closeRoom(room.id); ctx.onLeave(); } catch (error) { show((error as Error).message, 'error'); } finally { setBusy(false); } }} />
         </View></View>
       </Modal>
       {toast}

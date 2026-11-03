@@ -1,7 +1,39 @@
+import { getLanguage, translate, type Language } from './i18n';
 import { supabase } from './supabase';
 import type { GameMode, GameResults, Side } from './types';
 
 const MESSAGES: Record<string, string> = {
+  already_answered: "Cevabın zaten kaydedildi.",
+  already_started: "Oyun zaten başladı.",
+  architect_change_not_allowed: "Mimar şu anda değiştirilemez.",
+  configuration_closed: "Oyun ayarları artık değiştirilemez.",
+  custom_mode_only: "Bu ayar yalnızca Özel modda kullanılabilir.",
+  invalid_candidate: "Geçerli bir takım arkadaşı seç.",
+  invalid_control: "Bu kontrol kullanılamıyor.",
+  invalid_game_selection: "Geçerli oyun türleri seç.",
+  invalid_paths: "Çizgileri kurallara uygun birleştir.",
+  invalid_target: "Odadaki geçerli bir oyuncuyu seç.",
+  minigame_closed: "Mini oyun sona erdi.",
+  minigame_not_found: "Mini oyun bulunamadı. Oyunu yenile.",
+  minigame_over: "Mini oyunun süresi doldu.",
+  naming_not_allowed: "Yaratığın adı şu anda değiştirilemez.",
+  no_minigames_selected: "Önce en az bir mini oyun seç.",
+  no_team: "Henüz bir takıma atanmadın.",
+  not_a_riddle: "Bu turda bireysel cevabını gönder.",
+  not_in_game: "Bu oyuna katılımın bulunamadı. Odaya yeniden katıl.",
+  not_in_room: "Bu odada değilsin. Yeniden katıl.",
+  not_live: "Oyun henüz başlamadı veya sona erdi.",
+  not_selected_for_pong: "Bu maçta seyircisin; arkadaşlarını destekleyebilirsin.",
+  not_started: "Oyun henüz başlamadı.",
+  party_event_active: "Önce mevcut etkinliği tamamla.",
+  pong_wrong_direction: "Bu yöndeki kontrol takım arkadaşına ait.",
+  results_not_ready: "Sonuçlar henüz hazır değil.",
+  round_not_found: "Tur bulunamadı. Oyunu yenile.",
+  use_game_specific_action: "Cevabını oyun ekranındaki kontrollerle gönder.",
+  invalid_language: 'Geçerli bir oyun dili seç.',
+  language_locked: 'Dil yalnızca bekleme odasında değiştirilebilir.',
+  no_unused_math_questions: 'Soru havuzu boş.',
+  invalid_question_count: 'Önce 1, 3 veya 5 soru seç.',
   team_would_be_empty: 'Bu takımda başka oyuncu kalmıyor. Odayı kapatmak için ayrıca onay vermelisin.',
   player_management_closed: 'Oyuncuları yalnızca oyun aralarında çıkarabilirsin.',
   cannot_kick_host: 'Oda kurucusu bu menüden çıkarılamaz.',
@@ -49,8 +81,8 @@ const MESSAGES: Record<string, string> = {
 export class GameError extends Error {
   code: string;
   constructor(raw: string) {
-    const code = Object.keys(MESSAGES).find((k) => raw.includes(k)) ?? 'unknown';
-    super(MESSAGES[code] ?? raw);
+    const code = Object.keys(MESSAGES).find((k) => new RegExp(`\\b${k}\\b`).test(raw)) ?? 'unknown';
+    super(translate(MESSAGES[code] ?? 'Beklenmeyen bir hata oluştu. Lütfen tekrar dene.'));
     this.code = code;
   }
 }
@@ -61,19 +93,20 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   return data as T;
 }
 
-export type OpenRoom = { code: string; mode: string; phase: string; player_count: number; host_nickname: string; created_at: string };
+export type OpenRoom = { game_language?: Language; code: string; mode: string; phase: string; player_count: number; host_nickname: string; created_at: string };
 
 export const api = {
   removeRoomPlayer: (room: string, player: string, confirmClose = false) => rpc<{room_closed:boolean;removed?:boolean}>('remove_room_player', {p_room:room,p_player:player,p_confirm_close:confirmClose}),
   closeRoom: (room: string) => rpc<void>('close_room', { p_room: room }),
   replayMemory: (mg: string) => rpc<string>('replay_memory', { p_minigame: mg }),
-  openRooms: () => rpc<OpenRoom[]>('list_open_rooms'),
+  openRooms: () => rpc<OpenRoom[]>('list_open_rooms_localized'),
   botSurvivorStep: (room:string)=>rpc<boolean>('bot_survivor_step',{p_room:room}),
   advanceTestBots: (room:string)=>rpc<{action:string;count?:number}>('advance_test_bots',{p_room:room}),
   setTestBots: (room:string,count:number)=>rpc<number>('set_test_bots',{p_room:room,p_count:count}),
   testBotsVote: (event:string)=>rpc<number>('test_bots_vote',{p_event:event}),
-  createRoom: (nick: string, mode: GameMode = 'standard') =>
-    rpc<{ room_id: string; code: string }>('create_room', { p_nickname: nick, p_mode: mode }),
+  createRoom: (nick: string, mode: GameMode = 'standard', language: Language = getLanguage()) =>
+    rpc<{ room_id: string; code: string }>('create_room_localized', { p_nickname: nick, p_mode: mode, p_language: language }),
+  setRoomGameLanguage: (room: string, language: Language) => rpc<void>('set_room_game_language', { p_room: room, p_language: language }),
   joinRoom: (code: string, nick: string) =>
     rpc<{ room_id: string; code: string }>('join_room', { p_code: code, p_nickname: nick }),
   setPlayerAvatar: (room: string, avatar: string) => rpc<void>('set_player_avatar', { p_room: room, p_avatar: avatar }),

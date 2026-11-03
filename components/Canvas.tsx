@@ -1,3 +1,4 @@
+import { translate } from '../lib/i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, GestureResponderEvent, PanResponder, PanResponderGestureState, Pressable, ScrollView, StyleSheet, View, ViewStyle,
@@ -205,13 +206,13 @@ function Board({
         <View style={s.speechBubble} pointerEvents="none">
           <Ionicons name="chatbubble-ellipses" size={14} color={colors.cyan} />
           <Text style={s.speechSender}>{speech.sender}:</Text>
-          <Text style={s.speechText}>“{speech.text}”</Text>
+          <Text style={s.speechText}>“{translate(speech.text)}”</Text>
         </View>
       )}
       {items.length === 0 && (
         <View style={s.empty} pointerEvents="none">
           <Ionicons name={editable ? 'arrow-down-circle' : 'hourglass'} size={34} color={colors.subtle} />
-          <Text style={s.emptyText}>{editable ? 'Aşağıdan parça ekle' : 'Mimar parça ekliyor…'}</Text>
+          <Text style={s.emptyText}>{editable ? translate("Aşağıdan parça ekle") : translate("Mimar parça ekliyor…")}</Text>
         </View>
       )}
     </View>
@@ -443,7 +444,7 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
 
       {editable ? (
         <>
-          <Hint id="canvas_gestures" text="Sürükle • iki parmakla büyüt/döndür • düğmeler hassas ayar için." />
+          <Hint id="canvas_gestures" text={translate("Sürükle • iki parmakla büyüt/döndür • düğmeler hassas ayar için.")} />
           <View style={[s.toolbar, { width: size }]}>
             <Tool icon="refresh" flip onPress={() => apply((t) => ({ rotation: t.rotation - 15 }))} disabled={!selected} />
             <Tool icon="refresh" onPress={() => apply((t) => ({ rotation: t.rotation + 15 }))} disabled={!selected} />
@@ -458,14 +459,14 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
             {unplaced.length === 0 ? (
               <View style={s.allPlaced}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.mint} />
-                <Muted>Tüm parçalar tuvalde</Muted>
+                <Muted>{translate("Tüm parçalar tuvalde")}</Muted>
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {unplaced.map((tp) => (
                   <Pressable key={tp.id} onPress={() => add(tp)} style={({ pressed }) => [s.tray, pressed && { transform: [{ scale: 0.94 }] }]}>
                     <Text style={{ fontSize: 30 }}>{catalog[tp.piece_id]?.emoji}</Text>
-                    <Text style={s.trayName} numberOfLines={1}>{catalog[tp.piece_id]?.name_tr}</Text>
+                    <Text style={s.trayName} numberOfLines={1}>{translate(catalog[tp.piece_id]?.name_tr ?? '')}</Text>
                     <View style={s.trayAdd}><Ionicons name="add" size={12} color="#05281A" /></View>
                   </Pressable>
                 ))}
@@ -475,13 +476,13 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
         </>
       ) : (
         <View style={{ gap: 12, width: size, alignItems: 'center' }}>
-          <Hint id="watcher" text="Mimarı yönlendirmek için sesli butonlara veya emojilere dokun!" />
+          <Hint id="watcher" text={translate("Mimarı yönlendirmek için sesli butonlara veya emojilere dokun!")} />
 
           {/* Sesli Yönlendirme Çipleri (Soundboard) */}
           <View style={s.soundboardSection}>
             <View style={s.soundboardHead}>
               <Ionicons name="megaphone" size={13} color={colors.subtle} />
-              <Text style={s.soundboardLabel}>MİMARA SESLİ YÖNLENDİRME</Text>
+              <Text style={s.soundboardLabel}>{translate("MİMARA SESLİ YÖNLENDİRME")}</Text>
             </View>
             <View style={s.phraseGrid}>
               {SOUNDBOARD_PHRASES.map((item) => (
@@ -491,7 +492,7 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
                   style={({ pressed }) => [s.phraseBtn, pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] }]}
                 >
                   <Ionicons name={item.icon} size={14} color={colors.cyan} />
-                  <Text style={s.phraseText}>{item.text}</Text>
+                  <Text style={s.phraseText}>{translate(item.text)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -501,7 +502,7 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
           <View style={{ width: size, gap: 6, marginVertical: 4 }}>
             <View style={s.soundboardHead}>
               <Ionicons name="sparkles" size={13} color={colors.cyan} />
-              <Text style={s.soundboardLabel}>CANLI TEPKİLER</Text>
+              <Text style={s.soundboardLabel}>{translate("CANLI TEPKİLER")}</Text>
             </View>
             <ScrollView
               horizontal
@@ -518,7 +519,7 @@ export function CanvasStudio({ ctx, size, onDraggingChange }: { ctx: Ctx; size: 
                   ]}
                 >
                   <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
-                  <Text style={s.reactLabel}>{item.label}</Text>
+                  <Text style={s.reactLabel}>{translate(item.label)}</Text>
                 </Pressable>
               ))}
             </ScrollView>

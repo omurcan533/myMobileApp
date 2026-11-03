@@ -1,4 +1,4 @@
-import { getLanguage, translate, useLanguage } from '../lib/i18n';
+import { getLanguage, translate, useLanguage, format, languageLocale } from '../lib/i18n';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -124,36 +124,36 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
    <View style={{paddingHorizontal:18,paddingTop:compact?12:24,paddingBottom:10,gap:10}}>
     <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}}>
      <View style={{flex:1,gap:3}}><Text style={{color:'#8EF5D1',fontSize:10,fontWeight:'900',letterSpacing:1.4}}>{translate("✦ UCUBE ATÖLYESİ ✦")}</Text><Title size={compact?23:27}>{translate("🏆 Ödül Gecesi")}</Title></View>
-     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel="Töreni atla ve sonuçları göster" style={{paddingVertical:10,paddingHorizontal:14,borderRadius:22,borderWidth:1,borderColor:'#8092B2',backgroundColor:'#1A2D4B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{translate("Atla ↗")}</Text></Pressable>
+     <Pressable onPress={onFinish} accessibilityRole="button" accessibilityLabel={translate("Töreni atla ve sonuçları göster")} style={{paddingVertical:10,paddingHorizontal:14,borderRadius:22,borderWidth:1,borderColor:'#8092B2',backgroundColor:'#1A2D4B'}}><Text style={{color:'#FFFFFF',fontWeight:'900'}}>{translate("Atla ↗")}</Text></Pressable>
     </View>
     <View style={{flexDirection:'row',gap:4}}>{Array.from({length:total},(_,i)=><View key={i} style={{height:5,flex:1,borderRadius:5,backgroundColor:i<=step?'#FFCE73':'#354765'}}/>)}</View>
-    <Text style={{color:'#D2E0F7',fontSize:12,fontWeight:'800'}}>{opening?'Perde açılıyor…':closingScene?'🎤 Jürinin kapanış konuşması':`🏅 Ödül ${step} / ${awards.length}`}</Text>
+    <Text style={{color:'#D2E0F7',fontSize:12,fontWeight:'800'}}>{opening?translate("Perde açılıyor…"):closingScene?translate("🎤 Jürinin kapanış konuşması"):format("🏅 Ödül {0} / {1}", step, awards.length)}</Text>
    </View>
    <ScrollView key={step} style={{flex:1}} contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:20,paddingVertical:compact?12:20}} showsVerticalScrollIndicator={false}>
     <Animated.View style={{opacity:fade,transform:[{translateY:lift},{scale}],alignItems:'center',gap:compact?10:17}}>
      <Text style={{fontSize:compact?43:58,textAlign:'center'}}>{opening?'🎭':closingScene?'🎤':award?.icon}</Text>
-     <Text style={{color:'#FFE1A5',fontSize:compact?12:14,fontWeight:'900',letterSpacing:1.3,textAlign:'center'}}>{opening?'BU GECE SAHNE SİZİN':closingScene?'JÜRİDEN SON SÖZ':award?.title.toLocaleUpperCase('tr-TR')}</Text>
+     <Text style={{color:'#FFE1A5',fontSize:compact?12:14,fontWeight:'900',letterSpacing:1.3,textAlign:'center'}}>{opening?translate("BU GECE SAHNE SİZİN"):closingScene?translate("JÜRİDEN SON SÖZ"):award?.title.toLocaleUpperCase(languageLocale())}</Text>
      {award&&<View style={{alignItems:'center',gap:7}}>
       <View style={{width:avatarSize+22,height:avatarSize+22,borderRadius:(avatarSize+22)/2,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:award.color,backgroundColor:'#101F3B'}}>
        <View style={{width:avatarSize,height:avatarSize,borderRadius:avatarSize/2,borderWidth:4,borderColor:tint,backgroundColor:'#263D63',alignItems:'center',justifyContent:'center',shadowColor:award.color,shadowOpacity:0.7,shadowRadius:22,elevation:10}}>
-        <Text style={{fontSize:avatarSize*0.41,color:'#FFFFFF',fontWeight:'900'}}>{award.player.trim().slice(0,1).toLocaleUpperCase('tr-TR')}</Text>
+        <Text style={{fontSize:avatarSize*0.41,color:'#FFFFFF',fontWeight:'900'}}>{award.player.trim().slice(0,1).toLocaleUpperCase(languageLocale())}</Text>
        </View>
        <View style={{position:'absolute',bottom:0,right:0,backgroundColor:'#FFCE78',borderRadius:30,padding:7}}><Text style={{fontSize:20}}>🏅</Text></View>
       </View>
-      {player?.team_side&&<Text style={{color:tint,fontSize:12,fontWeight:'800'}}>{teamName(player.team_side)} TAKIMI</Text>}
+      {player?.team_side&&<Text style={{color:tint,fontSize:12,fontWeight:'800'}}>{teamName(player.team_side)}  {translate("TAKIMI")}</Text>}
      </View>}
-     <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={2} style={{color:'#FFFFFF',fontSize:compact?25:32,fontWeight:'900',textAlign:'center',width:'100%'}}>{opening?'Hazır mısınız?':closingScene?'Bu gece unutulmazdı!':award?.player}</Text>
+     <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={2} style={{color:'#FFFFFF',fontSize:compact?25:32,fontWeight:'900',textAlign:'center',width:'100%'}}>{opening?translate("Hazır mısınız?"):closingScene?translate("Bu gece unutulmazdı!"):award?.player}</Text>
      <View style={{width:'100%',backgroundColor:'#152845',borderRadius:18,borderWidth:1,borderColor:'#647A9C',padding:compact?14:19}}>
-      <Text style={{color:'#F4F8FF',fontSize:compact?14:16,lineHeight:compact?22:26,textAlign:'center'}}>{opening?'Kupalar hazır; bahaneleri sonra dinleriz.':closingScene?closing:award?.reason}</Text>
+      <Text style={{color:'#F4F8FF',fontSize:compact?14:16,lineHeight:compact?22:26,textAlign:'center'}}>{opening?translate("Kupalar hazır; bahaneleri sonra dinleriz."):closingScene?closing:award?.reason}</Text>
      </View>
-     <Text style={{color:'#C6D6EF',fontSize:12,textAlign:'center'}}>{opening?'İlk ödül birazdan açıklanıyor…':closingScene?'🎉 Ucube Jürisi alkışlarla kapanıyor!':'👏 Alkışlar sahnedeki oyuncuya!'}</Text>
+     <Text style={{color:'#C6D6EF',fontSize:12,textAlign:'center'}}>{opening?translate("İlk ödül birazdan açıklanıyor…"):closingScene?translate("🎉 Ucube Jürisi alkışlarla kapanıyor!"):translate("👏 Alkışlar sahnedeki oyuncuya!")}</Text>
     </Animated.View>
    </ScrollView>
    <View style={{paddingHorizontal:18,paddingBottom:compact?16:26,paddingTop:10,gap:10,backgroundColor:'rgba(8,19,41,0.85)'}}>
     <Pressable accessibilityRole="button" onPress={closingScene?onFinish:next} style={{paddingVertical:16,borderRadius:15,backgroundColor:'#F8CC78',alignItems:'center'}}>
-     <Text style={{color:'#1A263A',fontSize:16,fontWeight:'900'}}>{closingScene?'📊 Tüm Sonuçları Gör':'Sonraki Sahne →'}</Text>
+     <Text style={{color:'#1A263A',fontSize:16,fontWeight:'900'}}>{closingScene?translate("📊 Tüm Sonuçları Gör"):translate("Sonraki Sahne →")}</Text>
     </Pressable>
-    <Text style={{color:'#AABEDB',fontSize:11,textAlign:'center'}}>{closingScene?'Kupa dağıtıldı, rövanş sizi bekliyor.':'Sahneler otomatik ilerler · Atla ile sonuçlara geç'}</Text>
+    <Text style={{color:'#AABEDB',fontSize:11,textAlign:'center'}}>{closingScene?translate("Kupa dağıtıldı, rövanş sizi bekliyor."):translate("Sahneler otomatik ilerler · Atla ile sonuçlara geç")}</Text>
    </View>
   </View>
  </Screen>;
@@ -217,8 +217,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           <Float amount={8}>
             <View style={s.bigIcon}><Ionicons name="flag" size={42} color={colors.gold} /></View>
           </Float>
-          <Title size={24}>{revealing ? 'Kazanan Açıklanıyor…' : 'Sonuçlar Hesaplanıyor…'}</Title>
-          <Muted>{revealing ? 'Davullar çalıyor! Hazır mısınız?' : 'Puanlar toplanıyor, lütfen bekle.'}</Muted>
+          <Title size={24}>{revealing ? translate("Kazanan Açıklanıyor…") : translate("Sonuçlar Hesaplanıyor…")}</Title>
+          <Muted>{revealing ? translate("Davullar çalıyor! Hazır mısınız?") : translate("Puanlar toplanıyor, lütfen bekle.")}</Muted>
         </View>
       </Screen>
     );
@@ -263,8 +263,8 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         <Card style={{gap:12,backgroundColor:'#12233D',borderColor:'#355275',borderWidth:1}}>
           <Title size={22}>{translate("🏅 Dostluk Madalyaları")}</Title>
           <Text style={{color:'#E4EDFF',fontSize:14,lineHeight:22}}>{translate("Dostluk Hafızası · Doğru cevap sıralaması")}</Text>
-          {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts} doğru</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>{translate("Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.")}</Text>}
-          {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>🏆 Üstün Dost Madalyası: {data.players.find(p=>p.id===x.player_id)?.nickname??'Oyuncu'} (Tüm yaşlar doğru!)</Text>)}
+          {friendScores.some(x=>x.attempts>0)?[...friendScores].filter(x=>x.attempts>0).sort((a,b)=>b.correct-a.correct||a.attempts-b.attempts).map((p,i)=><View key={p.player_id} style={{backgroundColor:'#1B3150',borderRadius:12,padding:11,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8}}><Text style={{color:'#FFFFFF',fontSize:14,fontWeight:'700',flex:1}}>{i===0&&p.correct>0?'🥇 ':''}{i+1}. {p.nickname}</Text><Text style={{color:'#C5FFE9',fontSize:14,fontWeight:'800'}}>{p.correct}/{p.attempts}  {translate("doğru")}</Text></View>):<Text style={{color:'#C6D8F2',lineHeight:22}}>{translate("Bu oyunda Dostluk Hafızası yanıt kaydı bulunmuyor.")}</Text>}
+          {ageScores.filter(x=>Number(x.total)>0&&Number(x.correct)===Number(x.total)).map(x=><Text key={x.player_id} style={{color:'#FFE3A1',lineHeight:22}}>{translate("🏆 Üstün Dost Madalyası:")} {data.players.find(p=>p.id===x.player_id)?.nickname??translate("Oyuncu")}  {translate("(Tüm yaşlar doğru!)")}</Text>)}
         </Card>
 
         <Pressable accessibilityRole="button" onPress={()=>setCeremonyDismissed(false)} style={{backgroundColor:'#46375D',borderColor:'#BFA1F2',borderWidth:1,borderRadius:15,padding:15,alignItems:'center'}}><Text style={{color:'#FFFFFF',fontSize:15,fontWeight:'900'}}>{getLanguage()==='en'?'🎬 Watch Awards':'🎬 Ödül Törenini İzle'}</Text></Pressable>
@@ -287,9 +287,9 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
           {secretResults.length?secretResults.map(m=>{
             const player=data.players.find(p=>p.id===m.player_id);
             return <View key={m.player_id} style={{backgroundColor:'#111D38',borderRadius:12,padding:13,gap:6,borderWidth:1,borderColor:'#4E547D'}}>
-              <Text style={{color:'#FFFFFF',fontSize:16,fontWeight:'900'}}>{m.status==='done'?'🏅':m.status==='skipped'?'⏭️':'🔒'} {player?.nickname??'Oyuncu'}</Text>
-              <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:22}}>{PARTY_MISSIONS[m.key]??'Gizli görev'}</Text>
-              <Text style={{color:m.status==='done'?'#9BF0C6':'#CAD3EB',fontWeight:'800'}}>{m.status==='done'?'Başardığını bildirdi':m.status==='skipped'?'Pas geçti':'Tamamlandığı bildirilmedi'}</Text>
+              <Text style={{color:'#FFFFFF',fontSize:16,fontWeight:'900'}}>{m.status==='done'?'🏅':m.status==='skipped'?'⏭️':'🔒'} {player?.nickname??translate("Oyuncu")}</Text>
+              <Text style={{color:'#E8F0FF',fontSize:14,lineHeight:22}}>{translate(PARTY_MISSIONS[m.key] ?? 'Gizli görev')}</Text>
+              <Text style={{color:m.status==='done'?'#9BF0C6':'#CAD3EB',fontWeight:'800'}}>{m.status==='done'?translate("Başardığını bildirdi"):m.status==='skipped'?translate("Pas geçti"):translate("Tamamlandığı bildirilmedi")}</Text>
             </View>;
           }):<Text style={{color:'#CBD8EF'}}>{translate("Bu maç için gizli görev kaydı bulunmuyor.")}</Text>}
         </Card>
@@ -303,7 +303,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
               end={{ x: 0.5, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <Chip icon="trophy" label="Resmi şampiyon" color={colors.gold} />
+            <Chip icon="trophy" label={translate("Resmi şampiyon")} color={colors.gold} />
             <Pulse amount={1.04}>
               <View style={s.champAvatarWrap}>
                 {champ ? (
@@ -321,16 +321,16 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
               </View>
             </Pulse>
             <Title size={30} color={champ ? champColor : colors.text}>
-              {champ ? teamName(champ) : 'Berabere'}
+              {champ ? teamName(champ) : translate("Berabere")}
             </Title>
             {champ && (
               <View style={s.pointsPill}>
                 <GemIcon size={18} color={champColor} />
                 <Text display style={[s.pointsText, { color: champColor }]}>{res.teams[champ].score}</Text>
-                <Text style={s.pointsUnit}>puan ile kazandı</Text>
+                <Text style={s.pointsUnit}>{translate("puan ile kazandı")}</Text>
               </View>
             )}
-            {isOfficialMine && <Chip icon="happy" label="Bu bizim!" color={colors.mint} solid />}
+            {isOfficialMine && <Chip icon="happy" label={translate("Bu bizim!")} color={colors.mint} solid />}
           </View>
         </Reveal>
 
@@ -344,18 +344,17 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
               <View style={{ flex: 1, gap: 4 }}>
                 <Eyebrow color={colors.violet}>{translate("En komik / çılgın tasarım")}</Eyebrow>
                 <Title size={22} color={funny ? funnyColor : colors.text}>
-                  {funny ? teamName(funny) : 'Berabere'}
+                  {funny ? teamName(funny) : translate("Berabere")}
                 </Title>
                 {funny ? (
                   <Muted>
-                    {res.teams[funny].creature_name ?? 'İsimsiz Ucube'} · {res.teams[funny].funny_votes} oy
-                  </Muted>
+                    {res.teams[funny].creature_name ?? translate("İsimsiz Ucube")} · {res.teams[funny].funny_votes}  {translate("oy")} </Muted>
                 ) : (
                   <Muted>{translate("Takımlar eşit komiklik oyu aldı")}</Muted>
                 )}
               </View>
             </View>
-            {isFunnyMine && <Chip icon="star" label="Bizim yaratık!" color={colors.mint} solid />}
+            {isFunnyMine && <Chip icon="star" label={translate("Bizim yaratık!")} color={colors.mint} solid />}
           </Card>
         </Reveal>
 
@@ -381,7 +380,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
                   <CanvasBoard ctx={ctx} side={side} size={colW - 24} />
                 </View>
                 <Text display style={s.creatureName} numberOfLines={2}>
-                  {teamData.creature_name ?? 'İsimsiz Ucube'}
+                  {teamData.creature_name ?? translate("İsimsiz Ucube")}
                 </Text>
                 {teamData.creature_title && (
                   <View style={{ backgroundColor: alpha(tColor, 0.15), borderWidth: 1, borderColor: alpha(tColor, 0.4), borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, marginTop: 4 }}>
@@ -412,20 +411,20 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
                   <View style={s.scorePill}>
                     <GemIcon size={18} color={tColor} />
                     <Text display style={s.scorePillValue}>{t.score}</Text>
-                    <Text style={s.scorePillUnit}>puan</Text>
+                    <Text style={s.scorePillUnit}>{translate("puan")}</Text>
                   </View>
                 </View>
 
                 <View style={s.piecesTray}>
                   <Text style={s.piecesList}>
-                    {pieces.length ? pieces.map((p) => catalog[p.piece_id]?.emoji ?? '❔').join('  ') : 'Henüz parça yok'}
+                    {pieces.length ? pieces.map((p) => catalog[p.piece_id]?.emoji ?? '❔').join('  ') : translate("Henüz parça yok")}
                   </Text>
                 </View>
 
                 <View style={s.statsRow}>
                   <View style={s.statItem}>
                     <Text display style={s.statValue}>{t.pieces}</Text>
-                    <Text style={s.statLabel}>Parça</Text>
+                    <Text style={s.statLabel}>{translate("Parça")}</Text>
                   </View>
                   <View style={s.statDivider} />
                   <View style={s.statItem}>
@@ -442,7 +441,7 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
 
         {/* ================= ANA MENÜ ================= */}
         <View style={{ marginTop: 10, marginBottom: 16 }}>
-          <Btn title="Ana Menüye Dön" tone="gold" icon="home" onPress={leave} />
+          <Btn title={translate("Ana Menüye Dön")} tone="gold" icon="home" onPress={leave} />
         </View>
       </ScrollView>
       {toast}

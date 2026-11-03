@@ -17,7 +17,7 @@ export function AvatarSelect({ selected, onSelect, onContinue }: { selected: Ava
           {AVATAR_OPTIONS.map((option) => (
             <Tap key={option.id} onPress={() => onSelect(option.id)} style={[styles.item, selected === option.id && styles.selected]}>
               <Avatar source={option.source} size={64} ring={selected === option.id ? colors.cyan : colors.borderLight} />
-              <Text style={styles.label}>{option.label}</Text>
+              <Text style={styles.label}>{translate(option.label)}</Text>
             </Tap>
           ))}
         </Card>

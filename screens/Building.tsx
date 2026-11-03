@@ -1,4 +1,4 @@
-import { translate, useLanguage } from '../lib/i18n';
+import { translate, useLanguage, format } from '../lib/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,7 +68,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
             <View style={s.architectChip}>
               <Avatar source={avatarFor(architect?.nickname, architect?.avatar_id)} size={22} ring={colors.magenta} glow={false} />
               <Text style={s.architectLabel}>
-                Mimar:{' '}
+                 {translate("Mimar:")}{' '}
                 <Text style={s.architectValue}>{architect?.nickname ?? '—'}</Text>
                 {me.is_architect && <Text style={s.architectSelf}>{translate(" (Sen)")}</Text>}
               </Text>
@@ -86,11 +86,11 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
         <View style={s.timerHeader}>
           <View style={s.timerLabelGroup}>
             <Ionicons name={isUrgent ? 'alarm' : 'timer-outline'} size={18} color={isUrgent ? colors.red : tColor} />
-            <Text style={s.timerLabel}>KALAN SÜRE</Text>
+            <Text style={s.timerLabel}>{translate("KALAN SÜRE")}</Text>
           </View>
           <View style={s.timeBadge}>
             <Text display style={[s.timeValue, { color: isUrgent ? colors.red : colors.text }]}>{secs}</Text>
-            <Text style={s.timeUnit}>sn</Text>
+            <Text style={s.timeUnit}>{translate("sn")}</Text>
           </View>
         </View>
         <ProgressBar
@@ -107,8 +107,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
           <Btn
             title={
               isMyTeamReady
-                ? `Rakip Bekleniyor (${readyCount}/2 Takım Hazır)`
-                : 'İnşa Tamamlandı, Hazırız!'
+                ? format("Rakip Bekleniyor ({0}/2 Takım Hazır)", readyCount)
+                : translate("İnşa Tamamlandı, Hazırız!")
             }
             tone={isMyTeamReady ? 'gold' : 'success'}
             icon={isMyTeamReady ? 'hourglass' : 'checkmark-circle'}
@@ -118,7 +118,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
                 const next = !isMyTeamReady;
                 await api.setBuildingReady(data.room.id, next);
                 show(
-                  next ? 'Takımınız hazır! Rakip bekleniyor…' : 'Hazırlık geri alındı',
+                  next ? translate("Takımınız hazır! Rakip bekleniyor…") : translate("Hazırlık geri alındı"),
                   next ? 'success' : 'info',
                 );
               })
@@ -135,11 +135,11 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>
                   {isMyTeamReady
-                    ? `Takım Hazır! Rakip Bekleniyor (${readyCount}/2)`
-                    : `Mimar (${architect?.nickname ?? 'Takım'}) inşayı tamamlıyor…`}
+                    ? format("Takım Hazır! Rakip Bekleniyor ({0}/2)", readyCount)
+                    : format("Mimar ({0}) inşayı tamamlıyor…", architect?.nickname ?? translate("Takım"))}
                 </Text>
                 <Muted style={{ fontSize: 11 }}>
-                  {isMyTeamReady ? 'Her iki takım da hazır olunca oylamaya geçilecek' : 'İnşaat hazır butonuna sadece Mimar basabilir'}
+                  {isMyTeamReady ? translate("Her iki takım da hazır olunca oylamaya geçilecek") : translate("İnşaat hazır butonuna sadece Mimar basabilir")}
                 </Muted>
               </View>
             </View>
@@ -148,7 +148,7 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       </View>
 
       {/* ================= TUVAL / STÜDYO ALANI ================= */}
-      {me.is_captain&&<Btn title="Mimarı Seç / Değiştir" icon="construct" onPress={()=>setOpen(true)} style={{marginBottom:12}}/>}
+      {me.is_captain&&<Btn title={translate("Mimarı Seç / Değiştir")} icon="construct" onPress={()=>setOpen(true)} style={{marginBottom:12}}/>}
       <View style={s.canvasContainer}>
         <CanvasStudio ctx={ctx} size={size} onDraggingChange={setDraggingPiece} />
       </View>
@@ -159,8 +159,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
       <Sheet visible={open} onClose={() => setOpen(false)}>
         <View style={s.sheetHead}>
           <View>
-            <Eyebrow color={colors.muted} icon="people">Takım yönetimi</Eyebrow>
-            <Title size={24}>Takım Ayarları</Title>
+            <Eyebrow color={colors.muted} icon="people">{translate("Takım yönetimi")}</Eyebrow>
+            <Title size={24}>{translate("Takım Ayarları")}</Title>
           </View>
           <IconBtn icon="close" onPress={() => setOpen(false)} size={40} />
         </View>
@@ -168,47 +168,47 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
         {/* Yaratık Adı & Özel Gücü Kartı */}
         {me.is_captain ? (
           <Card style={{ gap: 12 }}>
-            <Eyebrow icon="create" color={colors.muted}>Yaratık adı & unvanı (Kaptan)</Eyebrow>
+            <Eyebrow icon="create" color={colors.muted}>{translate("Yaratık adı & unvanı (Kaptan)")}</Eyebrow>
             <Input
               icon="sparkles"
               value={name}
               onChangeText={setName}
               maxLength={60}
-              placeholder={myTeam?.creature_name ?? 'örn. Siborg Ejderi'}
+              placeholder={myTeam?.creature_name ?? translate("örn. Siborg Ejderi")}
             />
             <Input
               icon="flash"
               value={title}
               onChangeText={setTitle}
               maxLength={60}
-              placeholder={myTeam?.creature_title ?? 'Özel Güç / Unvan (örn. Galaksi Fatihi)'}
+              placeholder={myTeam?.creature_title ?? translate("Özel Güç / Unvan (örn. Galaksi Fatihi)")}
             />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {['Alev Püskürten', 'Kozmik Yıkıcı', 'Galaksi Fatihi', 'Lazer Gözlü', 'Uykusuz Şampiyon'].map((sug) => (
+              {[translate("Alev Püskürten"), translate("Kozmik Yıkıcı"), translate("Galaksi Fatihi"), translate("Lazer Gözlü"), translate("Uykusuz Şampiyon")].map((sug) => (
                 <Tap key={sug} onPress={() => setTitle(sug)} color={alpha(colors.violet, 0.4)} accent={colors.violet} scaleTo={0.92} style={{ borderRadius: 100 }}>
                   <Chip size="sm" color={colors.violet} icon="sparkles" label={sug} />
                 </Tap>
               ))}
             </View>
             <Btn
-              title="Kaydet"
+              title={translate("Kaydet")}
               icon="save"
               size="md"
               tone="primary"
               disabled={!name.trim() && !title.trim()}
               onPress={() =>
                 guard(async () => {
-                  await api.setCreatureName(data.room.id, name || (myTeam?.creature_name ?? 'İsimsiz Canavar'), title || myTeam?.creature_title);
-                  show('Başarıyla kaydedildi', 'success');
+                  await api.setCreatureName(data.room.id, name || (myTeam?.creature_name ?? translate("İsimsiz Canavar")), title || myTeam?.creature_title);
+                  show(translate("Başarıyla kaydedildi"), 'success');
                 })
               }
             />
           </Card>
         ) : (
           <Card style={{ gap: 6 }}>
-            <Eyebrow icon="sparkles" color={colors.muted}>Yaratık adı & unvanı</Eyebrow>
+            <Eyebrow icon="sparkles" color={colors.muted}>{translate("Yaratık adı & unvanı")}</Eyebrow>
             <Text display style={s.creatureNameDisplay}>
-              {myTeam?.creature_name ?? 'Kaptan henüz belirlemedi'}
+              {myTeam?.creature_name ?? translate("Kaptan henüz belirlemedi")}
             </Text>
             {myTeam?.creature_title && (
               <Text style={{ color: colors.cyan, fontSize: 13, fontWeight: '600' }}>
@@ -221,8 +221,8 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
         {/* Mimar Seçimi Kartı */}
         {mates.length > 1 && (
           <Card style={{ gap: 12 }}>
-            <Eyebrow icon="construct" color={colors.muted}>Mimarı takım kaptanı seçer</Eyebrow>
-            <Muted>{me.is_captain?'Kendin dahil takımından birini seçebilirsin.':'Mimarı takım kaptanın değiştirebilir.'}</Muted>
+            <Eyebrow icon="construct" color={colors.muted}>{translate("Mimarı takım kaptanı seçer")}</Eyebrow>
+            <Muted>{me.is_captain?translate("Kendin dahil takımından birini seçebilirsin."):translate("Mimarı takım kaptanın değiştirebilir.")}</Muted>
             <View style={{ gap: 10 }}>
               {mates.map((p) => {
                 const isArch = p.is_architect;
@@ -236,20 +236,20 @@ export function BuildingScreen({ ctx }: { ctx: Ctx }) {
                     onPress={() =>
                       guard(async () => {
                         const changed = await api.voteArchitect(data.room.id, p.id);
-                        show(changed ? 'Yeni mimar seçildi!' : 'Bu oyuncu zaten mimar.', 'success');
+                        show(changed ? translate("Yeni mimar seçildi!") : translate("Bu oyuncu zaten mimar."), 'success');
                       })
                     }
                     style={[s.memberRow,width<=430&&{flexDirection:'column',alignItems:'stretch',gap:8}, isArch ? s.memberRowActive : s.memberRowInactive]}
                   >
                     <View style={s.memberInfo}>
                       <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={36} ring={isArch ? colors.mint : colors.borderLight} glow={isArch} />
-                      <Text numberOfLines={2} style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}{p.id===me.id?' (Sen)':''}</Text>
+                      <Text numberOfLines={2} style={[s.memberName, isArch && { color: colors.mint }]}>{p.nickname}{p.id===me.id?translate(" (Sen)"):''}</Text>
                     </View>
                     <Chip
                       size="sm"
                       color={isArch ? colors.mint : colors.muted}
                       icon={isArch ? 'construct' : 'hand-right'}
-                      label={isArch ? 'Aktif Mimar' : me.is_captain?'Mimar Seç':'Oyuncu'}
+                      label={isArch ? translate("Aktif Mimar") : me.is_captain?translate("Mimar Seç"):translate("Oyuncu")}
                     />
                   </Tap>
                 );
