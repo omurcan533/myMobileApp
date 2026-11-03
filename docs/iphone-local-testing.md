@@ -42,3 +42,15 @@ Komut cihaz seçimini açar; bağlı iPhone'u seç. Expo, `ios/` projesini ayarl
 - https://apps.apple.com/app/xcode/id497799835
 
 Bu hazırlık tek başına imzalı iOS uygulaması üretildiği veya fiziksel cihaz testinin geçtiği anlamına gelmez. Xcode kurulumu, kişisel imzalama ve bağlı cihaz gerekir.
+
+## Xcode 27 / iOS 27
+
+SDK 57 için `expo-build-properties` içindeki `ios.enableSceneSupport: true` ayarı gereklidir. `app.json` bu ayarı içerir; native dosyaları elle değiştirme. Expo prebuild, `AppDelegate` için `ExpoReactNativeFactoryProvider` uyumluluğunu ve `EXExpoAppSceneDelegate` sahne manifestini üretir. Bu ayar olmadan iOS 27, uygulamayı JavaScript başlamadan `UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption` hatasıyla kapatır.
+
+Kaynak: https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md
+
+## İlk kurulum sırasında imzalama doğrulaması
+
+macOS anahtar zinciri onaylarının ilk kez istendiği derlemede, bir framework imzalanamazsa CocoaPods'un paralel imzalama aşaması genel derlemeyi yine başarılı gösterebilir. Telefonda `ApplicationVerificationFailed` görülürse ayrıntılı cihaz kurulum hatasına bak; ana uygulamayla birlikte gömülü framework'lerin imzalarını da doğrula. Parola veya anahtar zinciri sıfırlama işlemiyle çözmeye çalışma. Onaylar tamamlandıktan sonra yeniden derle ve kur.
+
+Bu Mac'te Xcode 27.2, CocoaPods 1.16.2, ücretsiz Personal Team ve iPhone 14 Plus / iOS 27.0.1 ile derleme, kurulum ve gerçek cihazda profil ekranı açılışı doğrulandı. Tüm oyunların fiziksel cihaz testi ayrı aşamadır. Debug sürümünü test ederken Mac'teki Metro açık ve telefon aynı ağda olmalıdır; USB kablosu ilk kurulumdan sonra oyun verisini taşımak için gerekli değildir.

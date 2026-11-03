@@ -31,7 +31,9 @@ Apple Developer, Google Play Console ve Expo/EAS hesaplarına henüz başlanmad�
 
 - [x] Bağımlılık kurulumu, lint (0 hata/0 uyarı), TypeScript, 59 test ve web export tamamlandı.
 - [x] Expo SDK 57.0.31, geliştirme istemcisi, iOS prebuild ve iOS/web export kontrolleri.
-- [ ] Gerçek cihaz testleri; Xcode/CocoaPods kurulumu ve kişisel imzalama bekleniyor.
+- [x] Xcode 27.2, CocoaPods 1.16.2, ücretsiz Personal Team; iPhone 14 Plus / iOS 27.0.1 üzerinde kurulum ve profil ekranı açılışı doğrulandı.
+- [x] Expo 57 için iOS 27 sahne yaşam döngüsü açılış düzeltmesi.
+- [ ] Tüm oyunlar, karışık dil ve bağlantı kaybı fiziksel cihaz regresyonları.
 - [ ] Preview Android sürümünü gerçek telefonda dene; iOS için cihaz kaydı/imzalama veya TestFlight yolunu tamamla.
 - [ ] İki dilde oluştur/katıl, açık odalar, tüm oyunlar, sonuç, yeniden bağlanma, arka plana alma ve bağlantı kaybı testleri.
 - [ ] En az iki gerçek cihazla aynı odada karışık dil denemesi; kalabalık oda regresyonu.
