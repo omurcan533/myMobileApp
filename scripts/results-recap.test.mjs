@@ -30,3 +30,17 @@ test('winner and tie summaries retain the score without a speech',()=>{
   assert.ok(line.includes('8–7'));assert.ok(line.length<130);assert.ok(!line.includes('\n'));
  }
 });
+test('players with identical results get distinct short quips without rerender randomness',()=>{
+ const input={...data,room:{id:'match-one'},rounds:[{id:'round-one'}],minigames:[],answers:[{player_id:'one',is_correct:true}]};
+ for(const en of [false,true]){
+  const lines=Array.from({length:8},(_,index)=>shortPlayerQuip(player,index,input,[],[],en));
+  assert.equal(new Set(lines).size,8);
+  for(let index=0;index<lines.length;index++){
+   assert.equal(lines[index],shortPlayerQuip(player,index,input,[],[],en));
+   assert.ok(lines[index].startsWith('1 '));
+   assert.ok(lines[index].length<=120);
+  }
+  const next={...input,rounds:[{id:'round-two'}]};
+  assert.notEqual(lines[0],shortPlayerQuip(player,0,next,[],[],en));
+ }
+});

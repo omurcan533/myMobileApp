@@ -48,7 +48,7 @@ export function TugArena({blue,red,time,wide,height}:{blue:number;red:number;tim
   <Defs>
    <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#101D39"/><Stop offset="1" stopColor="#355073"/></LinearGradient>
    <LinearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#344A4A"/><Stop offset="1" stopColor="#142A31"/></LinearGradient>
-   <LinearGradient id="rope" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#F6D796"/><Stop offset=".5" stopColor="#B78140"/><Stop offset="1" stopColor="#70461D"/></LinearGradient>
+   <LinearGradient id="rope" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#F6D796"/><Stop offset="0.5" stopColor="#B78140"/><Stop offset="1" stopColor="#70461D"/></LinearGradient>
   </Defs>
   <Rect width="720" height="270" rx="18" fill="url(#sky)"/>
   <Path d="M0 110 L 90 78 L 175 108 L 275 71 L 380 110 L 470 80 L 580 106 L 720 75 L720 180 L0 180Z" fill="#1D3756"/>
@@ -71,9 +71,11 @@ export function TugArena({blue,red,time,wide,height}:{blue:number;red:number;tim
   </G>
   {strength>0.08&&[145,230,490,575].map((x,i)=>{const slip=i<2?blueSlip:redSlip;const puff=(Math.sin(step*1.7+i*1.8)+1)/2;return <G key={i} opacity={Math.min(.65,(.12+slip*.5+strength*.15)*puff)}><Ellipse cx={x+move+(i<2?8:-8)} cy={194-puff*12} rx={8+puff*9} ry={4+puff*5} fill="#C8B7A1"/><Circle cx={x+move+(i<2?19:-19)} cy={185-puff*16} r={2+puff*4} fill="#D9C3A2"/></G>;})}
   <Rect x="16" y="12" width="125" height="36" rx="12" fill="#542238" stroke={BLUE} strokeWidth="2"/>
-  <SvgText x="78" y="36" fill={BLUE} fontSize="18" fontWeight="900" textAnchor="middle">A: {blue}</SvgText>
+  <SvgText x="28" y="36" fill={BLUE} fontSize="18" fontWeight="900">A:</SvgText>
+  <SvgText x="65" y="36" fill={BLUE} fontSize="18" fontWeight="900">{blue}</SvgText>
   <Rect x="579" y="12" width="125" height="36" rx="12" fill="#0D355A" stroke={RED} strokeWidth="2"/>
-  <SvgText x="641" y="36" fill={RED} fontSize="18" fontWeight="900" textAnchor="middle">B: {red}</SvgText>
+  <SvgText x="591" y="36" fill={RED} fontSize="18" fontWeight="900">B:</SvgText>
+  <SvgText x="628" y="36" fill={RED} fontSize="18" fontWeight="900">{red}</SvgText>
   <Rect x="232" y="18" width="256" height="16" rx="8" fill="#111D2E" stroke="#8398A7" strokeWidth="1"/>
   <Rect x="360" y="21" width={Math.max(0,120*intensity)} height="10" rx="4" fill={diff>=0?BLUE:RED} transform={diff>=0?`translate(${-120*intensity},0)`:undefined}/>
   <Line x1="360" y1="16" x2="360" y2="37" stroke="#FFF0B0" strokeWidth="3"/>

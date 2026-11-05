@@ -86,7 +86,8 @@ test('party activities serialize canonical copy so each UI language can render t
    useRef(initial){const i=index++;return slots[i]??={current:initial};},useCallback:fn=>fn,useEffect(){},
   };react.default=react;
   const api={partyEventCurrent:async()=>null,partyEventStart:async(_room,_kind,prompt)=>{sent.push(prompt);return 'event';}};
-  const modules={react,'react-native':{View:'View',ScrollView:'ScrollView',TextInput:'TextInput',Modal:'Modal',Pressable:'Pressable'},
+  const modules={react,'react-native':{View:'View',ScrollView:'ScrollView',TextInput:'TextInput',Modal:'Modal',Pressable:'Pressable',KeyboardAvoidingView:'KeyboardAvoidingView',Platform:{OS:'ios'},Keyboard:{dismiss(){}}},
+   'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:59,bottom:34,left:0,right:0})},
    '@react-native-async-storage/async-storage':{__esModule:true,default:{}},'../lib/api':{api},'../lib/i18n':d,'../lib/partyMissions':{PARTY_MISSIONS:[]},'./ui':new Proxy({},{get:(_,name)=>name}),
   };
   const exports={};vm.runInNewContext(compile('../components/PartyBreak.tsx'),{exports,require:name=>{assert.ok(name in modules,name);return modules[name];}});

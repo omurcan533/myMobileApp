@@ -1086,7 +1086,7 @@ const s = StyleSheet.create({
     borderBottomColor: 'rgba(0,0,0,0.32)',
   },
   btnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnGhost: { backgroundColor: colors.glass, borderColor: colors.borderLight },
+  btnGhost: { backgroundColor: colors.glass, borderColor: colors.borderLight, borderBottomColor: colors.borderLight, borderBottomWidth: 1.5 },
 
   iconBtn: { backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', justifyContent: 'center' },
   iconBadge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },

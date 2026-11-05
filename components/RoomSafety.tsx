@@ -18,7 +18,7 @@ export function RoomSafety({ctx}:{ctx:Ctx}){
  }catch(e){setError((e as Error).message);}finally{locked.current=false;setBusy(false);}};
  const reasons:[ReportReason,string][]=[['harassment',loc('Taciz / tehdit','Harassment / threats')],['hate',loc('Nefret söylemi','Hate speech')],['sexual',loc('Cinsel içerik','Sexual content')],['personal_data',loc('Özel bilgi paylaşımı','Private information')],['other',loc('Diğer','Other')]];
  return <>
- <View style={{backgroundColor:colors.bg,paddingHorizontal:16,paddingTop:4,paddingBottom:Math.max(insets.bottom,8)}}><Btn title={loc('Güvenlik · Bildir / Engelle','Safety · Report / Block')} icon="shield-checkmark-outline" tone="ghost" size="sm" onPress={()=>setOpen(true)}/></View>
+ <View style={{flexShrink:0,backgroundColor:colors.bg,paddingHorizontal:16,paddingTop:4,paddingBottom:insets.bottom+8}}><Btn title={loc('Güvenlik · Bildir / Engelle','Safety · Report / Block')} icon="shield-checkmark-outline" tone="ghost" size="sm" onPress={()=>setOpen(true)}/></View>
  <Sheet visible={open} onClose={close}><Title size={22}>{loc('Oyuncu ve içerik güvenliği','Player and content safety')}</Title>
  {!target?<>
  {!!success&&<Text accessibilityRole="alert">{success}</Text>}
