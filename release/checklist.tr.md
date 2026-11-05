@@ -83,7 +83,7 @@ Bu liste depo incelemesine dayanır. İngilizce içerik geçişi canlı veritaba
 Gizlilik: https://omurcan533.github.io/myMobileApp/privacy.html
 Hesap silme: https://omurcan533.github.io/myMobileApp/delete-account.html
 
-Kalan teknik işler: moderasyon araçlarının fiziksel cihaz testi ve düzenli inceleme sürecinin işletilmesi; varsayılan Expo ikonunun değiştirilmesi; gerçek cihaz oyun testleri ve mağaza ekran görüntüleri. Ücretli geliştirici hesapları, kimlik/sözleşme, yaş/hedef kitle ve mağaza beyanları henüz tamamlanmadı.
+Kalan teknik işler: moderasyon araçlarının fiziksel cihaz testi ve düzenli inceleme sürecinin işletilmesi; yeni ikon/açılış görsellerinin gerçek cihaz kontrolü; gerçek cihaz oyun testleri ve mağaza ekran görüntüleri. Ücretli geliştirici hesapları, kimlik/sözleşme, yaş/hedef kitle ve mağaza beyanları henüz tamamlanmadı.
 
 ## Topluluk güvenliği
 
@@ -101,3 +101,14 @@ Topluluk: https://omurcan533.github.io/myMobileApp/community.html
 ## 5 Kasım doğrulaması
 
 77 otomatik test, TypeScript ve lint geçti; web export tamamlandı. Canlı sunucuda yalnızca geçici QA hesaplarıyla kurallar onayı, metin filtresi, yabancının bildirim yapamaması, özel kuyruğa erişimin reddi, iki yönlü oda engellemesi/engeli kaldırma ve güvenilir operatörün hesap kısıtlaması doğrulandı. Birden fazla hesap silinirken rapor FK sıralaması için ek regresyon düzeltmesi yapıldı; üç QA hesabı temizlendi. Fiziksel cihazdaki yeni ekran/oyun alanı testi henüz yapılmadı.
+
+## 5 Kasım — ikon ve açılış görselleri
+
+- [x] Oyuna özel tilki/rakun karakter işareti, opak 1024×1024 iOS/legacy ikon, şeffaf splash işareti ve web favicon.
+- [x] Android adaptif ön plan ve temalı ikon silueti; 66/108 güvenli alanı doğrulandı.
+- [x] Expo splash/system-ui config eklentileri ve SDK 57 patch sürüm uyumu.
+- [x] Bağımsız klasörde temiz iOS/Android prebuild; üretilen iOS ikonunun boyutu, RGB biçimi ve opaklığı doğrulandı. Native kaynaklar elle düzenlenmedi.
+- [x] 77 test, TypeScript, lint, web export ve Expo Doctor 21/21.
+- [ ] Yeni native derlemeyi iPhone/Android'e kur; preview/release sürümünde açılış görünümü ve sistem maskelerini kontrol et. Geliştirme istemcisindeki splash nihai görünümü tam temsil etmez.
+
+Görsel üretim istemi ve dosyalar: branding.tr.md.

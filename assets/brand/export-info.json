@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "source": "mascot-source-v1.png",
+  "canvas": 1024,
+  "background": "#050A14",
+  "androidSafeRadius": 300,
+  "iosOpaque": true,
+  "monochrome": "white silhouette with source alpha"
+}

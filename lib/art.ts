@@ -2,6 +2,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { Side } from './types';
 
 export const art = {
+  brand: require('../assets/brand/mascot-mark-v1.png') as ImageSourcePropType,
   bg: require('../assets/art/bg_jungle.jpg') as ImageSourcePropType,
   fox: require('../assets/art/mascot_fox.jpg') as ImageSourcePropType,
   raccoon: require('../assets/art/mascot_raccoon.jpg') as ImageSourcePropType,

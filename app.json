@@ -4,7 +4,7 @@
     "slug": "myMobileApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/app-icon-v1.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#050A14",
     "ios": {
@@ -14,15 +14,14 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#050A14",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/brand/android-foreground-v1.png",
+        "monochromeImage": "./assets/brand/android-monochrome-v1.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.omurcan533.ucubeatolyesi"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/brand/favicon-v1.png",
       "backgroundColor": "#050A14",
       "meta": {
         "viewport": "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
@@ -37,6 +36,15 @@
           "ios": {
             "enableSceneSupport": true
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/mascot-mark-v1.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#050A14"
         }
       ]
     ],

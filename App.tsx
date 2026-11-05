@@ -43,7 +43,7 @@ function Loading({ text }: { text: string }) {
       <View style={s.center}>
         <Float amount={10}>
           <View style={s.mascotRing}>
-            <Image source={art.fox} style={s.mascot} resizeMode="cover" />
+            <Image source={art.brand} style={s.mascot} resizeMode="cover" />
           </View>
         </Float>
         <ActivityIndicator color={colors.cyan} size="small" style={{ marginTop: 22 }} />
