@@ -1,5 +1,13 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  'Devam etmeden topluluk kurallarını kabul et.': 'Accept the community rules before continuing.',
+  'Bu hesap kısıtlandı. Destek adresinden itiraz edebilirsin.': 'This account is restricted. Contact support to appeal.',
+  'Engelleme nedeniyle bu odaya katılamazsın.': 'You cannot join this room because of a block.',
+  'Bu metin topluluk kurallarına uygun değil. Düzenleyip tekrar dene.': 'This text does not meet the community rules. Edit it and try again.',
+  'Bildirim bilgilerini kontrol et.': 'Check the report details.',
+  'Günlük bildirim sınırına ulaştın. Acil durumlar için destek adresine yaz.': 'You have reached the daily report limit. Contact support for urgent issues.',
+  'Kurallar güncellendi. Uygulamayı yenileyip tekrar dene.': 'The rules have changed. Reload the app and try again.',
+
   'Gizlilik politikası': 'Privacy policy',
   "Oturum bulunamadı. Uygulamayı yeniden açıp tekrar dene.": "No session was found. Reopen the app and try again.",
   "İşlem doğrulanamadı. Bağlantını kontrol edip tekrar dene veya destek adresine yaz.": "The operation could not be confirmed. Check your connection and try again, or contact support.",

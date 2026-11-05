@@ -20,7 +20,7 @@ function mount(file,props,{saved=null,storageFails=false,rooms=[]}={}){
   react,'react-native':{Platform:{OS:'web'},StyleSheet:{create:v=>v},useWindowDimensions:()=>({width:400}),AppState:{addEventListener:()=>({remove(){}})}},
   '@react-native-async-storage/async-storage':{__esModule:true,default:storage},'expo-linear-gradient':{LinearGradient:'Gradient'},'@expo/vector-icons':{Ionicons:'Icon'},
   '../components/ui':ui,'./ui':ui,'../components/NicknameStep':{NicknameStep:'NicknameStep',validNickname:v=>v.trim().length>0},
-  '../components/PrivacyInfo':{PrivacyInfo:'PrivacyInfo'},
+  '../components/PrivacyInfo':{PrivacyInfo:'PrivacyInfo'},'../components/SafetyProfile':{SafetyProfile:'SafetyProfile'},
   '../lib/art':{avatarFor:()=>'',art:{fox:''},AVATAR_OPTIONS:[]},'../lib/theme':{colors:new Proxy({},{get:()=> '#FFFFFF'}),gradients:{gold:[],primary:[]},alpha:()=>''},
   '../lib/i18n':{useLanguage:()=> 'tr',t:k=>k,translate:v=>v},'../lib/profile':{getProfile:async()=>({games:0,wins:0,lastRoom:null}),levelOf:()=>({level:1,progress:0})},
   '../lib/soundEffects':{soundFx:{isEnabled:()=>true}},'../lib/supabase':{supabase:{channel:()=>chain,removeChannel:async()=>{}}},

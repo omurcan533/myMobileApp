@@ -13,7 +13,7 @@ Apple Developer, Google Play Console ve Expo/EAS hesaplarına henüz başlanmad�
 - [ ] Expo projesini hesaba bağla, EAS projectId ve imzalamayı yapılandır. Başlangıç eas.json bu çalışma kopyasına eklendi; henüz build alınmadı.
 - [x] TR/EN gizlilik politikası, destek ve webden hesap silme sayfaları; uygulama içinden bağlantılar. Sağlayıcı log/yedek saklama ayarları ve yayıncı bilgileri ayrıca doğrulanacak.
 - [x] Anonim hesabı ve bağlı sunucu verilerini silme; açık onay, kimlik doğrulama ve web silme kodu.
-- [ ] Açık odalar ve takım mesajları nedeniyle içerik bildirimi, kullanıcı engelleme ve moderasyon akışlarını incele. Kurucunun oyuncu çıkarabilmesi tek başına bunların yerine geçmez.
+- [x] İçerik/oyuncu bildirimi, iki yönlü oda engellemesi, özel inceleme kuyruğu, içerik kaldırma/hesap kısıtlama araçları ve topluluk onayı eklendi. Düzenli insan incelemesi yayın öncesinde yürütülmeli.
 - [ ] Mevcut beş avatarla yayın mı yapılacağını belirle. Eski sohbetteki 20 ek avatar mevcut assets/art içinde yok; bunlar yayın için zorunlu değildir.
 
 ## Hesaplar ve mağaza hazırlığı
@@ -68,7 +68,7 @@ Bu liste depo incelemesine dayanır. İngilizce içerik geçişi canlı veritaba
 - [x] Kullanıcının seçtiği herkese açık destek e-postası: yilmazomurcan@gmail.com.
 - [x] TR/EN destek sayfası ve uygulama içi destek bağlantısı.
 - [x] Gizlilik veri dökümü ve inceleme/ekran görüntüsü çekim planı.
-- [x] Gizlilik politikası ve sunucu hesabı silme tamamlandı; moderasyon hâlâ yayın engeli.
+- [x] Gizlilik politikası ve sunucu hesabı silme tamamlandı; moderasyon araçları eklendi; düzenli insan incelemesi ve cihaz testi bekliyor.
 
 ## 4 Kasım — hesap ve veri silme
 
@@ -83,4 +83,21 @@ Bu liste depo incelemesine dayanır. İngilizce içerik geçişi canlı veritaba
 Gizlilik: https://omurcan533.github.io/myMobileApp/privacy.html
 Hesap silme: https://omurcan533.github.io/myMobileApp/delete-account.html
 
-Kalan teknik işler: içerik bildirimi, kullanıcı engelleme ve moderasyon; varsayılan Expo ikonunun değiştirilmesi; gerçek cihaz oyun testleri ve mağaza ekran görüntüleri. Ücretli geliştirici hesapları, kimlik/sözleşme, yaş/hedef kitle ve mağaza beyanları henüz tamamlanmadı.
+Kalan teknik işler: moderasyon araçlarının fiziksel cihaz testi ve düzenli inceleme sürecinin işletilmesi; varsayılan Expo ikonunun değiştirilmesi; gerçek cihaz oyun testleri ve mağaza ekran görüntüleri. Ücretli geliştirici hesapları, kimlik/sözleşme, yaş/hedef kitle ve mağaza beyanları henüz tamamlanmadı.
+
+## Topluluk güvenliği
+
+- [x] TR/EN topluluk kuralları ve sunucuda sürümlü açık onay.
+- [x] Her oda aşamasında oyuncu, takım adı/başlığı veya oda içeriği bildirme; günlük rapor sınırı.
+- [x] Hesaba bağlı engelleme: ortak odalardan ayrılma, iki yönde yeniden katılım engeli, açık oda listesinden gizleme, Profil'den kaldırma.
+- [x] Özel kuyruk ve yalnızca güvenilir sunucu/SQL operatörüne açık inceleme, içerik kaldırma ve hesap kısıtlama.
+- [x] Takma ad, mesaj, ifade, cevap ve adlandırmalarda temel sunucu metin filtresi. Kapsamlı otomatik moderasyon iddiası yok.
+- [x] Hesap silmede ilgili rapor kanıtı/açıklama/not kopyalarını temizleme.
+- [ ] Fiziksel cihazda ekran, klavye ve oyun alanı testi.
+- [ ] Yayında rapor kuyruğunun düzenli kontrolünü üstlenme. İşletim yönergesi: moderation-operations.tr.md.
+
+Topluluk: https://omurcan533.github.io/myMobileApp/community.html
+
+## 5 Kasım doğrulaması
+
+77 otomatik test, TypeScript ve lint geçti; web export tamamlandı. Canlı sunucuda yalnızca geçici QA hesaplarıyla kurallar onayı, metin filtresi, yabancının bildirim yapamaması, özel kuyruğa erişimin reddi, iki yönlü oda engellemesi/engeli kaldırma ve güvenilir operatörün hesap kısıtlaması doğrulandı. Birden fazla hesap silinirken rapor FK sıralaması için ek regresyon düzeltmesi yapıldı; üç QA hesabı temizlendi. Fiziksel cihazdaki yeni ekran/oyun alanı testi henüz yapılmadı.

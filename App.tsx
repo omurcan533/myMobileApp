@@ -16,6 +16,8 @@ import { useGameDriver } from './hooks/useGameDriver';
 import { useRoom } from './hooks/useRoom';
 import { ensureAnonymousSession, supabase } from './lib/supabase';
 import { api } from './lib/api';
+import {CommunityGate} from './components/CommunityGate';
+import {RoomSafety} from './components/RoomSafety';
 import { ACCOUNT_DELETED_KEY, type DeletionResult } from './lib/accountDeletion';
 import { soundFx } from './lib/soundEffects';
 import { syncServerTime } from './lib/serverTime';
@@ -86,17 +88,18 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
   const lastGame=data.minigames[data.minigames.length-1];
   const activePlay=(data.room.phase==='question'&&!!activeRound?.opens_at)||(data.room.phase==='minigame'&&lastGame?.status==='live'&&!!lastGame.starts_at);
   const withBreak=(screen:React.ReactNode)=><View style={{flex:1}}>{screen}{!activePlay&&data.room.phase!=='lobby'&&data.room.phase!=='results'&&<View pointerEvents="box-none" style={{position:'absolute',top:8,right:12,left:12,maxHeight:'70%'}}><PartyBreak roomId={data.room.id} players={data.players} myId={me.id} isHost={me.is_host} canStart={data.room.phase==='minigame'&&data.minigames.some(m=>m.status==='done')} autoKey={data.room.phase==='building' ? data.minigames.filter(m=>m.status==='done').slice(-1)[0]?.id ?? null : null} /></View>}</View>;
+  const safe=(screen:React.ReactNode)=><View style={{flex:1}}><View style={{flex:1}}>{screen}</View><RoomSafety ctx={ctx}/></View>;
   switch (data.room.phase) {
-    case 'lobby': return <LobbyScreen ctx={ctx} />;
+    case 'lobby': return safe(<LobbyScreen ctx={ctx} />);
     case 'team_reveal':
-      return data.players.every((player) => player.team_side !== null)
+      return safe(data.players.every((player) => player.team_side !== null)
         ? <TeamRevealScreen ctx={ctx} />
-        : <Loading text={translate("Takımlar belirleniyor…")} />;
-    case 'question': return withBreak(<QuestionScreen ctx={ctx} />);
-    case 'minigame': return withBreak(<MinigameScreen ctx={ctx} />);
-    case 'building': return withBreak(<BuildingScreen ctx={ctx} />);
-    case 'voting': return withBreak(<VotingScreen ctx={ctx} />);
-    case 'results': return <ResultsScreen ctx={ctx} />;
+        : <Loading text={translate("Takımlar belirleniyor…")} />);
+    case 'question': return safe(withBreak(<QuestionScreen ctx={ctx} />));
+    case 'minigame': return safe(withBreak(<MinigameScreen ctx={ctx} />));
+    case 'building': return safe(withBreak(<BuildingScreen ctx={ctx} />));
+    case 'voting': return safe(withBreak(<VotingScreen ctx={ctx} />));
+    case 'results': return safe(<ResultsScreen ctx={ctx} />);
   }
 }
 
@@ -242,13 +245,13 @@ export default function App() {
         </Screen>
       ) : !ready || !userId ? (
         <Loading text={translate("Arena hazırlanıyor…")} />
-      ) : roomId ? (
+      ) : <CommunityGate key={userId} onAccountDeleted={accountDeleted}>{roomId ? (
         <GameErrorBoundary key={roomId}><RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} /></GameErrorBoundary>
       ) : !avatarChosen ? (
         <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (
         <HomeScreen onEnter={enter} avatarId={avatarId} onAccountDeleted={accountDeleted} onAvatarChange={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id).catch(console.warn); }} />
-      )}
+      )}</CommunityGate>}
     </SafeAreaProvider>
   );
 }

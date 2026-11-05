@@ -3,6 +3,14 @@ import { supabase } from './supabase';
 import type { GameMode, GameResults, Side } from './types';
 
 const MESSAGES: Record<string, string> = {
+  community_consent_required: 'Devam etmeden topluluk kurallarını kabul et.',
+  account_restricted: 'Bu hesap kısıtlandı. Destek adresinden itiraz edebilirsin.',
+  blocked_room: 'Engelleme nedeniyle bu odaya katılamazsın.',
+  content_not_allowed: 'Bu metin topluluk kurallarına uygun değil. Düzenleyip tekrar dene.',
+  invalid_report: 'Bildirim bilgilerini kontrol et.',
+  report_limit: 'Günlük bildirim sınırına ulaştın. Acil durumlar için destek adresine yaz.',
+  invalid_policy_version: 'Kurallar güncellendi. Uygulamayı yenileyip tekrar dene.',
+
   already_answered: "Cevabın zaten kaydedildi.",
   already_started: "Oyun zaten başladı.",
   architect_change_not_allowed: "Mimar şu anda değiştirilemez.",

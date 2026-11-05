@@ -47,3 +47,9 @@ Herkese açık TR/EN politika: public/privacy.html; silme sayfası: public/delet
 Uygulama içi silme, onaylanmış sunucu başarısından sonra ilgili yerel profil/tercih anahtarlarını temizler ve yerel oturumu kapatır. Web silme başka cihazın depolamasını temizleyemez. Diğer oyuncuların bağımsız yazdığı içerikler, ortak toplamlar, sağlayıcı günlükleri ve yedekler için tüm veriler anında silinir iddiası yapılmaz. Anonim hesaplar için süreli otomatik silme etkin değildir.
 
 Yukarıdaki eksik kararların hesap silme ve güvenli web doğrulama maddeleri uygulanmıştır. Yayıncı hukuki bilgileri, sağlayıcı log/yedek saklama ayarları, hedef kitle ve moderasyon kararları mağaza başvurusu öncesinde tamamlanmalıdır.
+
+## Topluluk güvenliği verileri
+
+`app_safety` özel şemasında kabul edilen kural sürümü/tarihi, engeller, bildirim nedeni/açıklaması/ilgili içerik kanıtı, inceleme kararı ve hesap kısıtı tutulur. Normal oyuncular rapor kuyruğunu veya başkalarının engellerini okuyamaz; moderatör işlevleri istemciye kapalıdır. Oyuncuya ait hesap silinince bağlı rapor kanıtları, açıklamaları ve karar notları temizlenir; FK'lerle engel/onay/kısıt kaldırılır. Kimliksiz karar durumu/audit kaydı kalabilir. Raporlar için otomatik süreli temizlik henüz etkin değildir.
+
+Kendi engelleme listesinde engellenen hesabın takma adı gösterilir. Engelleme yeni anonim hesapların aynı kişi olduğunu belirleyemez. Bildirim kanıtları başka sağlayıcıya otomatik gönderilmez; geliştiricinin özel Supabase kuyruğunda incelenir.

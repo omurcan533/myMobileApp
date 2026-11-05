@@ -10,6 +10,7 @@ import {
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
 import { NicknameStep, validNickname } from '../components/NicknameStep';
+import { SafetyProfile } from '../components/SafetyProfile';
 import { PrivacyInfo } from '../components/PrivacyInfo';
 import type { DeletionResult } from '../lib/accountDeletion';
 import { supabase } from '../lib/supabase';
@@ -559,6 +560,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                   </View>
                 </Card>
               </Reveal>
+              <SafetyProfile />
               <PrivacyInfo onAccountDeleted={onAccountDeleted} />
             </>
           )}

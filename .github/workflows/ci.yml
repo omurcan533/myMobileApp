@@ -37,6 +37,8 @@ jobs:
         run: node --experimental-strip-types --test scripts/results-recap.test.mjs
       - name: Account deletion authorization and database tests
         run: node --experimental-strip-types --test scripts/account-deletion*.test.mjs
+      - name: Community safety regression tests
+        run: node --experimental-strip-types --test scripts/community-safety*.test.mjs
       - name: Edge function typecheck and lint
         run: |
           npx --yes deno@2.9.6 check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts
