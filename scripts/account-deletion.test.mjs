@@ -51,3 +51,23 @@ test('failed server deletion never reports success or discloses internals; recov
  assert.equal(res.status,503);assert.deepEqual(await res.json(),{error:'deletion_unavailable'});assert.equal(res.headers.get('Cache-Control'),'no-store');
  assert.equal(res.headers.get('Access-Control-Allow-Origin'),'*');
 });
+
+test('recovery codes cannot cross accounts or be issued with forged credentials',async()=>{
+ const f=fixture();
+ assert.equal((await f.call({action:'issue_code'},null)).status,401);
+ assert.equal((await f.call({action:'issue_code'},'forged')).status,401);
+ assert.equal(f.issued.length,0);
+ const alice=await (await f.call({action:'issue_code'},'valid-a')).json();
+ const bob=await (await f.call({action:'issue_code'},'valid-b')).json();
+ assert.equal(f.issued.length,2);
+ assert.notEqual(alice.code,bob.code);
+ assert.equal((await f.call({action:'redeem_code',confirmation:'DELETE',code:alice.code.slice(0,-1)+'g'},null)).status,400);
+ assert.deepEqual(f.deleted,[]);
+ const aliceResult=await f.call({action:'redeem_code',confirmation:'DELETE',code:alice.code},null);
+ assert.equal(aliceResult.status,200);
+ assert.deepEqual(f.deleted,['alice']);
+ assert.equal((await f.call({action:'redeem_code',confirmation:'DELETE',code:alice.code},null)).status,400);
+ const bobResult=await f.call({action:'redeem_code',confirmation:'DELETE',code:bob.code},null);
+ assert.equal(bobResult.status,200);
+ assert.deepEqual(f.deleted,['alice','bob']);
+});
