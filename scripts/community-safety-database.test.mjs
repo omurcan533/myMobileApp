@@ -56,3 +56,37 @@ test('blocking during court cleans restrictive FKs, restores pause and transfers
  assert.equal((await db.query('select count(*)::int n from party_court_cases')).rows[0].n,0);assert.equal((await db.query('select paused from rooms')).rows[0].paused,false);assert.equal((await db.query('select count(*)::int n from players where is_architect')).rows[0].n,1);
  }finally{await db.close();}
 });
+
+test('a non-moderator cannot read private reports or execute review actions, including after filing a report',async()=>{
+ const db=await setup();try{
+  const r=await room(db,1,'Alice');await accept(db,2);
+  await db.query(`select join_room('${r.code}','Bob')`);
+  const target=(await db.query(`select id from players where user_id='${id(2)}'`)).rows[0].id;
+  await actor(db,1);
+  const report=(await db.query('select safety_report($1,$2,$3,$4,$5) id',[r.room_id,target,'player','harassment','private evidence'])).rows[0].id;
+  await db.exec('set role authenticated');
+  for(const query of [
+   'select * from app_safety.reports',
+   'select * from app_safety.audit',
+   'select * from app_safety.bans',
+  ])await assert.rejects(db.query(query),/permission denied/);
+  await assert.rejects(db.query('select app_safety.review($1,$2,$3)',[report,'dismiss','unauthorized']),/permission denied/);
+  await db.exec('reset role');
+  const row=(await db.query('select status from app_safety.reports where id=$1',[report])).rows[0];
+  assert.equal(row.status,'open');
+  assert.equal((await db.query('select count(*)::int n from app_safety.audit')).rows[0].n,0);
+ }finally{await db.close();}
+});
+test('blocking another player cannot be undone by a different account',async()=>{
+ const db=await setup();try{
+  const r=await room(db,1,'Alice');await accept(db,2);
+  await db.query(`select join_room('${r.code}','Bob')`);
+  const target=(await db.query(`select id from players where user_id='${id(2)}'`)).rows[0].id;
+  await actor(db,1);await db.query('select safety_block($1,$2)',[r.room_id,target]);
+  await actor(db,3);
+  await db.query('select safety_unblock($1)',[id(2)]);
+  await actor(db,1);
+  assert.equal((await db.query('select * from safety_blocks()')).rows.length,1);
+  await assert.rejects(db.query(`select join_room('${r.code}','Alice')`),/blocked_room/);
+ }finally{await db.close();}
+});
