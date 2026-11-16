@@ -43,6 +43,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const mg = originalMg;
   const [friendQuizOpen,setFriendQuizOpen]=useState(false);
   const [pongHolding, setPongHolding] = useState(false);
+  const [lineDrawing, setLineDrawing] = useState(false);
   const pongWebStyle = Platform.OS === 'web' && originalMg?.kind === 'pong'
     ? ({ userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } as any)
     : undefined;
@@ -201,7 +202,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
       <PlayArea active={live&&!isPreparing} viewportRef={viewportRef} onLayout={measure}>
-      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding && !(mg.kind === 'line_connect' && lineDrawing)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
       {(isPreparing||!live)&&<View style={s.headerRow}>
@@ -270,7 +271,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
         ) : mg.kind === 'song_complete' ? (
           <SongCompleteGame key={mg.id} id={mg.id} prompt={mg.prompt ?? ''} live={live} canPlay={go} paused={data.room.paused} winner={mg.winner_side} side={me.team_side} onError={message=>show(message,'error')} />
         ) : mg.kind === 'line_connect' ? (
-          <LineConnectGame key={mg.id} board={mg.line_connect_state as any} disabled={!!mine || !live || !go || data.room.paused} onWin={async (paths) => {
+          <LineConnectGame key={mg.id} onDrawingChange={setLineDrawing} board={mg.line_connect_state as any} disabled={!!mine || !live || !go || data.room.paused} onWin={async (paths) => {
             try { await api.submitLineConnect(mg.id, paths); soundFx.correct(); haptic.success(); }
             catch (error) { show((error as Error).message, 'error'); throw error; }
           }} />

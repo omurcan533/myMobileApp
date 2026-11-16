@@ -28,8 +28,8 @@ const complete=(paths:Point[][],board:LineBoard)=>paths.every((p,i)=>p.length>=2
  (dist(p[0],board.pairs[i][0])<1&&dist(p[p.length-1],board.pairs[i][1])<1||
  dist(p[0],board.pairs[i][1])<1&&dist(p[p.length-1],board.pairs[i][0])<1));
 
-export function LineConnectGame({onWin,disabled=false,board:given}:{
- onWin?:(paths:Point[][])=>void|Promise<void>;disabled?:boolean;board?:LineBoard|null;
+export function LineConnectGame({onWin,disabled=false,board:given,onDrawingChange}:{
+ onWin?:(paths:Point[][])=>void|Promise<void>;disabled?:boolean;board?:LineBoard|null;onDrawingChange?:(drawing:boolean)=>void;
 }) {
  const area=usePlaySize();
  const boardSize=Math.max(150,Math.min(390,area.width-32,area.height-160));
@@ -46,6 +46,7 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
  const boardRef=useRef(board);
  const winRef=useRef(onWin);
  const lastTouch=useRef<Point|null>(null);
+ const drawing=useRef(false);
  
  useEffect(()=>{widthRef.current=boardWidth;disabledRef.current=disabled;boardRef.current=board;winRef.current=onWin;},[boardWidth,disabled,board,onWin]);
 
@@ -124,6 +125,7 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   if(p)begin(p);
  },[begin,coords]);
  const move=useCallback((x:number,y:number)=>{
+  if(!drawing.current)return;
   const p=coords(x,y),previous=lastTouch.current;
   if(!p)return;
   const steps=previous?Math.min(32,Math.max(1,Math.ceil(dist(p,previous)/16))):1;
@@ -133,18 +135,30 @@ export function LineConnectGame({onWin,disabled=false,board:given}:{
   }
   lastTouch.current=p;
  },[advance,coords]);
- const endTouch=useCallback(()=>{lastTouch.current=null;},[]);
+ const endTouch=useCallback(()=>{
+  lastTouch.current=null;
+  if(drawing.current){
+   drawing.current=false;
+   onDrawingChange?.(false);
+  }
+ },[onDrawingChange]);
+ // Release the parent scroll lock when the board pauses, finishes or unmounts.
+ useEffect(()=>endTouch,[disabled,endTouch]);
  const [pan,setPan]=useState<ReturnType<typeof PanResponder.create>|null>(null);
  useEffect(()=>{const task=setTimeout(()=>setPan(PanResponder.create({
-  onStartShouldSetPanResponder:()=>true,
-  onMoveShouldSetPanResponder:()=>true,
-  onPanResponderGrant:e=>start(e.nativeEvent.locationX,e.nativeEvent.locationY),
+  onStartShouldSetPanResponder:()=>!disabledRef.current&&!completedRef.current,
+  onPanResponderGrant:e=>{
+   if(disabledRef.current||completedRef.current)return;
+   drawing.current=true;
+   onDrawingChange?.(true);
+   start(e.nativeEvent.locationX,e.nativeEvent.locationY);
+  },
   onPanResponderMove:e=>move(e.nativeEvent.locationX,e.nativeEvent.locationY),
   onPanResponderRelease:endTouch,
   onPanResponderTerminate:endTouch,
   onPanResponderTerminationRequest:()=>false,
- })),0);return()=>clearTimeout(task);},[start,move,endTouch]);
- const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);lastTouch.current=null;};
+ })),0);return()=>clearTimeout(task);},[start,move,endTouch,onDrawingChange]);
+ const reset=()=>{const fresh=board.pairs.map(()=>[] as Point[]);pathsRef.current=fresh;setPaths(fresh);activeRef.current=null;setActive(null);completedRef.current=false;setCompleted(false);endTouch();};
  return <Card style={{gap:area.active?6:12,padding:area.active?10:16}}>
   <Title size={area.active?18:22}>{translate("Çizgi Birleştirme · Bölüm")} {board.level}</Title>
   <Muted>{board.difficulty ? format("Zorluk: {0} · ", board.difficulty) : ''}{paths.filter((p,i)=>p.length>=2&&dist(p[p.length-1],board.pairs[i][0])<1||p.length>=2&&dist(p[p.length-1],board.pairs[i][1])<1).length}  {translate("/ 6 renk tamamlandı")}</Muted>
