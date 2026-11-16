@@ -150,8 +150,36 @@ const secretCard=mission?(missionOpen ?
 if(!event&&(!canStart||dismissed))return secretCard;
 return <View style={{gap:10}}>
 {secretCard}
-{!event?<Card style={{gap:8}}><View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}><Title size={18}>{translate("🎉 Eğlence Molası")}</Title><Pressable accessibilityRole="button" accessibilityLabel={translate("Eğlence molasını kapat")} hitSlop={12} onPress={()=>{setShowMenu(false);setDismissed(true);}} style={{padding:8,borderRadius:18,backgroundColor:'#25344D'}}><Text style={{fontSize:19,fontWeight:'800',color:'#FFFFFF'}}>✕</Text></Pressable></View><Muted>{translate("Ana oyunun arasında arkadaşlarını şaşırtacak bir etkinlik başlat.")}</Muted>{isHost&&<Btn title={showMenu?translate("Etkinlikleri Gizle"):translate("Sürpriz Etkinlik Başlat")} onPress={()=>setShowMenu(v=>!v)}/>}
-{showMenu&&isHost&&EVENTS.map(([kind,label])=><Btn key={kind} title={translate(label)} tone="ghost" disabled={busy||(kind==='eye_duel'&&players.length%2!==0)} onPress={()=>start(kind)}/>)}</Card>:
+{!event ? (
+ <Card
+  gradient={['rgba(221, 233, 255, 0.14)', 'rgba(221, 233, 255, 0)']}
+  style={{
+   gap:10,
+   backgroundColor:'rgba(15, 24, 42, 0.97)',
+   borderColor:'rgba(202, 220, 249, 0.34)',
+   borderTopColor:'rgba(224, 235, 255, 0.46)',
+  }}
+ >
+  <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12}}>
+   <Title size={18} style={{flex:1}}>{translate("🎉 Eğlence Molası")}</Title>
+   <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={translate("Eğlence molasını kapat")}
+    hitSlop={8}
+    onPress={()=>{setShowMenu(false);setDismissed(true);}}
+    style={{
+     width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center',
+     backgroundColor:'rgba(221, 233, 255, 0.10)',borderWidth:1,borderColor:'rgba(221, 233, 255, 0.24)',
+    }}
+   >
+    <Text style={{fontSize:18,fontWeight:'700',color:'#F1F5FF'}}>✕</Text>
+   </Pressable>
+  </View>
+  <Muted style={{color:'#D6E4FA'}}>{translate("Ana oyunun arasında arkadaşlarını şaşırtacak bir etkinlik başlat.")}</Muted>
+  {isHost&&<Btn title={showMenu?translate("Etkinlikleri Gizle"):translate("Sürpriz Etkinlik Başlat")} onPress={()=>setShowMenu(v=>!v)}/>}
+  {showMenu&&isHost&&EVENTS.map(([kind,label])=><Btn key={kind} title={translate(label)} tone="ghost" disabled={busy||(kind==='eye_duel'&&players.length%2!==0)} onPress={()=>start(kind)}/>)}
+ </Card>
+) :
 <Modal visible transparent animationType="slide"><KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={{flex:1,backgroundColor:'rgba(0,0,0,0.9)',paddingTop:insets.top,paddingBottom:insets.bottom}}><ScrollView style={{flex:1}} contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingHorizontal:14,paddingVertical:16}} keyboardShouldPersistTaps="handled" keyboardDismissMode={Platform.OS==='ios'?'interactive':'on-drag'}><Card style={{gap:12}}><Title size={23}>🎲 {translate(EVENTS.find(x=>x[0]===event.kind)?.[1] ?? '')}</Title><Text style={{fontSize:17,color:'#E8F1FF',lineHeight:24}}>{translate(event.prompt ?? '')}</Text>
 {/* Ucube Mahkemesi ekranı şimdilik devre dışı: <UcubeCourt eventId={event.id} players={players} myId={myId}/> */}
 {event.kind==='who_is_ucube'&&<View style={{gap:10}}>
