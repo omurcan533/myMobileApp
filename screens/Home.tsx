@@ -284,32 +284,41 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       ['quick', 'flash', translate("Hızlı"), translate("8 Soru • ~5 dk"), colors.yellow],
                       ['standard', 'trophy', translate("Standart"), translate("14 Soru • ~10 dk"), colors.cyan],
                       ['long', 'flame', translate("Epik"), translate("20 Soru • ~18 dk"), colors.violet],
-                      ['custom', 'options', translate("Özel"), translate("Oyunları sen seç"), colors.mint],
+                      ['custom', 'options', translate("Özel"), translate("Oyunları sen seç"), "#DBE5F5"],
                     ] as const).map(([m, icon, label, sub, c], index) => {
                       const on = mode === m;
+                      const frosted = m === 'custom';
                       return (
                         <View key={m} style={{ width: modeSlideWidth, paddingHorizontal: 2 }}>
                           <Tap
-                            color={alpha(c, 0.32)}
+                            color={alpha(c, frosted ? 0.12 : 0.32)}
                             accent={c}
                             scaleTo={0.98}
                             onPress={() => { soundFx.click(); setMode(m); setModeIndex(index); }}
                             style={[
                               s.modeSlide,
-                              on && { borderColor: c, backgroundColor: alpha(c, 0.14), shadowColor: c, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+                              frosted && s.frostedModeSlide,
+                              frosted && on && s.frostedModeSelected,
+                              !frosted && on && { borderColor: c, backgroundColor: alpha(c, 0.14), shadowColor: c, shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
                             ]}
                           >
-                            <View style={[s.modeIcon, { width: 54, height: 54, borderRadius: 27, backgroundColor: alpha(c, on ? 0.22 : 0.1) }]}>
+                            {frosted && (
+                              <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                                <Image source={art.bg} blurRadius={Platform.OS === 'android' ? 6 : 12} resizeMode="cover" style={s.frostedModeBackdrop} accessible={false} />
+                                <LinearGradient colors={['rgba(17, 25, 44, 0.38)', 'rgba(8, 13, 27, 0.76)']} style={StyleSheet.absoluteFill} />
+                              </View>
+                            )}
+                            <View style={[s.modeIcon, { width: 54, height: 54, borderRadius: 27, backgroundColor: alpha(c, on && !frosted ? 0.22 : 0.1) }, frosted && s.frostedModeIcon]}>
                               <Ionicons name={icon} size={28} color={on ? c : colors.muted} />
                             </View>
                             <Text display style={[s.modeLabel, { fontSize: 20 }, on && { color: colors.text }]}>{label}</Text>
                             <Text style={[s.modeSub, { fontSize: 12 }, on && { color: c }]}>{sub}</Text>
                             {on && (
-                              <View style={[s.modeCheck, { backgroundColor: c }]}>
-                                <Ionicons name="checkmark" size={12} color="#0A1020" />
+                              <View style={[s.modeCheck, { backgroundColor: frosted ? 'rgba(219, 229, 245, 0.14)' : c }, frosted && s.frostedModeIcon]}>
+                                <Ionicons name="checkmark" size={12} color={frosted ? c : "#0A1020"} />
                               </View>
                             )}
-                            <Text style={{ color: colors.subtle, fontSize: 11, marginTop: 8 }}>{translate("Yana kaydırarak modları keşfet")}</Text>
+                            <Text style={{ color: frosted ? "#B5C3D8" : colors.subtle, fontSize: 11, marginTop: 8 }}>{translate("Yana kaydırarak modları keşfet")}</Text>
                           </Tap>
                         </View>
                       );
@@ -614,6 +623,10 @@ const s = StyleSheet.create({
   cardIcon: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   modeSlide: { minHeight: 164, paddingVertical: 18, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.inset, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  frostedModeSlide: { overflow: 'hidden', backgroundColor: '#151F32', borderWidth: 1, borderColor: 'rgba(219, 229, 245, 0.18)' },
+  frostedModeSelected: { borderColor: 'rgba(219, 229, 245, 0.36)' },
+  frostedModeBackdrop: { width: '100%', height: '100%', transform: [{ scale: 1.12 }] },
+  frostedModeIcon: { borderWidth: 1, borderColor: 'rgba(219, 229, 245, 0.22)' },
   modeDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9, paddingTop: 1 },
   modeDot: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   modeDotActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
