@@ -235,7 +235,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             <Muted>{me.is_host ? translate("Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.") : translate("Oyun kurucusunun seçtiği türler aşağıda görünüyor.")}</Muted>
             {me.is_host && (
               <View style={s.gameActions}>
-                <Btn title={translate("Tümünü Seç")} icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || draftGames.length === GAME_STYLES.length} onPress={selectAllGames} style={{ flex: 1 }} />
+                <Btn title={translate("Tümünü Seç")} icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || DEFAULT_GAMES.every((gameId) => draftGames.includes(gameId))} onPress={selectAllGames} style={{ flex: 1 }} />
                 <Btn title={translate("Tümünü Kaldır")} icon="close-circle-outline" size="sm" tone="ghost" disabled={!canEditGames || draftGames.length === 0} onPress={clearAllGames} style={{ flex: 1 }} />
               </View>
             )}

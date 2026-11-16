@@ -90,3 +90,25 @@ test('blocking another player cannot be undone by a different account',async()=>
   await assert.rejects(db.query(`select join_room('${r.code}','Alice')`),/blocked_room/);
  }finally{await db.close();}
 });
+
+test('new custom rooms preselect Quick Memory with the full pool while preset modes keep their original picks', async () => {
+  const db = await setup();
+  try {
+    await db.exec(read('../supabase/migrations/20261116223052_include_memory_in_custom_room_defaults.sql'));
+    await accept(db, 1);
+    for (const [mode, count] of [['custom', 10], ['quick', 3], ['standard', 5], ['long', 7]]) {
+      const { rows: [{ room_id }] } = await db.query(
+        "select (public.create_room('Selection QA', $1::public.game_mode)->>'room_id')::uuid as room_id",
+        [mode],
+      );
+      const { rows: [saved] } = await db.query(
+        'select selected_games, selected_games_locked from public.rooms where id=$1', [room_id],
+      );
+      assert.equal(new Set(saved.selected_games).size, count, mode);
+      assert.equal(saved.selected_games.includes('memory'), mode === 'custom', mode);
+      assert.equal(saved.selected_games_locked, mode !== 'custom', mode);
+    }
+  } finally {
+    await db.close();
+  }
+});
