@@ -213,7 +213,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     />
   );
   const pongStartButton = me.is_host ? (
-    <Btn title={translate("Başlat")} size="sm" tone="success"
+    <Btn title={translate("Başlat")} size="lg" tone="success"
       disabled={!canContinueBriefing || busy || data.room.paused}
       loading={busy} onPress={startMinigame} />
   ) : null;
@@ -245,14 +245,21 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {isPreparing ? (
           <Card accent={mode.color} style={s.briefingCard}>
-            <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
+            {mg.kind === 'pong' && pongStartButton ? (
+              <View style={s.pongBriefingHeader}>
+                <Title size={26} style={s.pongBriefingTitle}>{mode.label}</Title>
+                {pongStartButton}
+              </View>
+            ) : (
+              <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
+            )}
             <GameInstructions key={mg.id} text={briefingInstructions} color={mode.color} />
             {mg.kind==='math_guess'&&<View style={{gap:10}}>
               <Title size={19}>{mathIndex===1?translate("Kaç tahmin sorusu oynansın?"):format("Soru {0} / {1}", mathIndex, mg.math_state?.count??1)}</Title>
               {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count}  {translate("soru")}</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
               <Muted>{translate("Her sorunun ayrı tahmin süresi ve sonucu var.")}</Muted>
             </View>}
-            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} briefingAction={pongStartButton} onControlHoldChange={setPongHolding} />}
+            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
             {me.is_host && mg.kind !== 'pong' ? (
               <Btn
                 title={canContinueBriefing ? translate("Oyunu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
@@ -1133,6 +1140,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
+  pongBriefingHeader: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pongBriefingTitle: { flex: 1, minWidth: 0 },
   briefingCard: { alignItems: 'center', gap: 12, paddingVertical: 24, paddingHorizontal: 16 },
   briefingCountdown: { color: colors.text, fontSize: 58, fontWeight: '900', lineHeight: 66 },
 
