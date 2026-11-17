@@ -31,6 +31,24 @@ test('Pong assigns solo and duo directions, tracks saves and settles a goal befo
   assert.equal(frame.x, 0.5);
 });
 
+test('Pong holds the ball for 1.5 seconds after a goal while paddles can still move', () => {
+  const now = 100_000;
+  const frame = state({ x: 0.999, y: 0.9, holdAUp: true, holdAUpAt: new Date(now).toISOString() });
+  advancePong(frame, 1 / 60, now);
+  assert.equal(frame.scoreA, 1);
+  assert.equal(frame.serveAt, now + 1500);
+  const previousPaddle = frame.ay;
+  advancePong(frame, 1 / 60, now + 1499);
+  assert.equal(frame.x, 0.5);
+  assert.equal(frame.vx, 0);
+  assert.ok(frame.ay < previousPaddle);
+  advancePong(frame, 1 / 60, now + 1500);
+  assert.equal(frame.x, 0.5);
+  assert.equal(frame.vx, -0.46);
+  advancePong(frame, 1 / 60, now + 1517);
+  assert.ok(frame.x < 0.5);
+});
+
 test('two players and a spectator receive authoritative WebSocket frames and only owners can move a paddle', { timeout: 9000 }, async () => {
   const finishes = [];
   let endsAt = Date.now() + 4300;

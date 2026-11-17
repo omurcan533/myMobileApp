@@ -1,5 +1,14 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  "Bekle…": "Wait…",
+  "Fark eşitse daha hızlı gönderen kazanır.": "If the guesses are equally close, the faster submission wins.",
+  "Eşit farkta ilk gönderen: {0}": "First to submit an equally close guess: {0}",
+  "Pong Oyununu Başlat": "Start Pong",
+  "Rakibin cevabı": "Opponent’s answer",
+  "Tahminini gir. Doğru sayıya en yakın cevap kazanır. Fark eşitse hızlı gönderen kazanır.": "Enter your guess. The closest answer wins. If equally close, the faster submission wins.",
+  "Deneme {0} / {1}": "Attempt {0} / {1}",
+  "Beş denemenin ortalaması": "Five-attempt average",
+  "Tepki denemesini yeniden yükle": "Reload reaction trial",
   "Ayarlar": "Settings",
   "Normal görünüme geç": "Switch to Normal view",
   "Basit görünüme geç": "Switch to Simple view",

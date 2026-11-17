@@ -387,6 +387,9 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
     <Title size={32}>{scoreA??0} : {scoreB??0}</Title>
     <Text style={styles.teamB}>{loc('TAKIM B','TEAM B')}</Text>
    </View>
+   {mySide&&live&&<Text style={{color:mySide==='A'?colors.cyan:colors.gold,textAlign:'center',fontWeight:'900'}}>
+    {mySide==='A'?loc('← SENİN ÇUBUĞUN SOLDA','← YOUR PADDLE IS ON THE LEFT'):loc('SENİN ÇUBUĞUN SAĞDA →','YOUR PADDLE IS ON THE RIGHT →')}
+   </Text>}
    {needsModeChoice&&<View style={styles.choice}>
     <Title size={17}>{loc('Takımın kaç kişi oynasın?','How many players on your team?')}</Title>
     <Muted>{loc('İkiniz de 1 kişi seçerseniz tek oyuncu kontrol eder. Seçim tamamlanmazsa kurucu mevcut iki kişilik düzenle başlatabilir.','If both choose 1 player, one player controls the paddle. Otherwise the host can start with the current two-player setup.')}</Muted>
@@ -431,13 +434,15 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
       key={direction}
       onPressIn={()=>startHold(direction)}
       onPressOut={()=>stopHold(direction)}
+      accessibilityRole="button"
+      accessibilityLabel={direction===-1?loc('Yukarı','Up'):loc('Aşağı','Down')}
       hitSlop={4}
       pressRetentionOffset={160}
       onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
       disabled={!active}
       style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
-     ><Text style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></Pressable>)}
+     ><View pointerEvents="none"><Text selectable={false} style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></View></Pressable>)}
     </View>
     {!compactControls&&<Muted style={{textAlign:'center'}}>{loc('Hareket ettirmek için tuşa basılı tut.','Hold the button to move.')}</Muted>}
     {controlError&&<Muted style={styles.error}>{loc('Kontrol hatası:','Control error:')} {controlError}</Muted>}

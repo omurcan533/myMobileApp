@@ -175,6 +175,7 @@ export interface MinigameEntry {
   target_player_id: string | null;
   reaction_ms: number | null;
   guess_num?: number | null;
+  created_at?: string;
 }
 
 export interface CanvasItem {

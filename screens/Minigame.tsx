@@ -186,7 +186,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
     : mg.kind === 'song_complete' ? translate("Sanatçıya ve eksik şarkı adına bakarak tam şarkı adını yaz. Doğru cevabı bulana kadar tekrar deneyebilirsin. İlk doğru yanıt takımına +2 puan ve bonus parça kazandırır. Süre 65 saniye.")
     : mg.kind === 'line_connect' ? translate("Herkes aynı bulmacayı süre sonuna kadar çözmeye çalışır. Aynı renkli noktaları kesişmeden birleştir. Her oyuncunun bitirme süresi kaydedilir; 30 saniye dolunca veya herkes tamamlayınca en hızlı tamamlayan oyuncu takımına +2 puan ve bonus parça kazandırır.")
     : mg.kind === 'pong' ? translate("Her takım TEK çubuğu yönetir. Tek kişilik takımın oyuncusu hem ▲ YUKARI hem ▼ AŞAĞI kullanır. 2 kişilik takım, iki oyuncunun ortak seçimiyle tek kişi veya iki kişi olarak oynar. İki kişi oynarsa biri ▲ YUKARI, diğeri ▼ AŞAĞI tuşunu kullanır. Butona basılı tutarak çubuğu hareket ettirirsiniz. Diğer oyuncular canlı izler ve emojilerle tezahürat yapar. İlk 5 golü atan takım kazanır (+2 puan ve bonus parça). Yönetici Başlat dediğinde 3 saniye geri sayılır; maç en fazla 5 dakika sürer.")
-    : mg.kind === 'math_guess' ? translate("Soruyu oku, tuş takımından tahminini gir. Hedef sayıya en yakın tahmin takımına puan kazandırır.")
+    : mg.kind === 'math_guess' ? translate("Tahminini gir. Doğru sayıya en yakın cevap kazanır. Fark eşitse hızlı gönderen kazanır.")
     : mg.kind === 'social_guess' ? translate("Sorudaki durumu en iyi karşılayan oyuncuyu seç. Takımların seçim oranı karşılaştırılır.")
     : variant === 'memory' ? translate("Parçaların yanma sırasını izle. Sıra sende olduğunda aynı parçaları aynı sırayla seç.")
     : variant === 'balance' ? translate("Göstergeyi takip et ve doğru anda dokunarak dengeyi koru.")
@@ -198,9 +198,15 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const lineWinnerEntry = entries.find(entry => entry.player_id === lineWinner?.id);
   const lineResultColor = lineResult === 'won' ? colors.mint : lineResult === 'lost' ? '#FF718A' : colors.yellow;
 
+  const pongStartButton = me.is_host && <View style={{paddingHorizontal:12,paddingBottom:8}}>
+    <Btn title={canContinueBriefing ? translate("Pong Oyununu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
+      icon="play" tone="success" disabled={!canContinueBriefing || busy || data.room.paused}
+      loading={busy} onPress={startMinigame} />
+  </View>;
   return (
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
+      {isPreparing && mg.kind === 'pong' && pongStartButton}
       <PlayArea active={live&&!isPreparing} viewportRef={viewportRef} onLayout={measure}>
       <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding && !(mg.kind === 'line_connect' && lineDrawing)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
@@ -234,7 +240,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               <Muted>{translate("Her sorunun ayrı tahmin süresi ve sonucu var.")}</Muted>
             </View>}
             {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
-            {me.is_host ? (
+            {me.is_host && mg.kind !== 'pong' ? (
               <Btn
                 title={canContinueBriefing ? translate("Oyunu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
                 icon={canContinueBriefing ? 'play' : 'hourglass'}
@@ -245,12 +251,13 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
                 onPress={startMinigame}
                 style={{ alignSelf: 'stretch', marginTop: 6 }}
               />
-            ) : (
+            ) : !me.is_host ? (
               <View style={{ alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <ActivityIndicator size="small" color={mode.color} />
                 <Muted style={{ textAlign: 'center' }}>{translate("Kuralları okuyabilirsin. Oyun yöneticisi Oyunu Başlat dediğinde 3 saniyelik geri sayım başlayacak.")}</Muted>
               </View>
-            )}
+            ) : null}
+
           </Card>
         ) : mg.kind === 'tug_of_war' ? (
           <View style={{gap:12}}>
@@ -280,7 +287,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             key={mg.id}
             ctx={ctx}
             entries={entries}
-            prompt={`${mg.math_state?format("Soru {0}/{1} · ", mathIndex, mg.math_state.count):''}${mg.prompt ?? translate("Sayıyı tahmin et")}`}
+            prompt={`${mg.math_state?format("Soru {0}/{1}", mathIndex, mg.math_state.count)+"\n":''}${(mg.prompt ?? translate("Sayıyı tahmin et")).replace(/(\d)\s+[.·⋅*]\s+(?=\d)/g, "$1 × ")}`}
             targetNum={mg.target_num ?? null}
             live={live}
             mineGuess={mine?.guess_num ?? null}
@@ -306,22 +313,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               onComplete={() => tap()}
             />
           ) : (
-            <ReflexGame
-              live={live}
-              go={go}
-              mineDone={!!mine}
-              reactionMs={reflexMs ?? null}
-              onTap={() => {
-                soundFx.pop();
-                haptic.medium();
-                tap();
-              }}
-              onEarly={() => {
-                soundFx.wrong();
-                haptic.error();
-                show(getLanguage()==='en'?'Too early! Wait…':'Çok erken! Bekle…', 'error');
-              }}
-            />
+            <ReflexTrials key={mg.id + mg.starts_at} id={mg.id} live={live} paused={data.room.paused}
+              reactionMs={reflexMs ?? null} onError={message=>show(message,'error')} />
           )
         ) : (
           <SocialGuess
@@ -498,6 +491,62 @@ function ReflexResults({ title, players, entries, winnerSide }: {
 // =================================================================
 // 1. REFLEKS OYUNU
 // =================================================================
+function ReflexTrials({id,live,paused,reactionMs,onError}: {
+  id:string;live:boolean;paused:boolean;reactionMs:number|null;onError:(message:string)=>void;
+}) {
+  const [trial,setTrial]=useState<Awaited<ReturnType<typeof api.reflexTrial>>|null>(null);
+  const [signal,setSignal]=useState<string|null>(null);
+  const [retry,setRetry]=useState(0);
+  const sending=useRef(false);
+  const report=useEffectEvent(onError);
+
+  useEffect(()=>{
+    if(!live||paused||reactionMs!==null)return;
+    let active=true;
+    api.reflexTrial(id).then(result=>{
+      if(active)setTrial(result);
+    }).catch(error=>{
+      if(active)report((error as Error).message);
+    });
+    return ()=>{active=false;};
+  },[id,live,paused,reactionMs,retry]);
+
+  const readyAt=trial?.ready_at;
+  useEffect(()=>{
+    if(!readyAt||!live||paused)return;
+    const timer=setTimeout(()=>setSignal(readyAt),Math.max(0,Date.parse(readyAt)-serverNow()));
+    return ()=>clearTimeout(timer);
+  },[readyAt,live,paused]);
+
+  const average=reactionMs??trial?.average_ms??null;
+  const go=!!readyAt&&signal===readyAt&&!paused;
+  const onEarly=()=>{
+    soundFx.wrong();
+    haptic.error();
+    onError(translate('Çok erken! Bekle…'));
+  };
+  const submit=async()=>{
+    if(!trial||sending.current||paused||!go)return;
+    sending.current=true;
+    try{
+      const result=await api.reflexTrial(id,trial.attempts+1);
+      setTrial(result);
+      soundFx.pop();
+      haptic.medium();
+    }catch(error){
+      onError((error as Error).message);
+    }finally{
+      sending.current=false;
+    }
+  };
+  return <View style={{gap:4,alignItems:'center'}}>
+    <Title size={18}>{average!==null?translate("Beş denemenin ortalaması"):format("Deneme {0} / {1}",Math.min(5,(trial?.attempts??0)+1),5)}</Title>
+    <ReflexGame live={live&&!paused&&!!trial} go={go} mineDone={average!==null} reactionMs={average}
+      onTap={submit} onEarly={onEarly} />
+    {live&&!paused&&!trial&&<Btn title={translate("Tepki denemesini yeniden yükle")} tone="ghost" size="sm" onPress={()=>setRetry(value=>value+1)}/>}
+  </View>;
+}
+
 function ReflexGame({
   live, go, mineDone, reactionMs, onTap, onEarly,
 }: {
@@ -510,7 +559,7 @@ function ReflexGame({
   return (
     <View style={s.reflexWrap}>
       <Text style={[s.gameInstruction, { color: go && !idle ? colors.mint : colors.textSoft }]}>
-        {translate(idle ? (mineDone ? 'Tepki süren kaydedildi' : 'Oyun bitti') : go ? 'ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!')}
+        {translate(idle ? (mineDone ? 'Tepki süren kaydedildi' : 'Bekle…') : go ? 'ŞİMDİ DOKUN!' : 'Ekran yeşil olunca dokun, erken dokunma!')}
       </Text>
       <Pulse active={live && go && !mineDone} amount={1.05}>
         <View style={s.ringOuter}>
@@ -815,7 +864,7 @@ function SocialGuess({
     <View style={{ gap: 14 }}>
       <Card accent={colors.violet} style={[s.promptCard,area.active&&{padding:10,gap:6}]}>
         <Chip icon="chatbubbles" label={translate("Grup oylaması")} color={colors.violet} />
-        <ScrollView nestedScrollEnabled style={{maxHeight:Math.max(70,Math.min(140,area.height-330))}}><Text display style={[s.prompt,area.active&&{fontSize:18,lineHeight:24}]}>{prompt}</Text></ScrollView>
+        <Text display style={[s.prompt,area.active&&{fontSize:18,lineHeight:24}]}>{prompt}</Text>
         <Muted style={{ textAlign: 'center' }}>
           {translate("Kendin dahil herkese oy verebilirsin.")}
         </Muted>
@@ -843,26 +892,19 @@ function SocialGuess({
                 ]}
               >
                 <Avatar source={avatarFor(p.nickname)} size={area.active?24:46} ring={tColor} glow={isSelected} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                  <View style={{ alignItems: 'flex-start', gap: 3 }}>
                     <Text numberOfLines={2} style={[s.playerNickText,area.active&&{fontSize:12}]}>
                       {p.nickname}{isMe ? translate(' (Sen)') : ''}
                     </Text>
                     {pHasVoted && (
-                      <Chip label={translate("Oy Verdi")} color={colors.mint} size="sm" icon="checkmark-circle" />
+                      <Text style={{color:colors.mint,fontSize:10}}>{translate("Oy Verdi")}</Text>
                     )}
                   </View>
                   <Text style={[s.playerTeamText, { color: tColor }]}>
-                    {teamName(p.team_side)}
+                    {teamName(p.team_side)}{mineTarget ? ' · ' + pVotes + ' ' + translate("oy") : ''}
                   </Text>
                 </View>
-                {mineTarget && (
-                  <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
-                    <Text display style={{ color: pVotes > 0 ? colors.cyan : colors.muted, fontSize: 13, fontWeight: '700' }}>
-                      {pVotes} {translate("oy")}
-                    </Text>
-                  </View>
-                )}
                 <View style={[s.voteRadio, isSelected && s.voteRadioSelected]}>
                   {isSelected && <Ionicons name="checkmark" size={14} color="#05281A" />}
                 </View>
@@ -940,11 +982,14 @@ function MathGuessGame({
     const guess = entry?.guess_num ?? null;
     const isMe = p.id === me.id;
     const diff = guess !== null && targetNum !== null ? Math.abs(guess - targetNum) : null;
-    return { player: p, guess, isMe, diff };
+    return { player: p, guess, isMe, diff, submittedAt: entry?.created_at ?? null };
   });
 
   const validDiffs = playerGuesses.filter((g) => g.diff !== null).map((g) => g.diff!);
   const bestDiff = validDiffs.length > 0 ? Math.min(...validDiffs) : null;
+  const closest = playerGuesses.filter(guess=>guess.diff!==null && guess.diff===bestDiff);
+  const speedDecides = closest.some(guess=>guess.player.team_side==='A') && closest.some(guess=>guess.player.team_side==='B');
+  const first = [...closest].sort((a,b)=>(a.submittedAt??'').localeCompare(b.submittedAt??'')).find(guess=>guess.submittedAt);
 
   return (
     <View style={{ gap: compact?6:16 }}>
@@ -954,7 +999,7 @@ function MathGuessGame({
           <Ionicons name="calculator" size={28} color={colors.cyan} />
         </View>}
         <Text display style={s.prompt}>{prompt}</Text>
-        {!compact&&<Muted>{translate("Doğru yanıta en yakın tahmini yapan takım bonus kazanır!")}</Muted>}
+        {!compact&&<Muted>{translate("Fark eşitse daha hızlı gönderen kazanır.")}</Muted>}
       </Card>
 
       {/* Sonuç açıklandığında doğru yanıt tüm oyuncular için en üstte görünür. */}
@@ -965,12 +1010,12 @@ function MathGuessGame({
             <Text style={s.correctAnswerLabel}>{translate("DOĞRU CEVAP")}</Text>
           </View>
           <Text display adjustsFontSizeToFit numberOfLines={1} style={s.correctAnswerValue}>
-            {targetNum.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}
+            {targetNum.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}
           </Text>
-          <Muted style={{ textAlign: 'center' }}>{translate("Sorunun gerçek yanıtı")}</Muted>
+          {speedDecides && first && <Muted style={{textAlign:'center'}}>{format("Eşit farkta ilk gönderen: {0}",first.player.nickname)}</Muted>}
           {mineGuess !== null && (
             <Text style={s.correctAnswerDifference}>
-              {translate('Senin tahminin:')} {mineGuess.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}  ·  {translate('Fark:')} {Math.abs(mineGuess - targetNum).toLocaleString(getLanguage()==='en'?'en-US':'tr-TR')}
+              {translate('Senin tahminin:')} {mineGuess.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}  ·  {translate('Fark:')} {Math.abs(mineGuess - targetNum).toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}
             </Text>
           )}
         </Card>
@@ -1049,7 +1094,7 @@ function MathGuessGame({
         <View style={{ gap: 8 }}>
           {playerGuesses.map(({ player: p, guess, isMe, diff }) => {
             const tColor = teamColor(p.team_side);
-            const isWinner = !live && targetNum !== null && diff !== null && diff === bestDiff;
+            const isWinner = !live && diff !== null && diff === bestDiff && (!speedDecides || first?.player.id === p.id);
             return (
               <View
                 key={p.id}

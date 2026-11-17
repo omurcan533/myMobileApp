@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { WebSocket, WebSocketServer } from 'ws';
-import { advancePong, clearControls, controlSlot, STEP_MS } from './pong.mjs';
+import { advancePong, clearControls, controlSlot, SERVE_DELAY_MS, STEP_MS } from './pong.mjs';
 
 const CHECKPOINT_MS = 750;
 const ACCESS_REFRESH_MS = 10_000;
@@ -39,7 +39,7 @@ export function createGameServer(gateway) {
       response.writeHead(404).end();
       return;
     }
-    response.writeHead(200, { 'content-type': 'application/json' }).end('{"ok":true}');
+    response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ok:true,pongServeDelayMs:SERVE_DELAY_MS}));
   });
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 8192, perMessageDeflate: false });
   let closing = false;

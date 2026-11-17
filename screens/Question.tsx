@@ -239,9 +239,18 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
     .filter((answer) => answer.round_id === round.id)
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
+  const anagramResult = !isOpen && round.kind === 'anagram' && !!round.winner_side;
+  const winningAnswer = roundAnswers.find(answer => answer.is_final && answer.is_correct && answer.side === round.winner_side);
   return (
     <Screen key={round.id+String(isOpen)} active={isOpen}>
       {isOpen&&<PlayHeader ctx={ctx} left={left} label={format("Soru {0}/{1}", round.idx+1, totalQuestions)} instructions={translate("Cevabını yazıp gönder. Bilmece ve grup sorularında takımın nihai cevabını kaptan gönderir. Takım kartlarına dokunarak puan, parça ve kredi detaylarını görebilirsin.")} onPause={pause} onJoker={myTeam&&(myTeam.jokers_left??0)>0?joker:undefined} busy={busy}/>}
+      {anagramResult && <View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingBottom:8}}>
+        <Card accent={resultColor} style={{gap:4,padding:12}}>
+          <Title size={22} color={resultColor}>{iWon ? translate("Parça Bizim!") : translate("BU TURU KAYBETTİNİZ")}</Title>
+          <Text style={{color:colors.text}}>{iWon ? translate("Doğru Cevap") : translate("Rakibin cevabı")}</Text>
+          <Text display style={{color:resultColor,fontSize:22}}>{winningAnswer?.body ?? round.revealed_answer}</Text>
+        </Card>
+      </View>}
       <KeyboardAvoidingView onLayout={e=>setAreaHeight(e.nativeEvent.layout.height)} style={{ flex: 1,minHeight:0 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
        <PlayArea active={isOpen} viewportRef={viewportRef} onLayout={measure}>
         <ScrollView key={round.id+':'+String(isOpen)} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} style={{flex:1,minHeight:0}} contentContainerStyle={[s.scroll,isOpen&&{gap:8,paddingTop:0,paddingBottom:8}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -276,7 +285,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
               )}
             </View>}
 
-            <ScrollView nestedScrollEnabled style={{maxHeight:isOpen?Math.max(70,Math.min(180,areaHeight-300)):undefined,alignSelf:'stretch'}} contentContainerStyle={{alignItems:'center'}} keyboardShouldPersistTaps="handled">
+            <View style={{alignSelf:'stretch',alignItems:'center'}}>
             {round.kind === 'anagram' ? (
               <View style={s.tiles}>
                 {Array.from(round.prompt.toLocaleUpperCase(room.game_language === 'en' ? 'en-US' : 'tr-TR')).map((ch, i) =>
@@ -294,7 +303,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
               <Text display style={s.riddle}>{round.prompt}</Text>
             )}
 
-            </ScrollView>
+            </View>
             {isOpen && round.kind !== 'social' && slots.length > 0 && (
               <View style={s.slotsWrap}>
                 <Text style={s.slotsLabel}>{translate("CEVAP")}</Text>
@@ -384,8 +393,8 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                           ]}
                         >
                           
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                            <View style={{ alignItems: 'flex-start', gap: 3 }}>
                               <Text numberOfLines={2} style={[s.socialNickText,{fontSize:12,flexShrink:1}]}>{p.nickname}{p.id === me.id ? translate(" (Sen)") : ''}</Text>
                               {pSuggestions > 0 && (
                                 <Chip label={format("{0} öneri", pSuggestions)} color={colors.cyan} size="sm" icon="chatbubbles" />

@@ -1,5 +1,6 @@
 const PADDLE_SPEED = 0.9;
 const HOLD_TTL_MS = 2500;
+export const SERVE_DELAY_MS = 1500;
 export const STEP_MS = 1000 / 60;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const paddle = value => clamp(value, 0.105, 0.895);
@@ -30,10 +31,21 @@ export function advancePong(state, dt, now) {
   const held = flag => state[flag] && now - Date.parse(state[flag + 'At']) < HOLD_TTL_MS;
   const direction = side => Number(!!held('hold' + side + 'Down')) - Number(!!held('hold' + side + 'Up'));
   const a = direction('A'), b = direction('B');
-  const { x, y, vx, vy, ay, by } = state;
+  const { ay, by } = state;
   state.ay = paddle(ay + a * dt * PADDLE_SPEED);
   state.by = paddle(by + b * dt * PADDLE_SPEED);
 
+  if (Number.isFinite(state.serveAt)) {
+    state.tick = new Date(now).toISOString();
+    if (now < state.serveAt) return;
+    state.vx = state.serveDirection * 0.46;
+    state.vy = state.serveDirection * 0.23;
+    state.serveAt = null;
+    state.serveDirection = null;
+    return;
+  }
+
+  const { x, y, vx, vy } = state;
   const wall = value => value < 0.025 ? 0.05 - value : value > 0.975 ? 1.95 - value : value;
   let nextX = x + vx * dt;
   let nextY = y + vy * dt;
@@ -70,7 +82,11 @@ export function advancePong(state, dt, now) {
       const goals = state.goalsByPlayer ??= {};
       goals[scorer] = (goals[scorer] ?? 0) + 1;
     }
-    Object.assign(state, { x: 0.5, y: 0.5, vx: side === 'B' ? 0.46 : -0.46, vy: side === 'B' ? 0.23 : -0.23 });
+    Object.assign(state, { x: 0.5, y: 0.5, vx: 0, vy: 0 });
+    if (state['score' + side] < 5) {
+      state.serveAt = now + SERVE_DELAY_MS;
+      state.serveDirection = side === 'B' ? 1 : -1;
+    }
   }
   state.tick = new Date(now).toISOString();
 }

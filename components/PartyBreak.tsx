@@ -1,5 +1,5 @@
 import { translate } from '../lib/i18n';
-import React,{useCallback,useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Keyboard,KeyboardAvoidingView,Platform,ScrollView,View,TextInput,Modal,Pressable} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -33,9 +33,20 @@ const TASKS=[
 ];
 // Ucube Mahkemesi şimdilik menüde gösterilmiyor.
 const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?']] as const;
-export function PartyBreak({roomId,players,myId,isHost,canStart,autoKey}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean;autoKey?:string|null}){
+export function PartyBreak({roomId,players,myId,isHost,canStart}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean}){
 const insets=useSafeAreaInsets();
-const [dismissed,setDismissed]=useState(false);
+const [breakPanel,setBreakPanel]=useState<{roomId:string;open:boolean}|null>(null);
+useEffect(()=>{
+ if(!canStart||!isHost)return;
+ let active=true;
+ const key='party-offer:'+roomId;
+ AsyncStorage.getItem(key).then(seen=>{
+  if(!active)return;
+  setBreakPanel(current=>current?.roomId===roomId?current:{roomId,open:!seen});
+  if(!seen)void AsyncStorage.setItem(key,'seen').catch(()=>{});
+ }).catch(()=>{if(active)setBreakPanel({roomId,open:false});});
+ return()=>{active=false;};
+},[canStart,isHost,roomId]);
 const [mission,setMission]=useState<{key:number;status:'active'|'done'|'skipped'}|null>(null);
 const [missionOpen,setMissionOpen]=useState(false);
 const [missionBusy,setMissionBusy]=useState(false);
@@ -63,46 +74,7 @@ const start=(kind:string)=>run(async()=>{
 //  await api.partyCourtStart(roomId,charge);
 //  setShowMenu(false);return;
 // }
-const prompt=kind==='who_is_ucube'?UCUBE_QUESTIONS[Math.floor(Math.random()*UCUBE_QUESTIONS.length)]:kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?"Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!":kind==='age_guess'?"Herkes diğer oyuncuların yaşını tahmin etsin!":"Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='who_is_ucube'||kind==='age_guess')await api.testBotsVote(eventId);setShowMenu(false);setAge({});setWinner(null);});
-// Bir mini oyun sonrası tek seferlik, ev sahibi kontrollü sürpriz etkinlik.
-const autoBusy = useRef(false);
-useEffect(() => {
-  if (!isHost || !autoKey || players.length < 2 || autoBusy.current) return;
-  let cancelled = false;
-  const trigger = async () => {
-    const key = 'party-auto:' + roomId + ':' + autoKey;
-    autoBusy.current = true;
-    try {
-      if (await AsyncStorage.getItem(key)) return;
-      // Her mini oyun için deterministik seçim; aynı tur tekrar denenmez.
-      const seed = [...autoKey].reduce((n, ch) => n + ch.charCodeAt(0), 0);
-      await AsyncStorage.setItem(key, 'checked');
-      if (seed % 3 !== 0 || cancelled) return;
-      const current = await api.partyEventCurrent(roomId);
-      if (current || cancelled) return;
-      const kinds = players.length % 2 === 0
-        ? ['challenge', 'first_word', 'eye_duel']
-        : ['challenge', 'first_word'];
-      const kind = kinds[seed % kinds.length];
-      const available = players.length >= 4 ? TASKS : TASKS.slice(0, -1);
-      const prompt = kind === 'challenge'
-        ? available[(seed * 7 + 3) % available.length]
-        : kind === 'first_word'
-          ? "Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!"
-          : "Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";
-      if (cancelled) return;
-      const id = await api.partyEventStart(roomId, kind, prompt);
-      if (kind === 'challenge') await api.testBotsVote(id);
-      if (!cancelled) await refresh();
-    } catch (e) {
-      if (!cancelled) setError((e as Error).message);
-    } finally {
-      autoBusy.current = false;
-    }
-  };
-  trigger();
-  return () => { cancelled = true; };
-}, [autoKey, roomId, isHost, players.length, refresh]);
+const prompt=kind==='who_is_ucube'?UCUBE_QUESTIONS[Math.floor(Math.random()*UCUBE_QUESTIONS.length)]:kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?"Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!":kind==='age_guess'?"Herkes diğer oyuncuların yaşını tahmin etsin!":"Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='who_is_ucube'||kind==='age_guess')await api.testBotsVote(eventId);setShowMenu(false);setBreakPanel({roomId,open:false});setAge({});setWinner(null);});
 const votes=event?.votes??[];
 const paired=[...players].sort((a,b)=>{const hash=(v:string)=>[...v].reduce((n,ch)=>((n*31+ch.charCodeAt(0))|0),0);return hash((event?.id??'')+a.id)-hash((event?.id??'')+b.id);});
 const mine=votes.find((v:any)=>v.player_id===myId);
@@ -132,7 +104,13 @@ const secretCard=mission?(missionOpen ?
   <Text style={{color:'#D4B8FF',fontSize:12,fontWeight:'900'}}>{mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
  </Pressable>
 ):null;
-if(!event&&(!canStart||dismissed))return secretCard;
+if(!event&&(!canStart||!isHost||breakPanel?.roomId!==roomId))return secretCard;
+if(!event&&!breakPanel?.open)return <View pointerEvents="box-none" style={{gap:8}}>
+ {secretCard}
+ <View style={{alignSelf:'flex-end'}}>
+  <Btn title={translate("🎉 Eğlence Molası")} size="sm" tone="ghost" onPress={()=>setBreakPanel({roomId,open:true})}/>
+ </View>
+</View>;
 return <View style={{gap:10}}>
 {secretCard}
 {!event ? (
@@ -151,7 +129,7 @@ return <View style={{gap:10}}>
     accessibilityRole="button"
     accessibilityLabel={translate("Eğlence molasını kapat")}
     hitSlop={8}
-    onPress={()=>{setShowMenu(false);setDismissed(true);}}
+    onPress={()=>{setShowMenu(false);setBreakPanel({roomId,open:false});}}
     style={{
      width:36,height:36,borderRadius:18,alignItems:'center',justifyContent:'center',
      backgroundColor:'rgba(221, 233, 255, 0.10)',borderWidth:1,borderColor:'rgba(221, 233, 255, 0.24)',

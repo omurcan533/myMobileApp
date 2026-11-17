@@ -80,20 +80,23 @@ test('every server error has an authored English message',()=>{
 test('party activities serialize canonical copy so each UI language can render the same event',async()=>{
  const sent=[];
  for(const language of ['tr','en']){
-  const d=device({saved:language});await d.initializeLanguage();const slots=[];let index=0;
+  const d=device({saved:language});await d.initializeLanguage();const slots=[];let index=0,effectIndex=0,offerStarted=false;
   const react={__esModule:true,Fragment:'Fragment',createElement:(type,props,...children)=>({type,props:{...props,children}}),
    useState(initial){const i=index++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],value=>{slots[i]=typeof value==='function'?value(slots[i]):value;}];},
-   useRef(initial){const i=index++;return slots[i]??={current:initial};},useCallback:fn=>fn,useEffect(){},
+   useRef(initial){const i=index++;return slots[i]??={current:initial};},useCallback:fn=>fn,useEffect(fn){if(effectIndex++===0&&!offerStarted){offerStarted=true;fn();}},
   };react.default=react;
   const api={partyEventCurrent:async()=>null,partyEventStart:async(_room,_kind,prompt)=>{sent.push(prompt);return 'event';}};
   const modules={react,'react-native':{View:'View',ScrollView:'ScrollView',TextInput:'TextInput',Modal:'Modal',Pressable:'Pressable',KeyboardAvoidingView:'KeyboardAvoidingView',Platform:{OS:'ios'},Keyboard:{dismiss(){}}},
    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:59,bottom:34,left:0,right:0})},
-   '@react-native-async-storage/async-storage':{__esModule:true,default:{}},'../lib/api':{api},'../lib/i18n':d,'../lib/partyMissions':{PARTY_MISSIONS:[]},'./ui':new Proxy({},{get:(_,name)=>name}),
+   '@react-native-async-storage/async-storage':{__esModule:true,default:{getItem:async key=>d.memory.get(key)??null,setItem:async(key,value)=>d.memory.set(key,value)}},'../lib/api':{api},'../lib/i18n':d,'../lib/partyMissions':{PARTY_MISSIONS:[]},'./ui':new Proxy({},{get:(_,name)=>name}),
   };
   const exports={};vm.runInNewContext(compile('../components/PartyBreak.tsx'),{exports,require:name=>{assert.ok(name in modules,name);return modules[name];}});
   const props={roomId:'room',players:[{id:'a'},{id:'b'}],myId:'a',isHost:true,canStart:true};
-  const render=()=>{index=0;return exports.PartyBreak(props);};
+  const render=()=>{index=0;effectIndex=0;return exports.PartyBreak(props);};
   const buttons=tree=>!tree||typeof tree!=='object'?[]:Array.isArray(tree)?tree.flatMap(buttons):[...(tree.type==='Btn'?[tree]:[]),...buttons(tree.props?.children)];
+  render();
+  await Promise.resolve();
+  assert.equal(d.memory.get('party-offer:room'),'seen');
   buttons(render()).find(n=>n.props.title===d.translate('Sürpriz Etkinlik Başlat')).props.onPress();
   await buttons(render()).find(n=>n.props.title===d.translate('İlk Aklına Gelen')).props.onPress();
  }

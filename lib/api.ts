@@ -182,6 +182,8 @@ export const api = {
   submitFriendGuess: (mg: string,guess: string) => rpc<boolean>('submit_friend_guess',{p_minigame:mg,p_guess:guess}),
   submitSongAnswer: (mg: string, answer: string) => rpc<boolean>('submit_song_answer', { p_minigame: mg, p_answer: answer }),
   submitLineConnect: (mg: string, paths: number[][][]) => rpc<boolean>('submit_line_connect', { p_minigame: mg, p_paths: paths }),
+  reflexTrial: (mg: string, attempt: number | null = null) =>
+    rpc<{attempts:number;ready_at:string|null;average_ms:number|null}>('reflex_trial', {p_minigame:mg,p_attempt:attempt}),
   minigameEntry: (mg: string, target?: string, guess?: number) => {
     const params: Record<string, unknown> = { p_minigame: mg, p_target: target ?? null, p_guess: guess ?? null };
     return rpc<void>('submit_minigame_entry', params);
