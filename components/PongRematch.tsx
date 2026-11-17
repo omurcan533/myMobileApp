@@ -3,7 +3,7 @@ import React, { forwardRef,useEffect,useImperativeHandle,useRef,useState } from 
 import { View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import { Btn, Card, Eyebrow, Muted, Text, Title, useToast } from './ui';
+import { Btn, Card, Muted, Text, Title, useToast } from './ui';
 import { colors } from '../lib/theme';
 import type { Ctx, Minigame } from '../lib/types';
 
@@ -84,12 +84,7 @@ export const PongRematch=forwardRef<PongRematchHandle,Props>(function PongRematc
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 12 }}>
-    <Eyebrow color={colors.cyan}>{translate("RÖVANŞ OYLAMASI")}</Eyebrow>
-    <Title size={22}>{translate("Bir maç daha?")}</Title>
-    <Muted>{translate("Rövanş sayısında sınır yok! Her maçın ardından yeniden oylama yapılır; çoğunluk EVET derse tekrar oynarsınız.")}</Muted>
-    <Muted>{translate("Odadaki oyuncuların yarısından fazlası EVET derse rövanş otomatik hazırlanır. Her oyuncunun bir oyu vardır.")}</Muted>
-    <Text style={{ color: colors.text, fontWeight: '800' }}>{translate("Evet:")} {yes} / {needed}  {translate("gerekli ·")} {votes.length}/{data.players.length}  {translate("oy")}</Text>
-    <Muted>{translate("Oylamada süre sınırı yok. Kurucu istediği zaman sonraki oyuna geçebilir.")}</Muted>
+    <Text style={{ color: colors.text, fontWeight: '800' }}>{format("Gerekli evet oyu: {0}/{1}", yes, needed)}</Text>
     {approved ? <View style={{ gap: 8 }}><Title size={18}>{translate("🎉 Rövanş kabul edildi!")}</Title><Muted>{translate("Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.")}</Muted>{me.is_host && <Btn title={translate("Rövanşı Hazırla")} tone="success" disabled={busy} onPress={start} />}</View> : (
      <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? translate("✓ EVET") : translate("EVET")} tone="success" disabled={busy} onPress={() => vote(true)} /></View>

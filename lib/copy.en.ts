@@ -4,6 +4,7 @@ export const ENGLISH_COPY: Record<string, string> = {
   "Fark eşitse daha hızlı gönderen kazanır.": "If the guesses are equally close, the faster submission wins.",
   "Eşit farkta ilk gönderen: {0}": "First to submit an equally close guess: {0}",
   "Başlat": "Start",
+  "Gerekli evet oyu: {0}/{1}": "Yes votes needed: {0}/{1}",
   "Rakibin cevabı": "Opponent’s answer",
   "Tahminini gir. Doğru sayıya en yakın cevap kazanır. Fark eşitse hızlı gönderen kazanır.": "Enter your guess. The closest answer wins. If equally close, the faster submission wins.",
   "Deneme {0} / {1}": "Attempt {0} / {1}",
