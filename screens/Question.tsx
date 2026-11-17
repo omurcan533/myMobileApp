@@ -1,3 +1,4 @@
+import { GameInstructions } from '../components/GameInstructions';
 import { translate, useLanguage, format } from '../lib/i18n';
 import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -121,7 +122,7 @@ function QuestionRound({ ctx }: { ctx: Ctx }) {
                 <Text style={{ color: roundColor, fontSize: 13, fontWeight: '700' }}>{translate('Ödül:')} {translate(prize.name_tr)}</Text>
               </View>
             )}
-            <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{instructions}</Muted>
+            <GameInstructions key={round.id} text={instructions} color={roundColor} />
             {me.is_host ? (
               <Btn
                 title={canContinue ? translate("Devam Et") : `${translate('Devam Et')} · ${waitSeconds} ${translate('sn')}`}

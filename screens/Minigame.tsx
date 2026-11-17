@@ -1,3 +1,4 @@
+import { GameInstructions } from '../components/GameInstructions';
 import { getLanguage, translate, useLanguage, format } from '../lib/i18n';
 import React, { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -244,9 +245,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
 
         {isPreparing ? (
           <Card accent={mode.color} style={s.briefingCard}>
-            <Eyebrow live color={mode.color} dot={mode.color}>{translate("Oyun Açıklaması")}</Eyebrow>
             <Title size={26} style={{ textAlign: 'center' }}>{mode.label}</Title>
-            <Muted style={{ textAlign: 'center', lineHeight: 20 }}>{briefingInstructions}</Muted>
+            <GameInstructions key={mg.id} text={briefingInstructions} color={mode.color} />
             {mg.kind==='math_guess'&&<View style={{gap:10}}>
               <Title size={19}>{mathIndex===1?translate("Kaç tahmin sorusu oynansın?"):format("Soru {0} / {1}", mathIndex, mg.math_state?.count??1)}</Title>
               {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count}  {translate("soru")}</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
