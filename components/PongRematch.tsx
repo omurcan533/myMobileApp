@@ -84,7 +84,7 @@ export const PongRematch=forwardRef<PongRematchHandle,Props>(function PongRematc
  return (
   <View style={{ gap: 12 }}>
    <Card accent={colors.cyan} style={{ gap: 12 }}>
-    <Text style={{ color: colors.text, fontWeight: '800' }}>{format("Gerekli evet oyu: {0}/{1}", yes, needed)}</Text>
+    <Text style={{ color: colors.text, fontWeight: '800' }}>{format("Rövanş için evet oyu: {0}/{1}", yes, needed)}</Text>
     {approved ? <View style={{ gap: 8 }}><Title size={18}>{translate("🎉 Rövanş kabul edildi!")}</Title><Muted>{translate("Oyuncular şimdi rollerini takım arkadaşlarına devredebilir. Yönetici hazır olduğunda rövanşı başlatır.")}</Muted>{me.is_host && <Btn title={translate("Rövanşı Hazırla")} tone="success" disabled={busy} onPress={start} />}</View> : (
      <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Btn title={myVote?.yes === true ? translate("✓ EVET") : translate("EVET")} tone="success" disabled={busy} onPress={() => vote(true)} /></View>
