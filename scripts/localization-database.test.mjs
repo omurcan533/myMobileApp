@@ -73,3 +73,58 @@ test('English and Turkish rooms share one authoritative puzzle language, includi
   assert.equal((await db.query("select count(*)::int n from questions where language='en'")).rows[0].n,before);
  }finally{await db.close();}
 });
+
+test('Turkish puzzle expansion adds distinct, playable questions and can be applied twice', async () => {
+ const db = new PGlite();
+ try {
+  await db.exec(read('./fixtures/gameplay-schema.sql'));
+  await db.exec(read('./fixtures/localization-schema.sql'));
+  await db.exec(migration);
+  const before = (await db.query("select count(*)::int n from questions where language='tr'")).rows[0].n;
+  const englishBefore = (await db.query("select count(*)::int n from questions where language='en'")).rows[0].n;
+  const expansion = read('../supabase/migrations/20261117000652_turkish_puzzle_expansion.sql');
+  await db.exec(expansion);
+  await db.exec(expansion);
+  assert.equal((await db.query("select count(*)::int n from questions where language='tr'")).rows[0].n, before + 456);
+  assert.equal((await db.query("select count(*)::int n from questions where language='en'")).rows[0].n, englishBefore);
+  const { rows: added } = await db.query(`
+    select id, kind, tier, prompt, answer, accepted_answers, hints, norm_answer(answer) as normalized
+    from questions
+    where language='tr' and kind in ('anagram','riddle') and answer not in ('kart','ayna')
+  `);
+  assert.equal(added.length, 456);
+  assert.equal(new Set(added.map(question => question.kind + ':' + question.normalized)).size, 456);
+  assert.equal(new Set(added.map(question => question.prompt)).size, 456);
+  for (const [tier, count] of [['base', 239], ['body', 107], ['roof', 110]]) {
+   assert.equal(added.filter(question => question.tier === tier).length, count);
+  }
+  for (const question of added.filter(question => question.kind === 'anagram')) {
+   assert.notEqual(question.prompt, question.answer);
+   assert.deepEqual([...question.prompt].sort(), [...question.answer].sort());
+   assert.equal(question.hints.length, 1);
+  }
+  const incorrect = await db.query(`
+    select count(*)::int n from questions q
+    cross join lateral unnest(array[q.answer] || q.accepted_answers) as candidate(answer)
+    where q.language='tr' and q.kind in ('anagram','riddle') and not _is_correct(q.id,candidate.answer)
+  `);
+  assert.equal(incorrect.rows[0].n, 0);
+
+  const { rows: [{ id: host }, { id: guest }] } = await db.query('insert into auth.users values(gen_random_uuid()),(gen_random_uuid()) returning id');
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)", [host]);
+  const { rows: [{ result }] } = await db.query("select create_room_localized('Puzzle QA','long','tr') result");
+  await db.query("insert into players(room_id,user_id,nickname,team_side) values($1,$2,'Guest','B')", [result.room_id, guest]);
+  await db.query("update players set team_side='A' where room_id=$1 and is_host", [result.room_id]);
+  await db.query("update rooms set phase='team_reveal',selected_games=array['anagram','riddle'] where id=$1", [result.room_id]);
+  await db.query("update questions set active=false where language='tr' and answer in ('kart','ayna')");
+  await db.query('select start_game($1)', [result.room_id]);
+  const { rows: scheduled } = await db.query('select question_id,tier from room_rounds where room_id=$1', [result.room_id]);
+  for (const [tier, count] of [['base', 8], ['body', 7], ['roof', 5]]) {
+   assert.equal(scheduled.filter(round => round.tier === tier).length, count);
+  }
+  const addedIds = new Set(added.map(question => question.id));
+  assert.ok(scheduled.every(round => addedIds.has(round.question_id)));
+ } finally {
+  await db.close();
+ }
+});
