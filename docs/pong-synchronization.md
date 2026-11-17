@@ -78,8 +78,10 @@ definitions are preserved in `docs/rollback-pong-input-transitions.sql`.
 
 The optional WebSocket engine in `game-server/` advances Pong at about 60
 updates per second and sends authoritative frames at about 30 per second.
-The client interpolates that stream with a 65 ms buffer and still predicts
-local paddle motion. The database stores periodic checkpoints and the final
+The client interpolates that stream with a shared 115 ms buffer and still predicts
+local paddle motion. WebSocket round trips estimate the clock of the same
+server that timestamps the frames. The displayed score uses the sampled frame.
+The database stores periodic checkpoints and the final
 result. A short database lease prevents a second server, browser tick or timeout
 resolver from competing for the same match. After disconnection the client
 rejoins using its Supabase session, and held directions expire or are cleared
@@ -99,7 +101,7 @@ when the socket closes.
    engine. Keep both players and spectators on the configured build during rollout.
 4. Test two physical devices and one spectator, including a backgrounded host,
    reconnects and a slower mobile network. Compare `gameServerRoundTrip` and
-   `frameArrivalInterval` with the existing metrics. The 65 ms value is a render
+   `frameArrivalInterval` with the existing metrics. The 115 ms value is a render
    buffer. It does not measure phone-to-phone latency.
 
 Run `npm ci --prefix game-server` and

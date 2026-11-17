@@ -78,6 +78,12 @@ test('two players and a spectator receive authoritative WebSocket frames and onl
     assert.equal((await once(intruder.socket, 'close'))[0].code, 4003);
     const [alice, bob, watcher] = await Promise.all(['alice', 'bob', 'watcher'].map(connect));
     await check(() => watcher.latest() && alice.latest() && bob.latest());
+    const sent = Date.now();
+    alice.socket.send(JSON.stringify({ type: 'ping', id: 123 }));
+    await check(() => alice.messages.some(message => message.type === 'pong'));
+    const ping = alice.messages.find(message => message.type === 'pong');
+    assert.equal(ping.id, 123);
+    assert.ok(ping.serverTime >= sent && ping.serverTime <= Date.now());
     hold(watcher, -1, true);
     hold(alice, 1, true);
     await delay(100);
@@ -96,8 +102,8 @@ test('two players and a spectator receive authoritative WebSocket frames and onl
     assert.equal(watcher.latest().ay, settledA);
     assert.equal(watcher.latest().by, settledB);
     const sharedFrame = watcher.latest();
-    await check(() => alice.messages.some(message => message.state.tick === sharedFrame.tick));
-    assert.deepEqual(alice.messages.find(message => message.state.tick === sharedFrame.tick).state, sharedFrame);
+    await check(() => alice.messages.some(message => message.state?.tick === sharedFrame.tick));
+    assert.deepEqual(alice.messages.find(message => message.state?.tick === sharedFrame.tick).state, sharedFrame);
     endsAt = Date.now() + 200;
     await check(() => watcher.messages.some(message => message.type === 'finished'), 3500);
     assert.equal(finishes.length, 1);

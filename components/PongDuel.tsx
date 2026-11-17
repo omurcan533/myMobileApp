@@ -39,6 +39,12 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
  const dedicated=Boolean(pongServerUrl && live && mg.starts_at);
  const socketRef=useRef<WebSocket|null>(null);
  const [socketReady,setSocketReady]=useState(false);
+ const pongClockOffset=useRef<number|null>(null);
+ const pongNow=useCallback(()=>pongClockOffset.current===null ? serverNow() : performance.now()+pongClockOffset.current,[]);
+ const [presentedScore,setPresentedScore]=useState<{a:number;b:number}|null>(null);
+ const presentScore=useCallback((a:number,b:number)=>{
+  setPresentedScore(old=>old?.a===a&&old.b===b?old:{a,b});
+ },[]);
  const [socketPaused,setSocketPaused]=useState(false);
  const [socketEpoch,setSocketEpoch]=useState(0);
  const [state,setState]=useState<State|null>((mg.pong_state as State|null)??null);
@@ -127,7 +133,8 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   const boundary=setTimeout(()=>{if(interval)clearInterval(interval);setClock(serverNow());},remaining+1);
   return ()=>{if(interval)clearInterval(interval);clearTimeout(boundary);};
  },[live,goAt]);
- const scoreA=state?.scoreA,scoreB=state?.scoreB;
+ const scoreA=dedicated&&active ? presentedScore?.a??0 : state?.scoreA;
+ const scoreB=dedicated&&active ? presentedScore?.b??0 : state?.scoreB;
  useEffect(()=>{
   if(scoreA===undefined||scoreB===undefined)return;
   const old=previousScores.current;
@@ -180,15 +187,24 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
     const connection=new WebSocket(pongServerUrl);
     socket=connection;
     let firstFrame=true;
+    const clockSamples:{rtt:number;offset:number}[]=[];
     lastMessage=performance.now();
     connection.onopen=()=>connection.send(JSON.stringify({type:'join',match:mg.id,token:session.access_token}));
     connection.onmessage=({data:payload})=>{
      if(closed||socket!==connection)return;
-     let message:{type?:string;state?:State;paused?:boolean;id?:number};
+     let message:{type?:string;state?:State;paused?:boolean;id?:number;serverTime?:number};
      try { message=JSON.parse(String(payload)); } catch { return; }
      lastMessage=performance.now();
      if(message?.type==='pong'&&typeof message.id==='number'){
-      recordMetric('gameServerRoundTrip',lastMessage-message.id);
+      const rtt=lastMessage-message.id;
+      recordMetric('gameServerRoundTrip',rtt);
+      if(typeof message.serverTime==='number'&&Number.isFinite(message.serverTime)&&rtt>=0&&rtt<1500){
+       clockSamples.push({rtt,offset:message.serverTime-(message.id+lastMessage)/2});
+       if(clockSamples.length>10)clockSamples.shift();
+       const best=clockSamples.reduce((a,b)=>a.rtt<=b.rtt?a:b);
+       const current=pongClockOffset.current;
+       pongClockOffset.current=current===null?best.offset:current+(best.offset-current)*0.2;
+      }
       return;
      }
      const frame=message?.state;
@@ -200,7 +216,9 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
       setSocketEpoch(epoch=>epoch+1);
       setSocketReady(true);
       setControlError(null);
+      presentScore(frame.scoreA,frame.scoreB);
       setState(frame);
+      connection.send(JSON.stringify({type:'ping',id:performance.now()}));
      } else {
       setState(previous=>Date.parse(frame.tick??'')<Date.parse(previous?.tick??'')?previous:frame);
      }
@@ -233,7 +251,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
    socketRef.current=null;
    socket?.close();
   };
- },[dedicated,mg.id,recordFrameArrival,recordMetric]);
+ },[dedicated,mg.id,presentScore,recordFrameArrival,recordMetric]);
 
  // Ağ güncellemeleri yalnızca oyun durumunu sabitler; 60 FPS çizim PongArena içinde yapılır.
  useEffect(()=>{
@@ -366,7 +384,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
    </View>
    <View style={styles.score}>
     <Text style={styles.teamA}>{loc('TAKIM A','TEAM A')}</Text>
-    <Title size={32}>{state?.scoreA??0} : {state?.scoreB??0}</Title>
+    <Title size={32}>{scoreA??0} : {scoreB??0}</Title>
     <Text style={styles.teamB}>{loc('TAKIM B','TEAM B')}</Text>
    </View>
    {needsModeChoice&&<View style={styles.choice}>
@@ -391,7 +409,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
-     <PongArena key={mg.id+':'+socketEpoch} renderDelayMs={dedicated?65:undefined} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
+     <PongArena key={mg.id+':'+socketEpoch} renderDelayMs={dedicated?115:undefined} now={dedicated?pongNow:undefined} onPresentedScore={dedicated?presentScore:undefined} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
      {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>{loc('Hazır ol! Maç başlıyor…','Get ready! Match starting…')}</Muted></View>}
      {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ {loc('GOOOL! TAKIM','GOAL! TEAM')} {goal.side} 🎉</Title></View>}
     </View>

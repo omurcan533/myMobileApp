@@ -111,12 +111,15 @@ test('dedicated Pong sends controls over the socket and ignores legacy broadcast
   assert.equal(socket.sent[0].token,'test-token');
   socket.message({type:'frame',state:frame(2000,{scoreA:1}),paused:false});
   const tree=h.render();
-  assert.equal(nodes(tree,'PongArena')[0].props.renderDelayMs,65);
+  const arena=nodes(tree,'PongArena')[0];
+  assert.equal(arena.props.renderDelayMs,115);
+  socket.message({type:'pong',id:19960,serverTime:80000});
+  assert.equal(arena.props.now(),80020);
   const control=nodes(tree,'Pressable').find(n=>n.props.onPressIn);
   assert.equal(control.props.disabled,false);
   control.props.onPressIn();
   control.props.onPressOut();
-  assert.deepEqual(socket.sent.slice(1).map(m=>[m.type,m.direction,m.pressed]),[
+  assert.deepEqual(socket.sent.filter(m=>m.type==='hold').map(m=>[m.type,m.direction,m.pressed]),[
    ['hold',-1,true],['hold',-1,false],
   ]);
   h.broadcast(frame(5000,{scoreA:4}));

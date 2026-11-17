@@ -6,9 +6,9 @@ import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, sampleTimelin
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
-type Props = { renderDelayMs?:number; state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
+type Props = { renderDelayMs?:number; now?:()=>number; onPresentedScore?:(a:number,b:number)=>void; state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
 
-export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held,renderDelayMs}:Props){
+export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held,renderDelayMs,now=serverNow,onPresentedScore}:Props){
  const paddleHeight=height*0.2;
  const ballX=useRef(new Animated.Value(width/2-6)).current;
  const ballY=useRef(new Animated.Value(height/2-6)).current;
@@ -38,27 +38,33 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  },[state]);
  useEffect(()=>{
   let frame=0,last=performance.now();
+  let lastScoreA:number|undefined,lastScoreB:number|undefined;
   const draw=()=>{
    const clock=performance.now();
    const dt=clamp((clock-last)/1000,0,0.05);
    last=clock;
    const cfg=params.current;
    const latest=history.current[history.current.length-1];
-   const sampled=cfg.playing?sampleTimeline(history.current,serverNow(),renderDelayMs):latest?.state;
+   const matchNow=now();
+   const sampled=cfg.playing?sampleTimeline(history.current,matchNow,renderDelayMs):latest?.state;
    if(sampled&&latest){
+    if(sampled.scoreA!==lastScoreA||sampled.scoreB!==lastScoreB){
+     lastScoreA=sampled.scoreA;
+     lastScoreB=sampled.scoreB;
+     onPresentedScore?.(lastScoreA,lastScoreB);
+    }
     for(const side of ['A','B'] as const){
      const local=cfg.playing&&cfg.mySide===side;
-     const now=serverNow();
      const heldOnServer=(direction:'Up'|'Down')=>{
       const key=`hold${side}${direction}` as 'holdAUp'|'holdADown'|'holdBUp'|'holdBDown';
-      return latest.state[key]===true&&now-Date.parse(latest.state[`${key}At`]??'')<2500;
+      return latest.state[key]===true&&matchNow-Date.parse(latest.state[`${key}At`]??'')<2500;
      };
      const serverUp=heldOnServer('Up'),serverDown=heldOnServer('Down');
      // In duo mode, the teammate still controls the other direction.
      const up=local&&(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
      const down=local&&(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
      const acknowledged=controlAcknowledged(latest.state,side,cfg.held,cfg.allowedDirections,fence.current);
-     const target=local?paddleTarget(latest.state,side,now):(side==='A'?sampled.ay:sampled.by);
+     const target=local?paddleTarget(latest.state,side,matchNow):(side==='A'?sampled.ay:sampled.by);
      const prior=paddles.current[side];
      paddles.current[side]=local?stepLocalPaddle(prior,dt,up,down,target,acknowledged):target;
     }
@@ -70,7 +76,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
   };
   frame=requestAnimationFrame(draw);
   return ()=>cancelAnimationFrame(frame);
- },[width,height,paddleHeight,ballX,ballY,leftY,rightY,renderDelayMs]);
+ },[width,height,paddleHeight,ballX,ballY,leftY,rightY,renderDelayMs,now,onPresentedScore]);
  if(!state)return null;
  return <View style={[styles.board,{width,height}]}>
   <View style={[styles.midline,{left:width/2}]} />

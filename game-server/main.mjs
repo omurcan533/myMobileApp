@@ -163,7 +163,7 @@ export function createGameServer(gateway) {
       }
 
       if (message.type === 'ping') {
-        if (typeof message.id === 'number') send(socket, { type: 'pong', id: message.id });
+        if (typeof message.id === 'number') send(socket, { type: 'pong', id: message.id, serverTime: Date.now() });
         return;
       }
       if (message.type !== 'hold' || typeof message.pressed !== 'boolean') return;
