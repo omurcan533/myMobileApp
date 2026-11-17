@@ -53,7 +53,7 @@ function Loading({ text }: { text: string }) {
   );
 }
 
-function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId: string; catalog: Record<string, Piece>; onLeave: () => void }) {
+function RoomView({ roomId, userId, catalog, onLeave, onEnter }: { roomId: string; userId: string; catalog: Record<string, Piece>; onLeave: () => void; onEnter: (id: string) => void }) {
   const { data, gone } = useRoom(roomId);
   const me = data?.players.find((p) => p.user_id === userId);
   useGameDriver(data, me?.id);
@@ -99,7 +99,7 @@ function RoomView({ roomId, userId, catalog, onLeave }: { roomId: string; userId
     case 'minigame': return safe(withBreak(<MinigameScreen ctx={ctx} />));
     case 'building': return safe(withBreak(<BuildingScreen ctx={ctx} />));
     case 'voting': return safe(withBreak(<VotingScreen ctx={ctx} />));
-    case 'results': return safe(<ResultsScreen ctx={ctx} />);
+    case 'results': return safe(<ResultsScreen ctx={ctx} onEnter={onEnter} />);
   }
 }
 
@@ -246,7 +246,7 @@ export default function App() {
       ) : !ready || !userId ? (
         <Loading text={translate("Arena hazırlanıyor…")} />
       ) : <CommunityGate key={userId} onAccountDeleted={accountDeleted}>{roomId ? (
-        <GameErrorBoundary key={roomId}><RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} /></GameErrorBoundary>
+        <GameErrorBoundary key={roomId}><RoomView roomId={roomId} userId={userId} catalog={catalog} onLeave={leave} onEnter={enter} /></GameErrorBoundary>
       ) : !avatarChosen ? (
         <AvatarSelect selected={avatarId} onSelect={(id) => { setAvatarId(id); AsyncStorage.setItem('avatarId', id); }} onContinue={() => setAvatarChosen(true)} />
       ) : (

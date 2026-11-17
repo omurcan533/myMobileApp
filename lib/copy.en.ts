@@ -1,5 +1,9 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  "Aynı Grupla Tekrar Oyna": "Play Again with the Same Group",
+  "Yeni Lobiye Katıl": "Join the New Lobby",
+  "Kurucu henüz yeni bir lobi açmadı.": "The host has not opened a new lobby yet.",
+  "Kurucu tekrar oynamayı seçtiğinde yeni lobiye buradan katılabilirsin.": "When the host chooses to play again, you can join the new lobby here.",
   'Devam etmeden topluluk kurallarını kabul et.': 'Accept the community rules before continuing.',
   'Bu hesap kısıtlandı. Destek adresinden itiraz edebilirsin.': 'This account is restricted. Contact support to appeal.',
   'Engelleme nedeniyle bu odaya katılamazsın.': 'You cannot join this room because of a block.',

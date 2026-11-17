@@ -6,6 +6,7 @@ export type GameMode = 'quick' | 'standard' | 'long' | 'custom';
 
 export interface Room {
   game_language?: 'tr' | 'en';
+  rematch_room_id?: string | null;
   closed_at?: string | null;
   id: string;
   code: string;

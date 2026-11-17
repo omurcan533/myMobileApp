@@ -1,5 +1,5 @@
 import { getLanguage, translate, useLanguage, format, languageLocale } from '../lib/i18n';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,7 +159,7 @@ function AwardStage({awards,players,closing,onFinish}:{awards:CeremonyAward[];pl
  </Screen>;
 }
 
-export function ResultsScreen({ ctx }: { ctx: Ctx }) {
+export function ResultsScreen({ ctx, onEnter }: { ctx: Ctx; onEnter: (roomId: string) => void }) {
   useLanguage();
   const { data, me, catalog, exitRoom } = ctx;
   const { width } = useWindowDimensions();
@@ -174,6 +174,22 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
   const [ceremonyReady,setCeremonyReady]=useState(false);
   const [ageScores,setAgeScores]=useState<{player_id:string;correct:number;total:number}[]>([]);
   const { toast, show } = useToast();
+  const [rematchBusy, setRematchBusy] = useState(false);
+  const rematchPending = useRef(false);
+  const enterRematch = async () => {
+    if (rematchPending.current) return;
+    rematchPending.current = true;
+    setRematchBusy(true);
+    try {
+      const next = await api.enterRoomRematch(data.room.id);
+      onEnter(next.room_id);
+    } catch (error) {
+      show((error as Error).message, 'error');
+    } finally {
+      rematchPending.current = false;
+      setRematchBusy(false);
+    }
+  };
 
   const leave = async () => {
     try {
@@ -440,7 +456,12 @@ export function ResultsScreen({ ctx }: { ctx: Ctx }) {
         </>}
 
         {/* ================= ANA MENÜ ================= */}
-        <View style={{ marginTop: 10, marginBottom: 16 }}>
+        <View style={{ marginTop: 10, marginBottom: 16, gap: 10 }}>
+          {me.is_host || data.room.rematch_room_id ? (
+            <Btn title={translate(me.is_host ? "Aynı Grupla Tekrar Oyna" : "Yeni Lobiye Katıl")} icon="refresh" loading={rematchBusy} disabled={rematchBusy} onPress={enterRematch} />
+          ) : (
+            <Muted>{translate("Kurucu tekrar oynamayı seçtiğinde yeni lobiye buradan katılabilirsin.")}</Muted>
+          )}
           <Btn title={translate("Ana Menüye Dön")} tone="gold" icon="home" onPress={leave} />
         </View>
       </ScrollView>
