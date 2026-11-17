@@ -285,7 +285,16 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                 <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={simple ? 32 : 58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
                 <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
                 <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
-                {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
+                {me.is_host && !isMe && !p.is_host && !p.is_bot && (simple ? (
+                  <IconBtn
+                    icon="person-remove-outline"
+                    accessibilityLabel={translate("Çıkar") + ' ' + p.nickname}
+                    disabled={!!kickingId || busy}
+                    onPress={() => confirmKick(p.id, p.nickname)}
+                  />
+                ) : (
+                  <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />
+                ))}
               </View>
             );
           })}
@@ -590,8 +599,8 @@ const s = StyleSheet.create({
   compactRailSelected: { backgroundColor: '#39576C', marginLeft: -5 },
   compactRailLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   compactCode: { fontSize: 43, letterSpacing: 5, color: colors.mint, fontWeight: '900' },
-  compactPlayer: { width: '100%', paddingVertical: 8 },
-  compactGrid: { gap: 7 },
+  compactPlayer: { width: '48%', paddingVertical: 8 },
+  compactGrid: { gap: 0, rowGap: 7, justifyContent: 'space-between' },
   compactGame: { width: '100%', minHeight: 44 },
   compactGameActions: { flexDirection: 'column' },
   gameActions: { flexDirection: 'row', gap: 8 },
