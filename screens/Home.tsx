@@ -1,5 +1,5 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { AppState, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, Pressable, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +24,15 @@ import { t, useLanguage, saveLanguage, translate, format } from '../lib/i18n';
 export const GAME_TITLE = 'Ucube Atölyesi';
 
 type Tab = 'play' | 'how' | 'profile';
+type HomeAppearance = 'normal' | 'simple';
+type RoomAction = 'create' | 'join' | 'rooms';
+
+const HOME_APPEARANCE_KEY = 'homeAppearance';
+const ROOM_ACTIONS = [
+  { key: 'create', label: 'roomTitle', icon: 'add-circle-outline', tint: '#A2EFD4' },
+  { key: 'join', label: 'joinRoom', icon: 'log-in-outline', tint: '#AFE4FF' },
+  { key: 'rooms', label: 'publicRooms', icon: 'earth-outline', tint: '#D6C4FF' },
+] as const;
 const TABS: TabItem<Tab>[] = [
   { key: 'play', label: 'Oyna', icon: 'game-controller-outline', iconActive: 'game-controller' },
   { key: 'how', label: 'Nasıl Oynanır', icon: 'book-outline', iconActive: 'book' },
@@ -42,6 +51,11 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   const language = useLanguage();
   const tabs: TabItem<Tab>[] = TABS.map((tab) => ({ ...tab, label: tab.key === 'play' ? t('play') : tab.key === 'how' ? t('how') : t('profile') }));
   const [tab, setTab] = useState<Tab>('play');
+  const [appearance, setAppearance] = useState<HomeAppearance | null>(null);
+  const [roomAction, setRoomAction] = useState<RoomAction | null>(null);
+  const [savingAppearance, setSavingAppearance] = useState(false);
+  const appearanceWrite = useRef(false);
+  const simple = appearance === 'simple';
   const [nick, setNick] = useState('');
   const [nameLoaded, setNameLoaded] = useState(false);
   const [nameRequired, setNameRequired] = useState(false);
@@ -71,6 +85,9 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
       setNameRequired(!validNickname(saved));
     }).catch(() => { if (active) setNameRequired(true); })
       .finally(() => { if (active) setNameLoaded(true); });
+    AsyncStorage.getItem(HOME_APPEARANCE_KEY).catch(() => null).then(value => {
+      if (active) setAppearance(value === 'simple' ? 'simple' : 'normal');
+    });
     getProfile().then(setProfile);
     return () => { active = false; };
   }, []);
@@ -117,7 +134,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   });
   useEffect(() => {
     if (modeCarouselWidth > 0) alignCarousel(modeCarouselWidth);
-  }, [modeCarouselWidth]);
+  }, [modeCarouselWidth, tab, appearance]);
 
   const lvl = levelOf(profile);
   const displayName = nick.trim() || t('newPlayer');
@@ -152,7 +169,23 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
     AsyncStorage.setItem('soundEnabled', String(v)).catch(console.warn);
   };
 
-  if (!nameLoaded) return <Screen><View style={{flex:1,justifyContent:'center',alignItems:'center'}}>
+  const changeAppearance = async (next: HomeAppearance) => {
+    if (appearance === next || appearanceWrite.current) return;
+    appearanceWrite.current = true;
+    setSavingAppearance(true);
+    try {
+      await AsyncStorage.setItem(HOME_APPEARANCE_KEY, next);
+      setRoomAction(null);
+      setAppearance(next);
+    } catch {
+      show(translate("Görünüm tercihi kaydedilemedi."), 'error');
+    } finally {
+      appearanceWrite.current = false;
+      setSavingAppearance(false);
+    }
+  };
+
+  if (!nameLoaded || appearance === null) return <Screen><View style={{flex:1,justifyContent:'center',alignItems:'center'}}>
     <Muted>{language==='en'?'Preparing your player profile…':translate("Oyuncu profilin hazırlanıyor…")}</Muted>
   </View></Screen>;
 
@@ -164,6 +197,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
     pendingEntry.current = null;
     if (pending) void run(pending.kind, pending.code, name);
   }}/>;
+
+  const modeOptions = [
+    ['quick', 'flash', translate("Hızlı"), translate("8 Soru • ~5 dk")],
+    ['standard', 'trophy', translate("Standart"), translate("14 Soru • ~10 dk")],
+    ['long', 'flame', translate("Epik"), translate("20 Soru • ~18 dk")],
+    ['custom', 'options', translate("Özel"), translate("Oyunları sen seç")],
+  ] as const;
 
   return (
     <Screen>
@@ -243,18 +283,62 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                 </Card>
               </Reveal>
 
+              <View style={simple && s.dock}>
+                {simple && (
+                  <View style={s.rail}>
+                    {ROOM_ACTIONS.map(({ key, icon, label, tint }) => {
+                      const selected = roomAction === key;
+                      return (
+                        <Pressable
+                          key={key}
+                          accessibilityRole="button"
+                          accessibilityLabel={t(label)}
+                          aria-expanded={selected}
+                          onPress={() => {
+                            soundFx.click();
+                            setRoomAction(current => current === key ? null : key);
+                          }}
+                          style={[s.railTab, selected && s.railTabSelected, selected && { borderColor: alpha(tint, 0.52) }]}
+                        >
+                          <Ionicons name={icon} size={20} color={tint} />
+                          <Text style={[s.railLabel, selected && { color: tint }]}>{t(label)}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+                <View style={simple ? s.dockContent : s.normalContent}>
+                  {simple && roomAction === null && (
+                    <View style={s.dockIdle} accessible={false} importantForAccessibility="no-hide-descendants">
+                      <View style={[s.dockOrbit, s.dockOrbitOuter]} />
+                      <View style={s.dockOrbit} />
+                      <Ionicons name="game-controller-outline" size={40} color="#A4B7D8" />
+                    </View>
+                  )}
               {/* ================= ODA KUR ================= */}
-              <Reveal delay={160}>
-                <Card accent={colors.mint} style={{ gap: 14 }}>
-                  <View style={s.cardHead}>
-                    <View style={[s.cardIcon, { backgroundColor: alpha(colors.mint, 0.14), borderColor: alpha(colors.mint, 0.4) }]}>
+              {(!simple || roomAction === 'create') && <HomeRoomPanel simple={simple} delay={160}>
+                <Card accent={simple ? undefined : colors.mint} style={[{ gap: 14 }, simple && s.dockPanel]}>
+                  <View style={[s.cardHead, simple && s.compactCardHead]}>
+                    <View style={[s.cardIcon, simple && s.compactCardIcon, { backgroundColor: alpha(colors.mint, 0.14), borderColor: alpha(colors.mint, 0.4) }]}>
                       <Ionicons name="add-circle" size={22} color={colors.mint} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>{t('roomTitle')}</Title>
+                      <Title size={simple ? 18 : 20}>{t('roomTitle')}</Title>
                       <Muted>{t('roomDescription')}</Muted>
                     </View>
                   </View>
+                  {simple ? (
+                    <View style={s.modeGrid}>
+                      {modeOptions.map(([key, icon, label, description], index) => (
+                        <Pressable key={key} accessibilityRole="button" accessibilityLabel={`${label}. ${description}`} aria-selected={mode === key}
+                          onPress={() => { soundFx.click(); setMode(key); setModeIndex(index); }}
+                          style={[s.compactMode, mode === key && s.compactModeSelected]}>
+                          <Ionicons name={icon} size={16} color={mode === key ? ROOM_ACTIONS[0].tint : colors.muted} />
+                          <Text style={s.compactModeLabel}>{label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : <>
                   <View style={{ position: 'relative', width: '100%' }}>
                   <ScrollView
                     ref={modeCarouselRef}
@@ -280,12 +364,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       setMode(modes[nextIndex]);
                     }}
                   >
-                    {([
-                      ['quick', 'flash', translate("Hızlı"), translate("8 Soru • ~5 dk")],
-                      ['standard', 'trophy', translate("Standart"), translate("14 Soru • ~10 dk")],
-                      ['long', 'flame', translate("Epik"), translate("20 Soru • ~18 dk")],
-                      ['custom', 'options', translate("Özel"), translate("Oyunları sen seç")],
-                    ] as const).map(([m, icon, label, sub], index) => {
+                    {modeOptions.map(([m, icon, label, sub], index) => {
                       const on = mode === m;
                       const accent = '#DBE5F5';
                       return (
@@ -363,19 +442,20 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       </Tap>
                     ))}
                   </View>
-                  <Btn title={t('roomCreate')} tone="success" icon="rocket" loading={busy === 'create'} onPress={() => run('create')} />
+                  </>}
+                  <Btn size={simple ? "md" : "lg"} title={t('roomCreate')} tone="success" icon="rocket" loading={busy === 'create'} onPress={() => run('create')} />
                 </Card>
-              </Reveal>
+              </HomeRoomPanel>}
 
               {/* ================= ODAYA KATIL ================= */}
-              <Reveal delay={240}>
-                <Card accent={colors.cyan} style={{ gap: 14 }}>
-                  <View style={s.cardHead}>
-                    <View style={[s.cardIcon, { backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
+              {(!simple || roomAction === 'join') && <HomeRoomPanel simple={simple} delay={240}>
+                <Card accent={simple ? undefined : colors.cyan} style={[{ gap: 14 }, simple && s.dockPanel]}>
+                  <View style={[s.cardHead, simple && s.compactCardHead]}>
+                    <View style={[s.cardIcon, simple && s.compactCardIcon, { backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
                       <Ionicons name="enter" size={22} color={colors.cyan} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>{t('joinRoom')}</Title>
+                      <Title size={simple ? 18 : 20}>{t('joinRoom')}</Title>
                       <Muted>{t('joinDescription')}</Muted>
                     </View>
                   </View>
@@ -386,21 +466,21 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     placeholder={t('roomCode')}
                     autoCapitalize="characters"
                     maxLength={5}
-                    style={s.codeInput}
+                    style={[s.codeInput, simple && s.compactCodeInput]}
                   />
-                  <Btn title={t('roomJoin')} tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
+                  <Btn size={simple ? "md" : "lg"} title={t('roomJoin')} tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
                 </Card>
-              </Reveal>
+              </HomeRoomPanel>}
 
               {/* ================= AÇIK ODALAR ================= */}
-              <Reveal delay={280}>
-                <Card accent={colors.mint} style={{ gap: 14 }}>
-                  <View style={s.cardHead}>
-                    <View style={[s.cardIcon, { backgroundColor: alpha(colors.mint, 0.14), borderColor: alpha(colors.mint, 0.4) }]}>
+              {(!simple || roomAction === 'rooms') && <HomeRoomPanel simple={simple} delay={280}>
+                <Card accent={simple ? undefined : colors.mint} style={[{ gap: 14 }, simple && s.dockPanel]}>
+                  <View style={[s.cardHead, simple && s.compactCardHead]}>
+                    <View style={[s.cardIcon, simple && s.compactCardIcon, { backgroundColor: alpha(colors.mint, 0.14), borderColor: alpha(colors.mint, 0.4) }]}>
                       <Ionicons name="earth" size={22} color={colors.mint} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Title size={20}>{t('publicRooms')}</Title>
+                      <Title size={simple ? 18 : 20}>{t('publicRooms')}</Title>
                       <Muted>{t('publicDescription')}</Muted>
                     </View>
                     <View style={{ minWidth: 28, height: 28, borderRadius: 14, backgroundColor: alpha(colors.mint, 0.14), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }}>
@@ -423,11 +503,11 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     const modeLabel: Record<string, string> = { quick: translate("Hızlı"), standard: translate("Standart"), long: translate("Epik"), custom: translate("Özel") };
                     return (
                       <View key={room.code} style={{ borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.inset, padding: 12, gap: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: alpha(waiting ? colors.mint : colors.violet, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={[s.publicRoomHeader, simple && s.compactPublicRoomHeader]}>
+                          {!simple && <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: alpha(waiting ? colors.mint : colors.violet, 0.14), alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name={waiting ? 'people' : 'game-controller'} size={20} color={waiting ? colors.mint : colors.violet} />
-                          </View>
-                          <View style={{ flex: 1, gap: 3 }}>
+                          </View>}
+                          <View style={[{ gap: 3 }, !simple && { flex: 1 }]}>
                             <Text display style={{ fontSize: 15, color: colors.text, fontWeight: '700' }}>{room.host_nickname}{translate("'ın Odası")}</Text>
                             <Muted>{modeLabel[room.mode] ?? room.mode} {translate('mod')} · {room.player_count}/12 {translate('oyuncu')} · {room.game_language === 'en' ? 'English' : 'Türkçe'}</Muted>
                           </View>
@@ -446,7 +526,9 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     );
                   })}
                 </Card>
-              </Reveal>
+              </HomeRoomPanel>}
+                </View>
+              </View>
             </>
           )}
 
@@ -537,6 +619,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     placeholder={translate("Takma adın")}
                     maxLength={20}
                   />
+                  <SectionLabel>{translate("Ayarlar")}</SectionLabel>
                   <View style={{ gap: 8 }}>
                     <Text style={s.settingTitle}>{t('language')}</Text>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -544,6 +627,25 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                         <Btn key={option} title={option === 'tr' ? 'Türkçe' : 'English'} tone={language === option ? 'primary' : 'ghost'} onPress={() => { void saveLanguage(option).catch(console.warn); }} />
                       ))}
                     </View>
+                  </View>
+                  <View style={s.appearanceSetting}>
+                    <Text style={s.settingTitle}>{translate("Ana ekran görünümü")}</Text>
+                    <View style={s.appearanceOptions}>
+                      {(['normal', 'simple'] as const).map(option => (
+                        <Pressable
+                          key={option}
+                          accessibilityRole="button"
+                          aria-selected={appearance === option}
+                          disabled={savingAppearance}
+                          onPress={() => { void changeAppearance(option); }}
+                          style={[s.appearanceOption, appearance === option && s.appearanceOptionSelected]}
+                        >
+                          <Ionicons name={option === 'normal' ? 'apps-outline' : 'albums-outline'} size={17} color={appearance === option ? '#AFE4FF' : colors.muted} />
+                          <Text style={s.appearanceLabel}>{option === 'normal' ? translate("Normal") : translate("Basit")}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Muted>{appearance === 'simple' ? translate("Oda panellerini sağdaki sekmelerden aç.") : translate("Oda panellerini ana ekranda alt alta göster.")}</Muted>
                   </View>
                   <View style={s.settingRow}>
                     <View style={[s.cardIcon, { backgroundColor: alpha(colors.violet, 0.14), borderColor: alpha(colors.violet, 0.4) }]}>
@@ -574,6 +676,37 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   );
 }
 
+function HomeRoomPanel({ simple, delay, children }: { simple: boolean; delay: number; children: React.ReactNode }) {
+  return simple ? <DockPanel>{children}</DockPanel> : <Reveal delay={delay}>{children}</Reveal>;
+}
+
+function DockPanel({ children }: { children: React.ReactNode }) {
+  const [progress] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    let active = true;
+    const animate = (reduced: boolean) => {
+      if (!active) return;
+      if (reduced) progress.setValue(1);
+      else Animated.timing(progress, {
+        toValue: 1,
+        duration: 235,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    };
+    void AccessibilityInfo.isReduceMotionEnabled().then(animate, () => animate(true));
+    return () => { active = false; progress.stopAnimation(); };
+  }, [progress]);
+
+  return <Animated.View style={{
+    opacity: progress.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] }),
+    transform: [
+      { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+      { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) },
+    ],
+  }}>{children}</Animated.View>;
+}
+
 function StatTile({ icon, color, value, label }: { icon: IconName; color: string; value: number | string; label: string }) {
   return (
     <Card accent={color} style={s.stat}>
@@ -593,6 +726,32 @@ const s = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
   scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },
+
+  normalContent: { gap: 16 },
+  dock: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 11 },
+  dockContent: { flex: 1, minWidth: 0 },
+  rail: { width: 76, gap: 8, marginRight: -8, paddingTop: 9 },
+  railTab: { minHeight: 69, borderWidth: 1, borderRightWidth: 0, borderColor: '#34435C', borderTopLeftRadius: 20, borderBottomLeftRadius: 20, backgroundColor: '#141E34', paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', gap: 5 },
+  railTabSelected: { marginLeft: -8, backgroundColor: '#253650', shadowColor: '#050B20', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: -4, height: 3 } },
+  railLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', color: colors.textSoft },
+  dockIdle: { minHeight: 232, alignItems: 'center', justifyContent: 'center' },
+  dockOrbit: { position: 'absolute', width: 118, height: 118, borderRadius: 36, borderWidth: 1, borderColor: '#7085AD45', backgroundColor: '#1C2A4655', transform: [{ rotate: '27deg' }] },
+  dockOrbitOuter: { width: 146, height: 146, borderColor: '#7085AD26', backgroundColor: 'transparent', transform: [{ rotate: '-18deg' }] },
+  dockPanel: { backgroundColor: '#152137', borderColor: '#435371', padding: 12, borderRadius: 21 },
+  compactCardHead: { gap: 8, alignItems: 'flex-start' },
+  compactCardIcon: { width: 32, height: 32, borderRadius: 16 },
+  modeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 6 },
+  compactMode: { width: '48%', minHeight: 46, paddingHorizontal: 3, paddingVertical: 5, gap: 3, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#3B4A65', backgroundColor: '#132038' },
+  compactModeSelected: { borderColor: '#A2EFD4', backgroundColor: '#23364A' },
+  compactModeLabel: { fontSize: 11, textAlign: 'center', color: colors.textSoft },
+  compactCodeInput: { fontSize: 19, letterSpacing: 3 },
+  publicRoomHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  compactPublicRoomHeader: { flexDirection: 'column', alignItems: 'flex-start', gap: 6 },
+  appearanceSetting: { gap: 8 },
+  appearanceOptions: { flexDirection: 'row', gap: 8 },
+  appearanceOption: { minHeight: 46, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 13, backgroundColor: colors.inset },
+  appearanceOptionSelected: { borderColor: '#AFE4FF88', backgroundColor: '#213451' },
+  appearanceLabel: { color: colors.textSoft, flexShrink: 1, textAlign: 'center' },
 
   hero: {
     height: 212,

@@ -1,5 +1,12 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  "Ayarlar": "Settings",
+  "Ana ekran görünümü": "Home Screen Appearance",
+  "Normal": "Normal",
+  "Basit": "Simple",
+  "Oda panellerini sağdaki sekmelerden aç.": "Open room panels using the tabs on the right.",
+  "Oda panellerini ana ekranda alt alta göster.": "Show room panels in a list on the home screen.",
+  "Görünüm tercihi kaydedilemedi.": "Could not save your appearance preference.",
   "Aynı Grupla Tekrar Oyna": "Play Again with the Same Group",
   "Yeni Lobiye Katıl": "Join the New Lobby",
   "Kurucu henüz yeni bir lobi açmadı.": "The host has not opened a new lobby yet.",
