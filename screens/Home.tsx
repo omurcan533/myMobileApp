@@ -25,10 +25,11 @@ import { t, useLanguage, saveLanguage, translate, format } from '../lib/i18n';
 export const GAME_TITLE = 'Ucube Atölyesi';
 
 type Tab = 'play' | 'how' | 'profile';
-type HomeAppearance = 'normal' | 'simple';
+export type HomeAppearance = 'normal' | 'simple';
 type RoomAction = 'create' | 'join' | 'rooms';
 
-const HOME_APPEARANCE_KEY = 'homeAppearance';
+export const HOME_APPEARANCE_KEY = 'homeAppearance';
+export const readHomeAppearance = (value: string | null): HomeAppearance => value === 'normal' ? 'normal' : 'simple';
 const ROOM_ACTIONS = [
   { key: 'create', label: 'roomTitle', icon: 'add-circle-outline', tint: '#A2EFD4' },
   { key: 'join', label: 'joinRoom', icon: 'log-in-outline', tint: '#AFE4FF' },
@@ -53,7 +54,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   const tabs: TabItem<Tab>[] = TABS.map((tab) => ({ ...tab, label: tab.key === 'play' ? t('play') : tab.key === 'how' ? t('how') : t('profile') }));
   const [tab, setTab] = useState<Tab>('play');
   const [appearance, setAppearance] = useState<HomeAppearance | null>(null);
-  const [roomAction, setRoomAction] = useState<RoomAction | null>(null);
+  const [roomAction, setRoomAction] = useState<RoomAction | null>('rooms');
   const [savingAppearance, setSavingAppearance] = useState(false);
   const appearanceWrite = useRef(false);
   const simple = appearance === 'simple';
@@ -136,7 +137,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
     }).catch(() => { if (active) setNameRequired(true); })
       .finally(() => { if (active) setNameLoaded(true); });
     AsyncStorage.getItem(HOME_APPEARANCE_KEY).catch(() => null).then(value => {
-      if (active) setAppearance(value === 'simple' ? 'simple' : 'normal');
+      if (active) setAppearance(readHomeAppearance(value));
     });
     getProfile().then(setProfile);
     return () => { active = false; };
@@ -225,7 +226,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
     setSavingAppearance(true);
     try {
       await AsyncStorage.setItem(HOME_APPEARANCE_KEY, next);
-      setRoomAction(null);
+      if (next === 'simple') setRoomAction('rooms');
       setAppearance(next);
     } catch {
       show(translate("Görünüm tercihi kaydedilemedi."), 'error');

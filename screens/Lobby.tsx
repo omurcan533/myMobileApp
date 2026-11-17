@@ -1,17 +1,18 @@
 import { translate, useLanguage, format } from '../lib/i18n';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
 import { FriendFactsLobby } from '../components/FriendFactsLobby';
 import { avatarFor } from '../lib/art';
 import { alpha, colors, gradients } from '../lib/theme';
 import type { Ctx } from '../lib/types';
-import { GAME_TITLE } from './Home';
+import { GAME_TITLE, HOME_APPEARANCE_KEY, readHomeAppearance, type HomeAppearance } from './Home';
 
 const MAX_PLAYERS = 12;
 const MIN_SLOTS = 4;
@@ -51,6 +52,37 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const [factsReviewed, setFactsReviewed] = useState(false);
   const [savingGames, setSavingGames] = useState(false);
   const { toast, show } = useToast();
+  const [appearance, setAppearance] = useState<HomeAppearance | null>(null);
+  const [savingAppearance, setSavingAppearance] = useState(false);
+  const appearanceWrite = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const simple = appearance === 'simple';
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(HOME_APPEARANCE_KEY).catch(() => null).then(value => {
+      if (mounted) setAppearance(readHomeAppearance(value));
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  const changeAppearance = async () => {
+    if (appearanceWrite.current || appearance === null) return;
+    appearanceWrite.current = true;
+    const next = simple ? 'normal' : 'simple';
+    setSavingAppearance(true);
+    try {
+      await AsyncStorage.setItem(HOME_APPEARANCE_KEY, next);
+      if (next === 'simple') scrollRef.current?.scrollTo({ y: 0, animated: false });
+      setAppearance(next);
+    } catch {
+      show(translate("Görünüm tercihi kaydedilemedi."), 'error');
+    } finally {
+      appearanceWrite.current = false;
+      setSavingAppearance(false);
+    }
+  };
+
 
   const selectedGames = room.selected_games ?? DEFAULT_GAMES;
   const [editedGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
@@ -169,9 +201,53 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const empties = Math.max(0, Math.min(MAX_PLAYERS, Math.max(MIN_SLOTS, players.length + 1)) - players.length);
   const canStart = players.length >= 2;
 
+  if (appearance === null) return <Screen>{null}</Screen>;
+
+  const languageSettings = (
+    <View style={{ gap: 8 }}>
+      <Text style={{color:colors.text,fontWeight:'700'}}>{translate('Oyun dili')}</Text>
+      <Muted>{translate('Odadaki herkes aynı soruları bu dilde görür.')}</Muted>
+      <View style={{flexDirection:'row',gap:8}}>
+        {(['tr','en'] as const).map(language => <Btn key={language}
+          title={language === 'tr' ? 'Türkçe' : 'English'}
+          tone={(room.game_language ?? 'tr') === language ? 'primary' : 'ghost'}
+          disabled={!me.is_host || languageBusy || busy} loading={languageBusy && room.game_language !== language}
+          onPress={async()=>{setLanguageBusy(true);try{await api.setRoomGameLanguage(room.id,language);show(translate('Oyun dili kaydedildi.'),'success');}catch(error){show((error as Error).message,'error');}finally{setLanguageBusy(false);}}} />)}
+      </View>
+    </View>
+  );
+
+  const codeCard = (
+    <Reveal>
+      <View style={[s.codeCard, simple && s.compactCodeCard]}>
+        <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={s.codeHeading}>
+          <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
+          <IconBtn
+            icon={simple ? 'albums-outline' : 'apps-outline'}
+            accessibilityLabel={simple ? translate("Normal görünüme geç") : translate("Basit görünüme geç")}
+            active={simple}
+            disabled={savingAppearance}
+            onPress={() => { void changeAppearance(); }}
+          />
+        </View>
+        <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
+        <Pulse amount={1.025}>
+          <Text display style={[s.code, simple && s.compactCode]}>{room.code}</Text>
+        </Pulse>
+        <View style={s.chipsRow}>
+          <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? translate("Hızlı mod") : room.mode === 'standard' ? translate("Standart mod") : room.mode === 'long' ? translate("Epik mod") : translate("Özel mod")} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
+          <Chip icon="people" label={translate("2 Takım")} color={colors.cyan} />
+        </View>
+        <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size={simple ? "sm" : "md"} onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
+      </View>
+    </Reveal>
+  );
+
   return (
     <Screen>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {simple && codeCard}
         {/* ================= OYUNCULAR ================= */}
         <Reveal delay={100}>
           <Card style={{ gap: 14 }}>
@@ -185,37 +261,27 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
                 <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
               </View>
             </View>
-            <View style={{ gap: 8 }}>
-              <Text style={{color:colors.text,fontWeight:'700'}}>{translate('Oyun dili')}</Text>
-              <Muted>{translate('Odadaki herkes aynı soruları bu dilde görür.')}</Muted>
-              <View style={{flexDirection:'row',gap:8}}>
-                {(['tr','en'] as const).map(language => <Btn key={language}
-                  title={language === 'tr' ? 'Türkçe' : 'English'}
-                  tone={(room.game_language ?? 'tr') === language ? 'primary' : 'ghost'}
-                  disabled={!me.is_host || languageBusy || busy} loading={languageBusy && room.game_language !== language}
-                  onPress={async()=>{setLanguageBusy(true);try{await api.setRoomGameLanguage(room.id,language);show(translate('Oyun dili kaydedildi.'),'success');}catch(error){show((error as Error).message,'error');}finally{setLanguageBusy(false);}}} />)}
-              </View>
-            </View>
+            {!simple && languageSettings}
             <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
 
             <View style={s.grid}>
               {players.map((p) => {
                 const isMe = p.id === me.id;
                 return (
-                  <View key={p.id} style={[s.player, isMe && s.playerMe]}>
+                  <View key={p.id} style={[s.player, simple && s.compactPlayer, isMe && s.playerMe]}>
                     {p.is_host && (
                       <View style={s.crown}>
                         <Ionicons name="star" size={12} color="#3A2100" />
                       </View>
                     )}
-                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
+                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={simple ? 40 : 58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
                     <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
                     <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
                     {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
                   </View>
                 );
               })}
-              {Array.from({ length: empties }).map((_, i) => (
+              {!simple && Array.from({ length: empties }).map((_, i) => (
                 <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
                   <View style={s.emptyAvatar}>
                     <Ionicons name="person-add" size={20} color={colors.subtle} />
@@ -229,6 +295,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         </Reveal>
 
         {/* ================= OYUN SEÇİMİ ================= */}
+        <LobbySection compact={simple} title={translate("Oyunlar")} initiallyOpen={room.mode === 'custom' && me.is_host && !gamesLocked}>
         {room.mode === 'custom' ? <Reveal delay={80}>
           <Card style={{ gap: 12 }}>
             <Title size={20}>{translate("Oynamak istediğin oyunları seç")}</Title>
@@ -262,22 +329,11 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
           </Card>
         </Reveal> : <Card style={{gap:8}}><Title size={20}>{translate("🎲 Rastgele Oyunlar")}</Title><Muted>{translate("Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.")}</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
 
-        {/* ================= ODA KODU KARTI ================= */}
-        <Reveal>
-          <View style={s.codeCard}>
-            <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
-            <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
-            <Pulse amount={1.025}>
-              <Text display style={s.code}>{room.code}</Text>
-            </Pulse>
-            <View style={s.chipsRow}>
-              <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? translate("Hızlı mod") : room.mode === 'standard' ? translate("Standart mod") : room.mode === 'long' ? translate("Epik mod") : translate("Özel mod")} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
-              <Chip icon="people" label={translate("2 Takım")} color={colors.cyan} />
-            </View>
-            <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
-          </View>
-        </Reveal>
+        </LobbySection>
+
+        {!simple && codeCard}
+        <LobbySection compact={simple} title={translate("Ayarlar")}>
+        {simple && <Card>{languageSettings}</Card>}
 
         {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>{translate('Bot sayısı:')} {draftBotCount??botCount} · {translate('Toplam oyuncu:')} {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title={translate("Botları Uygula")} tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show(translate("Test botları güncellendi."),'success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
@@ -289,6 +345,8 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             {!me.is_host && <Muted>{factsEnabled ? translate("Oda kurucusu bu özelliği etkinleştirdi.") : translate("Bu özellik oda kurucusu tarafından etkinleştirilmedi.")}</Muted>}
           </Card>
         </Reveal>
+
+        </LobbySection>
 
         {factsEnabled && <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />}
 
@@ -340,10 +398,38 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   );
 }
 
+function LobbySection({ compact, title, initiallyOpen = false, children }: {
+  compact: boolean; title: string; initiallyOpen?: boolean; children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(initiallyOpen);
+  if (!compact) return <>{children}</>;
+  return (
+    <View style={s.section}>
+      <Pressable
+        accessibilityRole="button"
+        aria-expanded={expanded}
+        onPress={() => setExpanded(value => !value)}
+        style={s.sectionButton}
+      >
+        <Text display style={s.sectionTitle}>{title}</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSoft} />
+      </Pressable>
+      {expanded && children}
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   kickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.76)', justifyContent: 'center', padding: 22 },
   kickDialog: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight, borderRadius: 20, padding: 20, gap: 12 },
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
+  section: { gap: 10 },
+  sectionButton: { minHeight: 48, borderRadius: 16, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.glass },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  codeHeading: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  compactCodeCard: { padding: 12 },
+  compactCode: { fontSize: 43, letterSpacing: 6 },
+  compactPlayer: { paddingVertical: 8 },
   gameActions: { flexDirection: 'row', gap: 8 },
   gameGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9 },
   gameStyleRow: { width: '48.5%', minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 9, borderWidth: 1, borderColor: colors.border, borderRadius: 13 },

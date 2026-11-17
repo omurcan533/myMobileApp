@@ -17,7 +17,7 @@ function mount(file,props,{saved=null,appearance=null,storageFails=false,rooms=[
  const chain={on(){return this;},subscribe(){return this;}};
  const storage={getItem:async key=>key==='homeAppearance'?appearance:saved,setItem:async(k,v)=>{if(storageFails)throw Error('unavailable');writes.push([k,v]);}};
  const modules={
-  react,'react-native':{Platform:{OS:'web'},StyleSheet:{create:v=>v},useWindowDimensions:()=>({width:400}),AppState:{addEventListener:()=>({remove(){}})}},
+  react,'react-native':{Pressable:'Pressable',Platform:{OS:'web'},StyleSheet:{create:v=>v},useWindowDimensions:()=>({width:400}),AppState:{addEventListener:()=>({remove(){}})}},
   '@react-native-async-storage/async-storage':{__esModule:true,default:storage},'expo-linear-gradient':{LinearGradient:'Gradient'},'expo-blur':{BlurView:'BlurView'},'@expo/vector-icons':{Ionicons:'Icon'},
   '../components/ui':ui,'./ui':ui,'../components/NicknameStep':{NicknameStep:'NicknameStep',validNickname:v=>v.trim().length>0},
   '../components/PrivacyInfo':{PrivacyInfo:'PrivacyInfo'},'../components/SafetyProfile':{SafetyProfile:'SafetyProfile'},
@@ -48,16 +48,17 @@ test('first-time and whitespace-only saved names must complete the name screen b
  }
 });
 test('a saved name bypasses onboarding after storage hydration',async()=>{
- const h=mount('../screens/Home.tsx',homeProps,{saved:'  Ömür  '});h.render();await flush();const tree=h.render();
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'  Ömür  ',appearance:'normal'});h.render();await flush();const tree=h.render();
  assert.equal(nodes(tree,'NicknameStep').length,0);assert.ok(nodes(tree,'Input').some(n=>n.props.value==='Ömür'));
 });
-test('Simple keeps the saved name and exposes editing in Profile',async()=>{
- const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'simple'});
+test('new users open Simple with Public Rooms selected and can edit their saved name in Profile',async()=>{
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});
  h.render();await flush();
  const home=h.render();
  assert.equal(nodes(home,'NicknameStep').length,0);
  assert.equal(nodes(home,'Input').length,0);
  assert.equal(nodes(home,'BlurView').length,1);
+ assert.equal(nodes(home,'Pressable').find(node=>node.props.accessibilityLabel==='publicRooms')?.props['aria-expanded'],true);
  nodes(home,'TabBar')[0].props.onChange('profile');
  const input=nodes(h.render(),'Input').find(node=>node.props.accessibilityLabel==='nickname');
  assert.equal(input?.props.value,'Ömür');
@@ -66,7 +67,7 @@ test('Simple keeps the saved name and exposes editing in Profile',async()=>{
  assert.deepEqual(h.writes,[['nickname','Deniz']]);
 });
 test('the header appearance shortcut switches both ways and saves the same preference as Profile',async()=>{
- const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'normal'});
  h.render();await flush();
  const shortcut=label=>nodes(h.render(),'IconBtn').find(node=>node.props.accessibilityLabel===label);
  shortcut('Basit görünüme geç').props.onPress();await flush();
@@ -76,7 +77,7 @@ test('the header appearance shortcut switches both ways and saves the same prefe
  assert.deepEqual(h.writes,[['homeAppearance','simple'],['homeAppearance','normal']]);
 });
 test('deleting a name routes room creation through the name screen and resumes with the confirmed name',async()=>{
- const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});h.render();await flush();let tree=h.render();
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'normal'});h.render();await flush();let tree=h.render();
  nodes(tree,'Input').find(n=>n.props.value==='Ömür').props.onChangeText('   ');tree=h.render();
  const create=nodes(tree,'Btn').find(n=>n.props.title==='roomCreate');assert.ok(create);await create.props.onPress();
  assert.equal(h.calls.length,0);tree=h.render();await nodes(tree,'NicknameStep')[0].props.onContinue('Deniz');await flush();
@@ -91,7 +92,7 @@ test('name step rejects whitespace, focuses its input, trims names and prevents 
  assert.deepEqual(names,['Deniz']);release();await flush();
 });
 test('the selected public room is preserved while a missing name is filled in',async()=>{
- const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',rooms:[{code:'ABCDE',phase:'lobby',mode:'standard',player_count:2,host_nickname:'Host'}]});
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'normal',rooms:[{code:'ABCDE',phase:'lobby',mode:'standard',player_count:2,host_nickname:'Host'}]});
  h.render();await flush();let tree=h.render();nodes(tree,'Input').find(n=>n.props.value==='Ömür').props.onChangeText('');tree=h.render();
  nodes(tree,'Btn').find(n=>n.props.title==='Katıl').props.onPress();assert.equal(h.calls.length,0);
  await nodes(h.render(),'NicknameStep')[0].props.onContinue('Deniz');await flush();assert.deepEqual(h.calls,[['join','ABCDE','Deniz']]);

@@ -3,6 +3,7 @@ export const ENGLISH_COPY: Record<string, string> = {
   "Ayarlar": "Settings",
   "Normal görünüme geç": "Switch to Normal view",
   "Basit görünüme geç": "Switch to Simple view",
+  "Oyunlar": "Games",
   "Ana ekran görünümü": "Home Screen Appearance",
   "Normal": "Normal",
   "Basit": "Simple",
