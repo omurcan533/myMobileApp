@@ -261,18 +261,27 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
         {/* ================= ÜST BAR ================= */}
         <View style={s.topBar}>
           <Avatar source={avatarFor(displayName, avatarId)} size={52} ring={colors.cyan} />
-          <View style={{ flex: 1, gap: 6 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
             <View style={s.nameRow}>
               <Text numberOfLines={1} display style={s.topName}>{displayName}</Text>
               <Chip label={`LVL ${lvl.level}`} color={colors.gold} size="sm" icon="flash" />
             </View>
             <ProgressBar pct={lvl.progress} colors={gradients.gold} height={8} />
           </View>
-          <IconBtn
-            icon={sound ? 'volume-high' : 'volume-mute'}
-            onPress={() => toggleSound(!sound)}
-            active={sound}
-          />
+          <View style={s.topActions}>
+            <IconBtn
+              icon={simple ? 'albums-outline' : 'apps-outline'}
+              accessibilityLabel={simple ? translate("Normal görünüme geç") : translate("Basit görünüme geç")}
+              active={simple}
+              disabled={savingAppearance}
+              onPress={() => { void changeAppearance(simple ? 'normal' : 'simple'); }}
+            />
+            <IconBtn
+              icon={sound ? 'volume-high' : 'volume-mute'}
+              onPress={() => toggleSound(!sound)}
+              active={sound}
+            />
+          </View>
         </View>
 
         <ScrollView
@@ -807,6 +816,7 @@ const s = StyleSheet.create({
   avatarChoiceSelected: { borderColor: colors.cyan, backgroundColor: alpha(colors.cyan, 0.12) },
   avatarChoiceLabel: { color: colors.text, fontSize: 11, fontWeight: '700' },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
   scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },

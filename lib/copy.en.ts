@@ -1,6 +1,8 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
   "Ayarlar": "Settings",
+  "Normal görünüme geç": "Switch to Normal view",
+  "Basit görünüme geç": "Switch to Simple view",
   "Ana ekran görünümü": "Home Screen Appearance",
   "Normal": "Normal",
   "Basit": "Simple",

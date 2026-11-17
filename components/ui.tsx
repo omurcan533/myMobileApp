@@ -496,12 +496,14 @@ export function Btn({
 
 /** Yuvarlak cam ikon butonu. */
 export function IconBtn({
-  icon, onPress, size = 44, color = colors.textSoft, disabled, active, badge, style,
+  icon, onPress, size = 44, color = colors.textSoft, disabled, active, badge, style, accessibilityLabel,
 }: {
-  icon: IconName; onPress: () => void; size?: number; color?: string; disabled?: boolean; active?: boolean; badge?: number | string; style?: StyleProp<ViewStyle>;
+  icon: IconName; onPress: () => void; size?: number; color?: string; disabled?: boolean; active?: boolean; badge?: number | string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string;
 }) {
   return (
     <Tap
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={() => { soundFx.click(); haptic.light(); onPress(); }}
       color={alpha(colors.cyan, 0.35)}

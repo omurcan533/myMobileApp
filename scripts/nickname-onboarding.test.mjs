@@ -65,6 +65,16 @@ test('Simple keeps the saved name and exposes editing in Profile',async()=>{
  nodes(h.render(),'Input').find(node=>node.props.accessibilityLabel==='nickname').props.onBlur();
  assert.deepEqual(h.writes,[['nickname','Deniz']]);
 });
+test('the header appearance shortcut switches both ways and saves the same preference as Profile',async()=>{
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});
+ h.render();await flush();
+ const shortcut=label=>nodes(h.render(),'IconBtn').find(node=>node.props.accessibilityLabel===label);
+ shortcut('Basit görünüme geç').props.onPress();await flush();
+ assert.equal(nodes(h.render(),'BlurView').length,1);
+ shortcut('Normal görünüme geç').props.onPress();await flush();
+ assert.equal(nodes(h.render(),'BlurView').length,0);
+ assert.deepEqual(h.writes,[['homeAppearance','simple'],['homeAppearance','normal']]);
+});
 test('deleting a name routes room creation through the name screen and resumes with the confirmed name',async()=>{
  const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});h.render();await flush();let tree=h.render();
  nodes(tree,'Input').find(n=>n.props.value==='Ömür').props.onChangeText('   ');tree=h.render();
