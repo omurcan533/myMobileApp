@@ -357,13 +357,27 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
     {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} {loc('sn','sec')}</Text>}
    </View>
    <View style={styles.score}>
-    <Text style={styles.teamA}>{loc('TAKIM A','TEAM A')}</Text>
-    <Title size={32}>{scoreA??0} : {scoreB??0}</Title>
-    <Text style={styles.teamB}>{loc('TAKIM B','TEAM B')}</Text>
+    {(['A','B'] as const).map(side=>{
+     const color=side==='A'?colors.cyan:colors.gold;
+     const isMine=live&&mySide===side;
+     return <React.Fragment key={side}>
+      {side==='B'&&<Title size={32}>{scoreA??0} : {scoreB??0}</Title>}
+      <View
+       accessibilityLabel={isMine?(side==='A'?loc('Senin çubuğun solda','Your paddle is on the left'):loc('Senin çubuğun sağda','Your paddle is on the right')):undefined}
+       style={[
+        styles.scoreSide,
+        side==='B'&&styles.rightScoreSide,
+        isMine&&{borderColor:color,backgroundColor:alpha(color,0.16)},
+       ]}
+      >
+       <View style={[styles.scorePaddle,{backgroundColor:color,opacity:isMine?1:0.45}]} />
+       <Text style={side==='A'?styles.teamA:styles.teamB}>
+        {isMine?loc("SEN","YOU"):side==='A'?loc('TAKIM A','TEAM A'):loc('TAKIM B','TEAM B')}
+       </Text>
+      </View>
+     </React.Fragment>;
+    })}
    </View>
-   {mySide&&live&&<Text style={{color:mySide==='A'?colors.cyan:colors.gold,textAlign:'center',fontWeight:'900'}}>
-    {mySide==='A'?loc('← SENİN ÇUBUĞUN SOLDA','← YOUR PADDLE IS ON THE LEFT'):loc('SENİN ÇUBUĞUN SAĞDA →','YOUR PADDLE IS ON THE RIGHT →')}
-   </Text>}
    {needsModeChoice&&<View style={styles.choice}>
     <Title size={17}>{loc('Takımın kaç kişi oynasın?','How many players on your team?')}</Title>
     <Muted>{loc('İkiniz de 1 kişi seçerseniz tek oyuncu kontrol eder. Seçim tamamlanmazsa kurucu mevcut iki kişilik düzenle başlatabilir.','If both choose 1 player, one player controls the paddle. Otherwise the host can start with the current two-player setup.')}</Muted>
@@ -433,6 +447,9 @@ const styles=StyleSheet.create({
  matchTime:{color:colors.cyan,fontSize:15,fontWeight:'900'},
  compactPaddleControl:{minHeight:76},
  score:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+ scoreSide:{minWidth:76,flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:8,paddingVertical:5,borderRadius:10,borderWidth:1,borderColor:'transparent'},
+ rightScoreSide:{flexDirection:'row-reverse'},
+ scorePaddle:{width:5,height:20,borderRadius:3},
  teamA:{color:colors.cyan,fontSize:13,fontWeight:'800'},
  teamB:{color:colors.gold,fontSize:13,fontWeight:'800'},
  teams:{flexDirection:'row',justifyContent:'space-between',gap:12,paddingHorizontal:4},

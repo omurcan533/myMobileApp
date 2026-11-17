@@ -81,8 +81,12 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
  return <View style={[styles.board,{width,height}]}>
   <View style={[styles.midline,{left:width/2}]} />
   <View style={[styles.circle,{left:width/2-25,top:height/2-25}]} />
-  <Animated.View style={[styles.paddle,{left:8,height:paddleHeight,backgroundColor:colors.cyan,transform:[{translateY:leftY}]}]} />
-  <Animated.View style={[styles.paddle,{right:8,height:paddleHeight,backgroundColor:colors.gold,transform:[{translateY:rightY}]}]} />
+  {mySide && <View pointerEvents="none" style={[
+    styles.controlledEdge,
+    mySide==='A' ? {left:0,backgroundColor:alpha(colors.cyan,0.18)} : {right:0,backgroundColor:alpha(colors.gold,0.18)},
+  ]} />}
+  <Animated.View style={[styles.paddle,{left:8,height:paddleHeight,backgroundColor:colors.cyan,transform:[{translateY:leftY}]},mySide==='A'&&styles.controlledPaddle]} />
+  <Animated.View style={[styles.paddle,{right:8,height:paddleHeight,backgroundColor:colors.gold,transform:[{translateY:rightY}]},mySide==='B'&&styles.controlledPaddle]} />
   <Animated.View style={[styles.ball,{transform:[{translateX:ballX},{translateY:ballY}]}]} />
  </View>;
 });
@@ -90,6 +94,8 @@ const styles=StyleSheet.create({
  board:{alignSelf:'center',backgroundColor:'#07172C',borderWidth:2,borderColor:'#607793',borderRadius:14,overflow:'hidden'},
  midline:{position:'absolute',top:0,bottom:0,borderLeftWidth:2,borderStyle:'dashed',borderColor:alpha('#FFFFFF',0.28)},
  circle:{position:'absolute',width:50,height:50,borderWidth:1,borderColor:alpha('#FFFFFF',0.16),borderRadius:25},
+ controlledEdge:{position:'absolute',top:0,bottom:0,width:26},
+ controlledPaddle:{borderWidth:2,borderColor:'#FFFFFF'},
  paddle:{position:'absolute',top:0,width:10,borderRadius:6},
  ball:{position:'absolute',top:0,left:0,width:12,height:12,borderRadius:6,backgroundColor:'#FFFFFF'}
 });
