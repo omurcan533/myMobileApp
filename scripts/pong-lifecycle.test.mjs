@@ -113,7 +113,6 @@ test('dedicated Pong sends controls over the socket and ignores legacy broadcast
   const tree=h.render();
   const arena=nodes(tree,'PongArena')[0];
   assert.equal(arena.props.renderDelayMs,115);
-  assert.equal(arena.props.authoritativePaddles,true);
   socket.message({type:'pong',id:19960,serverTime:80000});
   assert.equal(arena.props.now(),80020);
   const control=nodes(tree,'Pressable').find(n=>n.props.onPressIn);

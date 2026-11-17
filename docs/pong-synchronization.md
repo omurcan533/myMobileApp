@@ -78,8 +78,8 @@ definitions are preserved in `docs/rollback-pong-input-transitions.sql`.
 
 The optional WebSocket engine in `game-server/` advances Pong at about 60
 updates per second and sends authoritative frames at about 30 per second.
-The client interpolates that stream with a shared 115 ms buffer for the ball and both paddles. Local button feedback
-is immediate, while the visible paddles use the positions used for collision. WebSocket round trips estimate the clock of the same
+The client interpolates that stream with a shared 115 ms buffer and still predicts
+local paddle motion. WebSocket round trips estimate the clock of the same
 server that timestamps the frames. The displayed score uses the sampled frame.
 The database stores periodic checkpoints and the final
 result. A short database lease prevents a second server, browser tick or timeout

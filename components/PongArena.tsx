@@ -2,19 +2,14 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { alpha, colors } from '../lib/theme';
 import { serverNow } from '../lib/serverTime';
-import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, presentLocalPaddle, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
+import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
-type Props = { authoritativePaddles?:boolean; renderDelayMs?:number; now?:()=>number; onPresentedScore?:(a:number,b:number)=>void; state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
+type Props = { renderDelayMs?:number; now?:()=>number; onPresentedScore?:(a:number,b:number)=>void; state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
 
-export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held,renderDelayMs,now=serverNow,onPresentedScore,authoritativePaddles=false}:Props){
+export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held,renderDelayMs,now=serverNow,onPresentedScore}:Props){
  const paddleHeight=height*0.2;
- // The visible front edge plus the ball radius reaches the server's 0.065 collision plane.
- const paddleInset=authoritativePaddles?width*0.018:8;
- const paddleWidth=authoritativePaddles?width*0.029:10;
- const ballRadiusX=authoritativePaddles?width*0.018:6;
- const ballRadiusY=authoritativePaddles?height*0.025:6;
  const ballX=useRef(new Animated.Value(width/2-6)).current;
  const ballY=useRef(new Animated.Value(height/2-6)).current;
  const leftY=useRef(new Animated.Value(height/2-paddleHeight/2)).current;
@@ -60,42 +55,35 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
     }
     for(const side of ['A','B'] as const){
      const local=cfg.playing&&cfg.mySide===side;
-     if(!local){
-      paddles.current[side]=side==='A'?sampled.ay:sampled.by;
-      continue;
-     }
      const heldOnServer=(direction:'Up'|'Down')=>{
       const key=`hold${side}${direction}` as 'holdAUp'|'holdADown'|'holdBUp'|'holdBDown';
       return latest.state[key]===true&&matchNow-Date.parse(latest.state[`${key}At`]??'')<2500;
      };
      const serverUp=heldOnServer('Up'),serverDown=heldOnServer('Down');
      // In duo mode, the teammate still controls the other direction.
-     const up=(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
-     const down=(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
+     const up=local&&(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
+     const down=local&&(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
      const acknowledged=controlAcknowledged(latest.state,side,cfg.held,cfg.allowedDirections,fence.current);
-     const target=paddleTarget(latest.state,side,matchNow);
+     const target=local?paddleTarget(latest.state,side,matchNow):(side==='A'?sampled.ay:sampled.by);
      const prior=paddles.current[side];
-     paddles.current[side]=stepLocalPaddle(prior,dt,up,down,target,acknowledged);
+     paddles.current[side]=local?stepLocalPaddle(prior,dt,up,down,target,acknowledged):target;
     }
-    ballX.setValue(sampled.x*width-ballRadiusX);ballY.setValue(sampled.y*height-ballRadiusY);
-    const present=(side:'A'|'B')=>authoritativePaddles&&cfg.playing&&cfg.mySide===side
-      ?presentLocalPaddle(sampled,side,paddles.current[side])
-      :paddles.current[side];
-    leftY.setValue(present('A')*height-paddleHeight/2);
-    rightY.setValue(present('B')*height-paddleHeight/2);
+    ballX.setValue(sampled.x*width-6);ballY.setValue(sampled.y*height-6);
+    leftY.setValue(paddles.current.A*height-paddleHeight/2);
+    rightY.setValue(paddles.current.B*height-paddleHeight/2);
    }
    frame=requestAnimationFrame(draw);
   };
   frame=requestAnimationFrame(draw);
   return ()=>cancelAnimationFrame(frame);
- },[width,height,paddleHeight,ballX,ballY,leftY,rightY,renderDelayMs,now,onPresentedScore,authoritativePaddles,ballRadiusX,ballRadiusY]);
+ },[width,height,paddleHeight,ballX,ballY,leftY,rightY,renderDelayMs,now,onPresentedScore]);
  if(!state)return null;
  return <View style={[styles.board,{width,height}]}>
   <View style={[styles.midline,{left:width/2}]} />
   <View style={[styles.circle,{left:width/2-25,top:height/2-25}]} />
-  <Animated.View style={[styles.paddle,{left:paddleInset,width:paddleWidth,height:paddleHeight,backgroundColor:colors.cyan,transform:[{translateY:leftY}]}]} />
-  <Animated.View style={[styles.paddle,{right:paddleInset,width:paddleWidth,height:paddleHeight,backgroundColor:colors.gold,transform:[{translateY:rightY}]}]} />
-  <Animated.View style={[styles.ball,{width:2*ballRadiusX,height:2*ballRadiusY,borderRadius:Math.max(ballRadiusX,ballRadiusY),transform:[{translateX:ballX},{translateY:ballY}]}]} />
+  <Animated.View style={[styles.paddle,{left:8,height:paddleHeight,backgroundColor:colors.cyan,transform:[{translateY:leftY}]}]} />
+  <Animated.View style={[styles.paddle,{right:8,height:paddleHeight,backgroundColor:colors.gold,transform:[{translateY:rightY}]}]} />
+  <Animated.View style={[styles.ball,{transform:[{translateX:ballX},{translateY:ballY}]}]} />
  </View>;
 });
 const styles=StyleSheet.create({

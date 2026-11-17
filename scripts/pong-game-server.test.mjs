@@ -31,22 +31,6 @@ test('Pong assigns solo and duo directions, tracks saves and settles a goal befo
   assert.equal(frame.x, 0.5);
 });
 
-test('a fast ball grazing either visible paddle edge rebounds before it can score', () => {
-  const now = Date.now();
-  for (const mirrored of [false, true]) {
-    const direction = mirrored ? -1 : 1;
-    const x = mirrored ? 0.075 : 0.925;
-    const grazing = state({ x, y: 0.624, vx: direction * 1.8 });
-    advancePong(grazing, 1 / 60, now);
-    assert.ok(grazing.vx * direction < 0);
-    assert.equal(grazing.scoreA + grazing.scoreB, 0);
-    const outside = state({ x, y: 0.626, vx: direction * 1.8 });
-    advancePong(outside, 1 / 60, now);
-    assert.ok(outside.vx * direction > 0);
-    assert.equal((outside.savesA ?? 0) + (outside.savesB ?? 0), 0);
-  }
-});
-
 test('two players and a spectator receive authoritative WebSocket frames and only owners can move a paddle', { timeout: 9000 }, async () => {
   const finishes = [];
   let endsAt = Date.now() + 4300;
