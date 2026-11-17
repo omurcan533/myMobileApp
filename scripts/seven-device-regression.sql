@@ -2,7 +2,7 @@
 do $test$
 declare
  users uuid[]; ids uuid[]; u uuid; p uuid; r uuid:=gen_random_uuid(); g uuid:=gen_random_uuid(); next_id uuid;
- solo uuid:=gen_random_uuid(); code text; i int; n int; variant int; before_score int;
+ solo uuid:=gen_random_uuid(); stranded uuid:=gen_random_uuid(); recent_solo uuid:=gen_random_uuid(); finished_solo uuid:=gen_random_uuid(); code text; i int; n int; variant int; before_score int;
  board jsonb:='{"version":2,"level":1,"pairs":[[[100,100],[900,100]],[[100,250],[900,250]],[[100,400],[900,400]],[[100,550],[900,550]],[[100,700],[900,700]],[[100,850],[900,850]]]}'::jsonb;
  paths jsonb; first_ms int; answer_id uuid; round_id uuid; before_start timestamptz;
 begin
@@ -106,7 +106,7 @@ begin
  insert into round_answers(round_id,room_id,player_id,side,body,is_final) values(round_id,r,ids[2],'A','Test',false) returning id into answer_id;
  if (select elapsed_ms from round_answers where id=answer_id)<>10000 then raise exception 'answer elapsed pause accounting wrong'; end if;
 
- -- Population transitions reset the solo timer; active games and multiplayer lobbies survive.
+ -- Population transitions reset the solo timer; multiplayer rooms survive.
  insert into rooms(id,code,host_user_id,phase) values(solo,gen_room_code(),users[1],'lobby') returning rooms.code into code;
  insert into players(room_id,user_id,nickname,is_host) values(solo,users[1],'Solo',true);
  update rooms set solo_since=now()-interval '11 minutes' where id=solo;
@@ -122,6 +122,19 @@ begin
  begin
   perform join_room(code,'Guest');raise exception 'closed room rejoined';
  exception when raise_exception then if sqlerrm<>'room_not_found' then raise; end if; end;
+ insert into rooms(id,code,host_user_id,phase) values
+  (stranded,gen_room_code(),users[1],'building'),
+  (recent_solo,gen_room_code(),users[1],'minigame'),
+  (finished_solo,gen_room_code(),users[1],'results');
+ insert into players(room_id,user_id,nickname,is_host) values
+  (stranded,users[1],'Stranded',true),(recent_solo,users[1],'Recent',true),(finished_solo,users[1],'Finished',true);
+ update rooms set solo_since=now()-interval '11 minutes' where id in (stranded,finished_solo);
+ update rooms set solo_since=now()-interval '9 minutes' where id=recent_solo;
+ perform _close_idle_rooms();
+ if (select closed_at from rooms where id=stranded) is null then raise exception 'stranded game did not close'; end if;
+ if exists(select 1 from rooms where id in (recent_solo,finished_solo) and closed_at is not null) then
+  raise exception 'a recent solo room or completed game was closed';
+ end if;
  if (select closed_at from rooms where id=r) is not null then raise exception 'active game was closed'; end if;
  perform set_config('request.jwt.claim.sub',users[2]::text,true);
  begin
