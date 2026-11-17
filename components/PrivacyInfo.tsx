@@ -1,19 +1,19 @@
+import { ProfileSection } from './ProfileSection';
 import React, { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { colors } from '../lib/theme';
-import { Btn, Card, Muted, Text, Title } from './ui';
+import { Btn, Muted, Text } from './ui';
 import { translate, useLanguage } from '../lib/i18n';
 import { AccountDeletion } from './AccountDeletion';
 import type { DeletionResult } from '../lib/accountDeletion';
 
-export function PrivacyInfo({ onAccountDeleted }: { onAccountDeleted: (result: DeletionResult) => void }) {
+export function PrivacyInfo({ onAccountDeleted, collapsible = false }: { onAccountDeleted: (result: DeletionResult) => void; collapsible?: boolean }) {
   useLanguage();
   const [expanded, setExpanded] = useState(false);
   const [linkFailed, setLinkFailed] = useState(false);
 
   return (
-    <Card style={{ gap: 12 }}>
-      <Title size={20}>{translate('Gizlilik ve veriler')}</Title>
+    <ProfileSection title={translate('Gizlilik ve veriler')} collapsible={collapsible}>
       <Muted>{translate('Takma adla oynasan da oyun verilerin sunucuda işlenir.')}</Muted>
       <Btn
         title={expanded ? translate('Ayrıntıları gizle') : translate('Verilerim nasıl kullanılıyor?')}
@@ -47,7 +47,7 @@ export function PrivacyInfo({ onAccountDeleted }: { onAccountDeleted: (result: D
       <Text style={styles.body}>yilmazomurcan@gmail.com</Text>
       <AccountDeletion onDeleted={onAccountDeleted} />
       {linkFailed && <Muted>{translate('Sayfa açılamadı. Yukarıdaki e-posta adresinden bize ulaşabilirsin.')}</Muted>}
-    </Card>
+    </ProfileSection>
   );
 }
 

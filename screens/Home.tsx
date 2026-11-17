@@ -765,7 +765,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                 </Card>
               </Reveal>
               <SafetyProfile />
-              <PrivacyInfo onAccountDeleted={onAccountDeleted} />
+              <PrivacyInfo collapsible onAccountDeleted={onAccountDeleted} />
             </>
           )}
         </ScrollView>

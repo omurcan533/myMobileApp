@@ -1,6 +1,7 @@
+import { ProfileSection } from './ProfileSection';
 import React,{useRef,useState} from 'react';
 import {Linking,View} from 'react-native';
-import {Btn,Card,Muted,Sheet,Text,Title} from './ui';
+import {Btn,Muted,Sheet,Text,Title} from './ui';
 import {COMMUNITY_URL,communitySafety} from '../lib/communitySafety';
 import {useLanguage} from '../lib/i18n';
 export function SafetyProfile(){
@@ -8,7 +9,7 @@ export function SafetyProfile(){
  const [open,setOpen]=useState(false),[blocks,setBlocks]=useState<{id:string;label:string}[]>([]),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false);const locked=useRef(false);
  const load=async()=>{setError('');setLoaded(false);try{setBlocks(await communitySafety.blocks());setLoaded(true);}catch(e){setError((e as Error).message);}};
  const unblock=async(id:string)=>{if(locked.current)return;locked.current=true;setBusy(true);try{await communitySafety.unblock(id);await load();}catch(e){setError((e as Error).message);}finally{locked.current=false;setBusy(false);}};
- return <Card style={{gap:12}}><Title size={20}>{loc('Güvenlik ve topluluk','Safety and community')}</Title>
+ return <ProfileSection title={loc('Güvenlik ve topluluk','Safety and community')}>
  <Muted>{loc('Odadaki Güvenlik düğmesinden içerik ve oyuncu bildirebilirsin.','Report content and players using Safety in any room.')}</Muted>
  <Btn title={loc('Topluluk kuralları','Community rules')} tone="ghost" icon="shield-checkmark-outline" onPress={()=>{void Linking.openURL(COMMUNITY_URL).catch(()=>setError(loc('Sayfa açılamadı.','Could not open the page.')));}}/>
  <Btn title={loc('Engellediğim oyuncular','Blocked players')} tone="ghost" icon="ban-outline" onPress={()=>{setOpen(true);void load();}}/>
@@ -19,5 +20,5 @@ export function SafetyProfile(){
  {blocks.map(b=><View key={b.id} style={{gap:8}}><Text>{b.label}</Text><Btn title={loc('Engeli kaldır','Unblock')} tone="ghost" disabled={busy} onPress={()=>{void unblock(b.id);}}/></View>)}
  {!!error&&<Text accessibilityRole="alert">{error}</Text>}
  {!loaded&&<Btn title={loc('Yeniden yükle','Reload')} tone="ghost" onPress={()=>{void load();}}/>}
- <Btn title={loc('Kapat','Close')} tone="ghost" disabled={busy} onPress={()=>setOpen(false)}/></Sheet></Card>;
+ <Btn title={loc('Kapat','Close')} tone="ghost" disabled={busy} onPress={()=>setOpen(false)}/></Sheet></ProfileSection>;
 }
