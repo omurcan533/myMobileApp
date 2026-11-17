@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
-  SectionLabel, SwipeTabGroup, swipeTabTint, TabBar, TabItem, Tap, Text, Title, useToast,
+  SectionLabel, SwipeTabGroup, swipeTabIconScale, swipeTabTint, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
@@ -379,9 +379,19 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                           }}
                           style={[s.railTab, selected && s.railTabSelected]}
                         >
-                          {selected && !preview && <RailLens />}
-                          <Ionicons name={icon} size={20} color={iconColor} />
-                          <Text style={[s.railLabel, { color: iconColor }]}>{t(label)}</Text>
+                          {({ pressed }) => {
+                            const focus = preview?.position ?? (pressed ? index : null);
+                            return <>
+                              {selected && !preview && <RailLens />}
+                              <Ionicons
+                                name={icon}
+                                size={20}
+                                color={pressed && !preview ? tint : iconColor}
+                                style={{ transform: [{ scale: swipeTabIconScale(focus, index) }] }}
+                              />
+                              <Text style={[s.railLabel, { color: iconColor }]}>{t(label)}</Text>
+                            </>;
+                          }}
                         </Pressable>
                       );
                     })}

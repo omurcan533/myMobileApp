@@ -793,8 +793,16 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 // ============================================================================
 type SwipeTabPreview = { position: number; top: number; height: number };
 
+function swipeTabWeight(position: number, index: number) {
+  return Math.max(0, 1 - Math.abs(position - index));
+}
+
+export function swipeTabIconScale(position: number | null, index: number) {
+  return position === null ? 1 : 1 + 0.27 * swipeTabWeight(position, index);
+}
+
 export function swipeTabTint(base: string, active: string, position: number, index: number) {
-  const weight = Math.max(0, 1 - Math.abs(position - index));
+  const weight = swipeTabWeight(position, index);
   const channels = [1, 3, 5].map(offset => {
     const from = parseInt(base.slice(offset, offset + 2), 16);
     const to = parseInt(active.slice(offset, offset + 2), 16);
@@ -926,7 +934,7 @@ export interface TabItem<K extends string> { key: K; label: string; icon: IconNa
 const TAB_ITEM_WIDTH = 100;
 
 /** Sekme ikonu: aktif olunca yaylanarak büyür ve hafifçe sallanır. */
-function TabIcon({ on, name, tint, size = 22 }: { on: boolean; name: IconName; tint?: string; size?: number }) {
+function TabIcon({ on, name, tint, emphasis, size = 22 }: { on: boolean; name: IconName; tint?: string; emphasis?: number; size?: number }) {
   const [v] = useState(() => new Animated.Value(on ? 1 : 0));
   useEffect(() => {
     if (!on) { v.setValue(0); return; }
@@ -938,7 +946,7 @@ function TabIcon({ on, name, tint, size = 22 }: { on: boolean; name: IconName; t
       style={{
         transform: [
           { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [5, -1] }) },
-          { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.12] }) },
+          { scale: emphasis ?? v.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.12] }) },
           { rotate: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-14deg', '8deg', '0deg'] }) },
         ],
       }}
@@ -951,6 +959,7 @@ function TabIcon({ on, name, tint, size = 22 }: { on: boolean; name: IconName; t
 export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
   const insets = useSafeAreaInsets();
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [pressedIndex, setPressedIndex] = useState<number | null>(null);
   const activeIdx = Math.max(0, items.findIndex((it) => it.key === active));
   const [slideAnim] = useState(() => new Animated.Value(activeIdx));
   const [scaleAnim] = useState(() => new Animated.Value(1));
@@ -1085,18 +1094,21 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
 
         {items.map((it, index) => {
           const on = it.key === active;
-          const tint = preview ? swipeTabTint(colors.muted, colors.cyan, preview.position, index) : undefined;
+          const focus = preview?.position ?? pressedIndex;
+          const tint = focus !== null ? swipeTabTint(colors.muted, colors.cyan, focus, index) : undefined;
           return (
             <Tap
               key={it.key}
               color={alpha(colors.cyan, 0.3)}
               accent={colors.cyan}
-              scaleTo={0.9}
+              scaleTo={0.98}
+              onPressIn={() => setPressedIndex(index)}
+              onPressOut={() => setPressedIndex(current => current === index ? null : current)}
               onLayout={event => recordLayout(index, event)}
               onPress={() => selectTab(it.key)}
               style={s.tabItem}
             >
-              <TabIcon on={on && !preview} name={on ? it.iconActive ?? it.icon : it.icon} tint={tint} />
+              <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} tint={tint} emphasis={focus === null ? undefined : swipeTabIconScale(focus, index)} />
               <Text
                 style={[
                   s.tabLabel,
