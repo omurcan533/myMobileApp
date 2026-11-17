@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendSnapshot, sampleTimeline, paddleTarget, stepLocalPaddle, controlAcknowledged } from '../lib/pongTimeline.ts';
+import { appendSnapshot, sampleTimeline, paddleTarget, presentLocalPaddle, stepLocalPaddle, controlAcknowledged } from '../lib/pongTimeline.ts';
 
 const baseTime = Date.parse('2026-10-29T12:00:00Z');
 const state = (ms, changes = {}) => ({ x: 0.5, y: 0.5, vx: 0.46, vy: 0.23, ay: 0.5, by: 0.5,
@@ -73,9 +73,9 @@ test('lost connection freezes prediction after 100ms instead of inventing gamepl
   assert.deepEqual(sampleTimeline(frames, baseTime + 300), sampleTimeline(frames, baseTime + 5000));
 });
 test('goal reset is discrete and never interpolates across the court', () => {
-  const before = state(0, { x: 1.01 }), after = state(125, { scoreA: 1 });
+  const before = state(0, { x: 1.01 }), after = state(125, { scoreA: 1, ay: 0.625, by: 0.375 });
   const frames = history(before, after);
-  assert.equal(sampleTimeline(frames, baseTime + 300), before);
+  assert.deepEqual(sampleTimeline(frames, baseTime + 300), { ...before, ay: 0.6, by: 0.4 });
   assert.equal(sampleTimeline(frames, baseTime + 325), after);
 });
 test('authoritative paddle positions and expired/released controls are respected', () => {
@@ -90,4 +90,15 @@ test('timeline retains a bounded history and folds wall reflections', () => {
   assert.equal(frames.length, 32);
   const reflected = sampleTimeline(history(state(0, { y: 0.97, vy: 1 })), baseTime + 300);
   assert.ok(Math.abs(reflected.y - 0.88) < 1e-9);
+});
+
+test('local prediction blends smoothly and yields to the server at either contact plane', () => {
+  for (const side of ['A', 'B']) {
+    const xAt = distance => side === 'A' ? distance : 1 - distance;
+    const presented = distance => presentLocalPaddle(state(0, { x: xAt(distance) }), side, 0.75);
+    assert.equal(presented(0.065), 0.5);
+    assert.equal(presented(-0.02), 0.5);
+    assert.ok(Math.abs(presented(0.26) - 0.625) < 1e-9);
+    assert.equal(presented(0.5), 0.75);
+  }
 });

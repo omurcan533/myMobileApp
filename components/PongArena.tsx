@@ -2,7 +2,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { alpha, colors } from '../lib/theme';
 import { serverNow } from '../lib/serverTime';
-import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
+import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, presentLocalPaddle, sampleTimeline, stepLocalPaddle } from '../lib/pongTimeline';
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
@@ -59,27 +59,30 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
      onPresentedScore?.(lastScoreA,lastScoreB);
     }
     for(const side of ['A','B'] as const){
-     if(authoritativePaddles){
+     const local=cfg.playing&&cfg.mySide===side;
+     if(!local){
       paddles.current[side]=side==='A'?sampled.ay:sampled.by;
       continue;
      }
-     const local=cfg.playing&&cfg.mySide===side;
      const heldOnServer=(direction:'Up'|'Down')=>{
       const key=`hold${side}${direction}` as 'holdAUp'|'holdADown'|'holdBUp'|'holdBDown';
       return latest.state[key]===true&&matchNow-Date.parse(latest.state[`${key}At`]??'')<2500;
      };
      const serverUp=heldOnServer('Up'),serverDown=heldOnServer('Down');
      // In duo mode, the teammate still controls the other direction.
-     const up=local&&(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
-     const down=local&&(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
+     const up=(cfg.allowedDirections.includes(-1)?cfg.held.up:serverUp);
+     const down=(cfg.allowedDirections.includes(1)?cfg.held.down:serverDown);
      const acknowledged=controlAcknowledged(latest.state,side,cfg.held,cfg.allowedDirections,fence.current);
-     const target=local?paddleTarget(latest.state,side,matchNow):(side==='A'?sampled.ay:sampled.by);
+     const target=paddleTarget(latest.state,side,matchNow);
      const prior=paddles.current[side];
-     paddles.current[side]=local?stepLocalPaddle(prior,dt,up,down,target,acknowledged):target;
+     paddles.current[side]=stepLocalPaddle(prior,dt,up,down,target,acknowledged);
     }
     ballX.setValue(sampled.x*width-ballRadiusX);ballY.setValue(sampled.y*height-ballRadiusY);
-    leftY.setValue(paddles.current.A*height-paddleHeight/2);
-    rightY.setValue(paddles.current.B*height-paddleHeight/2);
+    const present=(side:'A'|'B')=>authoritativePaddles&&cfg.playing&&cfg.mySide===side
+      ?presentLocalPaddle(sampled,side,paddles.current[side])
+      :paddles.current[side];
+    leftY.setValue(present('A')*height-paddleHeight/2);
+    rightY.setValue(present('B')*height-paddleHeight/2);
    }
    frame=requestAnimationFrame(draw);
   };

@@ -37,6 +37,15 @@ export function stepLocalPaddle(position: number, dt: number, up: boolean, down:
   return clamp(position + clamp(error, -0.6 * seconds, 0.6 * seconds), 0.105, 0.895);
 }
 
+export function presentLocalPaddle(state: PongFrameState, side: 'A' | 'B', predicted: number): number {
+  const authoritative = side === 'A' ? state.ay : state.by;
+  const distanceFromEdge = side === 'A' ? state.x : 1 - state.x;
+  // Match the server around contact and gradually restore local responsiveness toward midfield.
+  const progress = clamp((distanceFromEdge - 0.15) / 0.22, 0, 1);
+  const weight = progress * progress * (3 - 2 * progress);
+  return authoritative + (predicted - authoritative) * weight;
+}
+
 export function appendSnapshot(history: PongSnapshot[], state: PongFrameState): PongSnapshot[] {
   const at = Date.parse(state.tick ?? '');
   if (!Number.isFinite(at) || ![state.x, state.y, state.vx, state.vy, state.ay, state.by, state.scoreA, state.scoreB].every(Number.isFinite)) return history;
@@ -68,11 +77,12 @@ export function sampleTimeline(history: PongSnapshot[], now: number, renderDelay
     const before = history[i - 1], after = history[i];
     if (target > after.at) continue;
     if (target === after.at) return after.state;
-    // Goals are discontinuities: don't draw the ball travelling back to centre.
-    if (before.state.scoreA !== after.state.scoreA || before.state.scoreB !== after.state.scoreB) return before.state;
     const mix = (a: number, b: number) => a + (b - a) * (target - before.at) / (after.at - before.at);
-    return { ...before.state, x: mix(before.state.x, after.state.x), y: mix(before.state.y, after.state.y),
-      ay: mix(before.state.ay, after.state.ay), by: mix(before.state.by, after.state.by) };
+    const ay = mix(before.state.ay, after.state.ay);
+    const by = mix(before.state.by, after.state.by);
+    // Only the ball and score jump on a goal. The paddles keep moving.
+    if (before.state.scoreA !== after.state.scoreA || before.state.scoreB !== after.state.scoreB) return { ...before.state, ay, by };
+    return { ...before.state, x: mix(before.state.x, after.state.x), y: mix(before.state.y, after.state.y), ay, by };
   }
   const last = history[history.length - 1];
   const dt = clamp(target - last.at, 0, MAX_EXTRAPOLATION_MS) / 1000;
