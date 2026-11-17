@@ -4,8 +4,9 @@ import { Modal, Pressable, ScrollView, Share, StyleSheet, View } from 'react-nat
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
 import {
-  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Muted, Pulse, ProgressBar, Reveal, Screen, Tap, Text, Title, useToast,
+  Avatar, Btn, Card, Chip, Eyebrow, IconBtn, Muted, Pulse, ProgressBar, Reveal, Screen, SwipeTabGroup, swipeTabIconScale, swipeTabTint, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api } from '../lib/api';
 import { FriendFactsLobby } from '../components/FriendFactsLobby';
@@ -16,6 +17,15 @@ import { GAME_TITLE, HOME_APPEARANCE_KEY, readHomeAppearance, type HomeAppearanc
 
 const MAX_PLAYERS = 12;
 const MIN_SLOTS = 4;
+const RAIL_WIDTH = 76;
+const RAIL_GAP = 9;
+const LOBBY_PANELS = [
+  { key: 'invite', label: 'Davet', icon: 'ticket-outline' },
+  { key: 'players', label: 'Oyuncular', icon: 'people-outline' },
+  { key: 'games', label: 'Oyunlar', icon: 'game-controller-outline' },
+  { key: 'settings', label: 'Ayarlar', icon: 'options-outline' },
+] as const;
+type LobbyPanel = typeof LOBBY_PANELS[number]['key'];
 const getGameStyles = () => [
   { id: 'anagram', name: translate("Harf Bulmacası"), description: translate("Kelimeleri çöz, parçaları kazan"), icon: 'text' },
   { id: 'riddle', name: translate("Bilmece"), description: translate("Takımca düşün, doğru cevabı bul"), icon: 'bulb' },
@@ -88,6 +98,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const [editedGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
+  const [panel, setPanel] = useState<LobbyPanel>(() => room.mode === 'custom' && me.is_host && !gamesLocked ? 'games' : 'invite');
   const canEditGames = room.mode === 'custom' && me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
 
   // Locked selections come straight from the server; edits remain local until saved.
@@ -219,7 +230,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
   const codeCard = (
     <Reveal>
-      <View style={[s.codeCard, simple && s.compactCodeCard]}>
+      <View style={s.codeCard}>
         <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={s.codeHeading}>
           <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
@@ -233,109 +244,101 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
         </View>
         <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
         <Pulse amount={1.025}>
-          <Text display style={[s.code, simple && s.compactCode]}>{room.code}</Text>
+          <Text display style={s.code}>{room.code}</Text>
         </Pulse>
         <View style={s.chipsRow}>
           <Chip icon={room.mode === 'quick' ? 'flash' : 'construct'} label={room.mode === 'quick' ? translate("Hızlı mod") : room.mode === 'standard' ? translate("Standart mod") : room.mode === 'long' ? translate("Epik mod") : translate("Özel mod")} color={room.mode === 'quick' ? colors.yellow : colors.violet} />
           <Chip icon="people" label={translate("2 Takım")} color={colors.cyan} />
         </View>
-        <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size={simple ? "sm" : "md"} onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
+        <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} style={{ marginTop: 14, alignSelf: 'stretch' }} />
       </View>
     </Reveal>
   );
 
-  return (
-    <Screen>
-      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        {simple && codeCard}
-        {/* ================= OYUNCULAR ================= */}
-        <Reveal delay={100}>
-          <Card style={{ gap: 14 }}>
-            <View style={s.playersHead}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Title size={20}>{translate("Oyuncular")}</Title>
-                <Muted style={{ marginTop: 2 }}>{translate("Kurucu takımları belirleyince herkes sonucu görecek")}</Muted>
-              </View>
-              <View style={s.countBadge}>
-                <Text display style={s.countText}>{players.length}</Text>
-                <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
-              </View>
-            </View>
-            {!simple && languageSettings}
-            <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
+  const playersPanel = (
+    <Reveal delay={100}>
+      <Card style={{ gap: 14 }}>
+        <View style={s.playersHead}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Title size={20}>{translate("Oyuncular")}</Title>
+            <Muted style={{ marginTop: 2 }}>{translate("Kurucu takımları belirleyince herkes sonucu görecek")}</Muted>
+          </View>
+          <View style={s.countBadge}>
+            <Text display style={s.countText}>{players.length}</Text>
+            <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
+          </View>
+        </View>
+        {!simple && languageSettings}
+        <ProgressBar pct={players.length / MAX_PLAYERS} colors={gradients.primary} height={8} />
 
-            <View style={s.grid}>
-              {players.map((p) => {
-                const isMe = p.id === me.id;
-                return (
-                  <View key={p.id} style={[s.player, simple && s.compactPlayer, isMe && s.playerMe]}>
-                    {p.is_host && (
-                      <View style={s.crown}>
-                        <Ionicons name="star" size={12} color="#3A2100" />
-                      </View>
-                    )}
-                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={simple ? 40 : 58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
-                    <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
-                    <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
-                    {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
+        <View style={[s.grid, simple && s.compactGrid]}>
+          {players.map((p) => {
+            const isMe = p.id === me.id;
+            return (
+              <View key={p.id} style={[s.player, simple && s.compactPlayer, isMe && s.playerMe]}>
+                {p.is_host && (
+                  <View style={s.crown}>
+                    <Ionicons name="star" size={12} color="#3A2100" />
                   </View>
-                );
-              })}
-              {!simple && Array.from({ length: empties }).map((_, i) => (
-                <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
-                  <View style={s.emptyAvatar}>
-                    <Ionicons name="person-add" size={20} color={colors.subtle} />
-                  </View>
-                  <Text style={[s.pName, { color: colors.subtle }]}>{translate("Bekleniyor…")}</Text>
-                  <Text style={s.pRole}> </Text>
-                </View>
-              ))}
-            </View>
-          </Card>
-        </Reveal>
-
-        {/* ================= OYUN SEÇİMİ ================= */}
-        <LobbySection compact={simple} title={translate("Oyunlar")} initiallyOpen={room.mode === 'custom' && me.is_host && !gamesLocked}>
-        {room.mode === 'custom' ? <Reveal delay={80}>
-          <Card style={{ gap: 12 }}>
-            <Title size={20}>{translate("Oynamak istediğin oyunları seç")}</Title>
-            <Muted>{me.is_host ? translate("Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.") : translate("Oyun kurucusunun seçtiği türler aşağıda görünüyor.")}</Muted>
-            {me.is_host && (
-              <View style={s.gameActions}>
-                <Btn title={translate("Tümünü Seç")} icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || DEFAULT_GAMES.every((gameId) => draftGames.includes(gameId))} onPress={selectAllGames} style={{ flex: 1 }} />
-                <Btn title={translate("Tümünü Kaldır")} icon="close-circle-outline" size="sm" tone="ghost" disabled={!canEditGames || draftGames.length === 0} onPress={clearAllGames} style={{ flex: 1 }} />
+                )}
+                <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={simple ? 32 : 58} ring={isMe ? colors.cyan : colors.borderLight} glow={isMe} />
+                <Text numberOfLines={1} style={[s.pName, isMe && { color: colors.cyan }]}>{p.nickname}</Text>
+                <Text style={s.pRole}>{p.is_host ? translate("KURUCU") : (p as any).is_bot ? '🤖 BOT' : isMe ? translate("SEN") : translate("OYUNCU")}</Text>
+                {me.is_host && !isMe && !p.is_host && !(p as any).is_bot && <Btn title={translate("Çıkar")} icon="person-remove-outline" size="sm" tone="ghost" disabled={!!kickingId || busy} loading={kickingId === p.id} onPress={() => confirmKick(p.id, p.nickname)} />}
               </View>
-            )}
-            <View style={s.gameGrid}>
-              {GAME_STYLES.map((game) => {
-                const enabled = (canEditGames ? draftGames : selectedGames).includes(game.id);
-                return (
-                  <Tap key={game.id} onPress={() => { if (canEditGames) toggleGame(game.id); }} style={[s.gameStyleRow, enabled && s.gameStyleSelected, !canEditGames && s.gameStyleDisabled]}>
-                    <Ionicons name={game.icon} size={18} color={enabled ? colors.cyan : colors.muted} />
-                    <Text style={s.gameStyleTitle} numberOfLines={2}>{game.name}</Text>
-                    <Ionicons name={enabled ? 'checkbox' : 'square-outline'} size={20} color={enabled ? colors.mint : colors.muted} />
-                  </Tap>
-                );
-              })}
+            );
+          })}
+          {!simple && Array.from({ length: empties }).map((_, i) => (
+            <View key={`e${i}`} style={[s.player, s.playerEmpty]}>
+              <View style={s.emptyAvatar}>
+                <Ionicons name="person-add" size={20} color={colors.subtle} />
+              </View>
+              <Text style={[s.pName, { color: colors.subtle }]}>{translate("Bekleniyor…")}</Text>
+              <Text style={s.pRole}> </Text>
             </View>
-            {me.is_host ? (
-              gamesLocked && !editingGames ? (
-                <Btn title={translate("Yeniden Belirle")} icon="create-outline" tone="ghost" disabled={savingGames || busy} onPress={reopenGames} />
-              ) : (
-                <Btn title={translate("Seçimleri Yap ve Kilitle")} icon="lock-closed" tone="success" loading={savingGames} disabled={busy || draftGames.length === 0} onPress={lockGames} />
-              )
-            ) : null}
-            <Muted>{savingGames ? translate("Seçimler kaydediliyor…") : gamesLocked && !editingGames ? translate("Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.") : me.is_host ? translate("Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.") : translate("Seçimleri yalnızca oda kurucusu değiştirebilir.")}</Muted>
-          </Card>
-        </Reveal> : <Card style={{gap:8}}><Title size={20}>{translate("🎲 Rastgele Oyunlar")}</Title><Muted>{translate("Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.")}</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>}
-
-        </LobbySection>
-
-        {!simple && codeCard}
-        <LobbySection compact={simple} title={translate("Ayarlar")}>
-        {simple && <Card>{languageSettings}</Card>}
-
-        {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>{translate('Bot sayısı:')} {draftBotCount??botCount} · {translate('Toplam oyuncu:')} {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title={translate("Botları Uygula")} tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show(translate("Test botları güncellendi."),'success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
+          ))}
+        </View>
+      </Card>
+    </Reveal>
+  );
+  const gamesPanel = (
+    room.mode === 'custom' ? <Reveal delay={80}>
+      <Card style={{ gap: 12 }}>
+        <Title size={20}>{translate("Oynamak istediğin oyunları seç")}</Title>
+        <Muted>{me.is_host ? translate("Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.") : translate("Oyun kurucusunun seçtiği türler aşağıda görünüyor.")}</Muted>
+        {me.is_host && (
+          <View style={[s.gameActions, simple && s.compactGameActions]}>
+            <Btn title={translate("Tümünü Seç")} icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || DEFAULT_GAMES.every((gameId) => draftGames.includes(gameId))} onPress={selectAllGames} style={{ flex: 1 }} />
+            <Btn title={translate("Tümünü Kaldır")} icon="close-circle-outline" size="sm" tone="ghost" disabled={!canEditGames || draftGames.length === 0} onPress={clearAllGames} style={{ flex: 1 }} />
+          </View>
+        )}
+        <View style={s.gameGrid}>
+          {GAME_STYLES.map((game) => {
+            const enabled = (canEditGames ? draftGames : selectedGames).includes(game.id);
+            return (
+              <Tap key={game.id} onPress={() => { if (canEditGames) toggleGame(game.id); }} style={[s.gameStyleRow, simple && s.compactGame, enabled && s.gameStyleSelected, !canEditGames && s.gameStyleDisabled]}>
+                <Ionicons name={game.icon} size={18} color={enabled ? colors.cyan : colors.muted} />
+                <Text style={s.gameStyleTitle} numberOfLines={2}>{game.name}</Text>
+                <Ionicons name={enabled ? 'checkbox' : 'square-outline'} size={20} color={enabled ? colors.mint : colors.muted} />
+              </Tap>
+            );
+          })}
+        </View>
+        {me.is_host ? (
+          gamesLocked && !editingGames ? (
+            <Btn title={translate("Yeniden Belirle")} icon="create-outline" tone="ghost" disabled={savingGames || busy} onPress={reopenGames} />
+          ) : (
+            <Btn title={translate("Seçimleri Yap ve Kilitle")} icon="lock-closed" tone="success" loading={savingGames} disabled={busy || draftGames.length === 0} onPress={lockGames} />
+          )
+        ) : null}
+        <Muted>{savingGames ? translate("Seçimler kaydediliyor…") : gamesLocked && !editingGames ? translate("Seçimler kilitlendi. Değiştirmek için Yeniden Belirle butonunu kullan.") : me.is_host ? translate("Seçimlerini tamamla ve tek seferde kaydet. Yalnızca Pong seçerek doğrudan Pong maçı test edebilirsin. En az bir oyun seç.") : translate("Seçimleri yalnızca oda kurucusu değiştirebilir.")}</Muted>
+      </Card>
+    </Reveal> : <Card style={{gap:8}}><Title size={20}>{translate("🎲 Rastgele Oyunlar")}</Title><Muted>{translate("Bu modda oyunlar oda açılırken otomatik seçildi. Her yeni odada farklı bir karışım oluşur.")}</Muted><View style={s.gameGrid}>{GAME_STYLES.filter(g=>selectedGames.includes(g.id)).map(g=><View key={g.id} style={[s.gameStyleRow,simple && s.compactGame,s.gameStyleSelected]}><Ionicons name={g.icon} size={18} color={colors.cyan}/><Text style={s.gameStyleTitle}>{g.name}</Text></View>)}</View></Card>
+  );
+  const settingsPanel = (
+    <>
+      {simple && <Card>{languageSettings}</Card>}
+      {me.is_host && <Card style={{gap:12}}><Title size={20}>{translate("🤖 Test Botları")}</Title><Muted>{translate("İkinci cihaz olmadan lobi, takım dağılımı ve sosyal oylamaları test et. Botlar gerçek oyuncu değildir; refleks veya Pong gibi canlı kontrolleri otomatik oynamazlar.")}</Muted><Text style={{color:colors.text,fontWeight:'700'}}>{translate('Bot sayısı:')} {draftBotCount??botCount} · {translate('Toplam oyuncu:')} {players.length}</Text><View style={{flexDirection:'row',gap:10}}><Btn title="−" tone="ghost" disabled={botBusy||(draftBotCount??botCount)===0} onPress={()=>setDraftBotCount(Math.max(0,(draftBotCount??botCount)-1))}/><Btn title="+" tone="ghost" disabled={botBusy||(draftBotCount??botCount)>=Math.min(11,12-players.length+botCount)} onPress={()=>setDraftBotCount(Math.min(11,(draftBotCount??botCount)+1))}/><View style={{flex:1}}><Btn title={translate("Botları Uygula")} tone="success" loading={botBusy} disabled={botBusy||(draftBotCount??botCount)===botCount} onPress={async()=>{setBotBusy(true);try{await api.setTestBots(room.id,draftBotCount??botCount);setDraftBotCount(null);setFactsReviewed(false);show(translate("Test botları güncellendi."),'success');}catch(e){show((e as Error).message,'error');}finally{setBotBusy(false);}}}/></View></View></Card>}
 
         <Reveal delay={130}>
           <Card style={{ gap: 10 }}>
@@ -345,33 +348,78 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             {!me.is_host && <Muted>{factsEnabled ? translate("Oda kurucusu bu özelliği etkinleştirdi.") : translate("Bu özellik oda kurucusu tarafından etkinleştirilmedi.")}</Muted>}
           </Card>
         </Reveal>
-
-        </LobbySection>
-
-        {factsEnabled && <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />}
+    </>
+  );
+  const personalQuestions = (
+    <>
+      {factsEnabled && <FriendFactsLobby roomId={room.id} players={players} onReady={setFactsReady} />}
 
         {factsEnabled && factsReady && me.is_host && <Btn title={factsReviewed ? translate("Cevaplar İncelendi ✓") : translate("Herkes Cevapları Okudu, Devam Et")} icon="book" tone="success" onPress={() => setFactsReviewed(true)} disabled={factsReviewed} />}
-
-        {/* ================= BAŞLAT / AYRIL ================= */}
-        <Reveal delay={180} style={{ gap: 12 }}>
-          {me.is_host ? (
-            <Btn
-              title={canStart ? translate("Takımları Belirle") : translate("En az 2 kişi gerekli")}
-              icon={canStart ? 'people' : 'hourglass'}
-              disabled={!canStart || savingGames || (room.mode === 'custom' && !gamesLocked) || (factsEnabled && (!factsReady || !factsReviewed))}
-              loading={busy}
-              tone="success"
-              onPress={assignTeams}
-            />
-          ) : (
-            <Card style={s.waiting}>
-              <Ionicons name="hourglass" size={22} color={colors.cyan} />
-              <Muted style={{ flex: 1 }}>{translate("Kurucunun takımları belirlemesi bekleniyor…")}</Muted>
-            </Card>
-          )}
-          {me.is_host && <><Btn title={translate("Odayı Kapat")} tone="danger" icon="close-circle" disabled={busy} onPress={() => setCloseConfirm(true)} /><Muted>{translate("Tek kişilik bekleme odaları 10 dakika sonra otomatik kapanır.")}</Muted></>}
+    </>
+  );
+  const startAction = (
+    me.is_host ? (
+        <Btn
+          title={canStart ? translate("Takımları Belirle") : translate("En az 2 kişi gerekli")}
+          icon={canStart ? 'people' : 'hourglass'}
+          disabled={!canStart || savingGames || (room.mode === 'custom' && !gamesLocked) || (factsEnabled && (!factsReady || !factsReviewed))}
+          loading={busy}
+          tone="success"
+          onPress={assignTeams}
+        />
+      ) : (
+        <Card style={s.waiting}>
+          <Ionicons name="hourglass" size={22} color={colors.cyan} />
+          <Muted style={{ flex: 1 }}>{translate("Kurucunun takımları belirlemesi bekleniyor…")}</Muted>
+        </Card>
+      )
+  );
+  const exitActions = (
+    <>
+      {me.is_host && <><Btn title={translate("Odayı Kapat")} tone="danger" icon="close-circle" disabled={busy} onPress={() => setCloseConfirm(true)} /><Muted>{translate("Tek kişilik bekleme odaları 10 dakika sonra otomatik kapanır.")}</Muted></>}
           <Btn title={translate("Odadan Ayrıl")} tone="ghost" icon="exit-outline" size="md" onPress={leave} />
-        </Reveal>
+    </>
+  );
+
+  return (
+    <Screen>
+      <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        {simple ? <>
+          <View style={s.simpleHeader}>
+            <View style={s.simpleHeaderTitle}>
+              <Eyebrow color={colors.mint}>{translate(GAME_TITLE)}</Eyebrow>
+              <Title size={32}>{translate("Bekleme odası")}</Title>
+            </View>
+            <View style={s.countBadge}>
+              <Text display style={s.countText}>{players.length}</Text>
+              <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
+            </View>
+          </View>
+          <CompactLobbyPanel panel={panel} onChange={setPanel} footer={startAction}>
+            {panel === 'invite' && <>
+              <Text display style={s.compactCode}>{room.code}</Text>
+              <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} />
+            </>}
+            {panel === 'players' && playersPanel}
+            {panel === 'games' && gamesPanel}
+            {panel === 'settings' && <>
+              <Btn title={translate("Normal görünüme geç")} icon="apps-outline" size="sm" tone="ghost" disabled={savingAppearance} onPress={() => { void changeAppearance(); }} />
+              {settingsPanel}
+              {exitActions}
+            </>}
+          </CompactLobbyPanel>
+          {personalQuestions}
+        </> : <>
+          {playersPanel}
+          {gamesPanel}
+          {codeCard}
+          {settingsPanel}
+          {personalQuestions}
+          <Reveal delay={180} style={{ gap: 12 }}>
+            {startAction}
+            {exitActions}
+          </Reveal>
+        </>}
       </ScrollView>
       <Modal visible={!!kickTarget} transparent animationType="fade" onRequestClose={() => { if (!kickingId) setKickTarget(null); }}>
         <View style={s.kickOverlay}>
@@ -398,23 +446,83 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   );
 }
 
-function LobbySection({ compact, title, initiallyOpen = false, children }: {
-  compact: boolean; title: string; initiallyOpen?: boolean; children: React.ReactNode;
+function CompactLobbyPanel({ panel, onChange, footer, children }: {
+  panel: LobbyPanel; onChange: (panel: LobbyPanel) => void; footer: React.ReactNode; children: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(initiallyOpen);
-  if (!compact) return <>{children}</>;
+  const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
+  const [railHeight, setRailHeight] = useState(228);
+  const left = width - RAIL_WIDTH - RAIL_GAP;
+  const shoulder = height - railHeight - RAIL_GAP;
+  const path = width > RAIL_WIDTH + 60 && shoulder >= 34
+    ? [
+      'M 20 1', `H ${width - 20} Q ${width - 1} 1 ${width - 1} 20`,
+      `V ${shoulder - 15} Q ${width - 1} ${shoulder} ${width - 17} ${shoulder}`,
+      `H ${left + 15} Q ${left} ${shoulder} ${left} ${shoulder + 15}`,
+      `V ${height - 18} Q ${left} ${height - 1} ${left - 18} ${height - 1}`,
+      `H 20 Q 1 ${height - 1} 1 ${height - 20} V 20 Q 1 1 20 1 Z`,
+    ].join(' ')
+    : null;
+
   return (
-    <View style={s.section}>
-      <Pressable
-        accessibilityRole="button"
-        aria-expanded={expanded}
-        onPress={() => setExpanded(value => !value)}
-        style={s.sectionButton}
-      >
-        <Text display style={s.sectionTitle}>{title}</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSoft} />
-      </Pressable>
-      {expanded && children}
+    <View
+      testID="compact-lobby-panel"
+      onLayout={({ nativeEvent: { layout } }) => setSize(previous =>
+        previous.width === layout.width && previous.height === layout.height
+          ? previous : { width: layout.width, height: layout.height }
+      )}
+    >
+      {path && <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Svg width={width} height={height} accessible={false}>
+          <Defs>
+            <SvgGradient id="lobbyPanelFill" x1="0%" y1="0%" x2="90%" y2="100%">
+              <Stop offset="0%" stopColor="#30465D" />
+              <Stop offset="48%" stopColor="#23344E" />
+              <Stop offset="100%" stopColor="#17243B" />
+            </SvgGradient>
+          </Defs>
+          <Path d={path} fill="url(#lobbyPanelFill)" stroke="#536984" strokeWidth={1.4} />
+        </Svg>
+      </View>}
+      <View style={s.compactHeading}>
+        <Title size={23}>{panel === 'invite' ? translate("Katılım kodu") : translate(LOBBY_PANELS.find(item => item.key === panel)!.label)}</Title>
+        {panel === 'invite' && <Muted>{translate("Arkadaşların bu kodla odaya katılabilir.")}</Muted>}
+      </View>
+      <View style={s.compactBody}>
+        <View style={s.compactContent}>
+          <ScrollView key={panel} nestedScrollEnabled style={s.compactDetails} contentContainerStyle={s.compactDetailsContent}>
+            {children}
+          </ScrollView>
+          {footer}
+        </View>
+        <View style={s.compactRailWrap} onLayout={({ nativeEvent }) => setRailHeight(nativeEvent.layout.height)}>
+          <SwipeTabGroup axis="vertical" testID="lobby-right-menu" style={s.compactRail} onSwipe={index => {
+            const item = LOBBY_PANELS[index];
+            if (item) onChange(item.key);
+          }}>
+            {(recordLayout, preview) => LOBBY_PANELS.map(({ key, label, icon }, index) => {
+              const selected = panel === key;
+              const ink = preview
+                ? swipeTabTint(colors.textSoft, colors.mint, preview.position, index)
+                : selected ? colors.mint : colors.textSoft;
+              return (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  aria-selected={selected}
+                  onPress={() => onChange(key)}
+                  onLayout={event => recordLayout(index, event)}
+                  style={[s.compactRailButton, selected && s.compactRailSelected]}
+                >
+                  {({ pressed }) => <>
+                    <Ionicons name={icon} size={18} color={ink} style={{ transform: [{ scale: swipeTabIconScale(preview?.position ?? (pressed ? index : null), index) }] }} />
+                    <Text style={[s.compactRailLabel, { color: ink }]}>{translate(label)}</Text>
+                  </>}
+                </Pressable>
+              );
+            })}
+          </SwipeTabGroup>
+        </View>
+      </View>
     </View>
   );
 }
@@ -423,13 +531,24 @@ const s = StyleSheet.create({
   kickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.76)', justifyContent: 'center', padding: 22 },
   kickDialog: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight, borderRadius: 20, padding: 20, gap: 12 },
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
-  section: { gap: 10 },
-  sectionButton: { minHeight: 48, borderRadius: 16, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.glass },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   codeHeading: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  compactCodeCard: { padding: 12 },
-  compactCode: { fontSize: 43, letterSpacing: 6 },
-  compactPlayer: { paddingVertical: 8 },
+  simpleHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: 8 },
+  simpleHeaderTitle: { flex: 1, gap: 5 },
+  compactHeading: { paddingHorizontal: 15, paddingTop: 16, paddingBottom: 14, minHeight: 98, gap: 5 },
+  compactBody: { flexDirection: 'row', alignItems: 'flex-end', gap: RAIL_GAP },
+  compactContent: { flex: 1, minWidth: 0, minHeight: 258, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 14, gap: 12 },
+  compactDetails: { maxHeight: 180 },
+  compactDetailsContent: { gap: 10, paddingVertical: 2 },
+  compactRailWrap: { width: RAIL_WIDTH, flexShrink: 0 },
+  compactRail: { padding: 4, borderWidth: 1, borderColor: '#526884', borderRadius: 23, backgroundColor: '#22344F' },
+  compactRailButton: { minHeight: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 5, gap: 4 },
+  compactRailSelected: { backgroundColor: '#39576C', marginLeft: -5 },
+  compactRailLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  compactCode: { fontSize: 43, letterSpacing: 5, color: colors.mint, fontWeight: '900' },
+  compactPlayer: { width: '100%', paddingVertical: 8 },
+  compactGrid: { gap: 7 },
+  compactGame: { width: '100%', minHeight: 44 },
+  compactGameActions: { flexDirection: 'column' },
   gameActions: { flexDirection: 'row', gap: 8 },
   gameGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 9 },
   gameStyleRow: { width: '48.5%', minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 9, borderWidth: 1, borderColor: colors.border, borderRadius: 13 },
