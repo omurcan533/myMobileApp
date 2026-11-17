@@ -791,8 +791,7 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 // ============================================================================
 export interface TabItem<K extends string> { key: K; label: string; icon: IconName; iconActive?: IconName }
 
-const TAB_ITEM_MAX_WIDTH = 100;
-const TAB_SPACING = 6;
+const TAB_ITEM_WIDTH = 100;
 
 /** Sekme ikonu: aktif olunca yaylanarak büyür ve hafifçe sallanır. */
 function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: number }) {
@@ -818,12 +817,7 @@ function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: 
 }
 
 export function TabBar<K extends string>({ items, active, onChange }: { items: TabItem<K>[]; active: K; onChange: (k: K) => void }) {
-  const { width } = useWindowDimensions();
-  // Screen contributes up to 14 points of padding per side, plus the bar's border.
-  const itemWidth = Math.min(
-    TAB_ITEM_MAX_WIDTH,
-    Math.floor((width - 28 - 3 - TAB_SPACING * (items.length + 1)) / items.length),
-  );
+  const insets = useSafeAreaInsets();
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const activeIdx = Math.max(0, items.findIndex((it) => it.key === active));
   const [slideAnim] = useState(() => new Animated.Value(activeIdx));
@@ -881,15 +875,41 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
     }
   }, []);
 
+  const [tabOpacity] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    Animated.timing(tabOpacity, {
+      toValue: isKeyboardOpen ? 0 : 1,
+      duration: isKeyboardOpen ? 180 : 340,
+      easing: isKeyboardOpen ? Easing.out(Easing.quad) : Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start();
+  }, [isKeyboardOpen, tabOpacity]);
+
   const leftPos = slideAnim.interpolate({
     inputRange: [0, Math.max(1, items.length - 1)],
-    outputRange: [TAB_SPACING, TAB_SPACING + (items.length - 1) * (itemWidth + TAB_SPACING)],
+    outputRange: [6, 6 + (items.length - 1) * (TAB_ITEM_WIDTH + 6)],
   });
 
-  if (isKeyboardOpen) return null;
-
   return (
-    <View style={s.tabWrap} pointerEvents="box-none" testID="home-tab-bar">
+    <Animated.View
+      style={[
+        s.tabWrap,
+        {
+          bottom: Math.max(insets.bottom, 12) + 6,
+          opacity: tabOpacity,
+          transform: [
+            {
+              translateY: tabOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [24, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+      pointerEvents={isKeyboardOpen ? 'none' : 'box-none'}
+    >
       <View style={s.tabBar}>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
@@ -903,7 +923,6 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
             s.tabIndicator,
             {
               left: leftPos,
-              width: itemWidth,
               transform: [{ scale: scaleAnim }],
             },
           ]}
@@ -932,7 +951,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
                   onChange(it.key);
                 }
               }}
-              style={[s.tabItem, { width: itemWidth }]}
+              style={s.tabItem}
             >
               <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} />
               <Text
@@ -947,7 +966,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
           );
         })}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -1094,11 +1113,11 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16,
   },
 
-  tabWrap: { alignItems: 'center', flexShrink: 0, marginTop: 8, marginBottom: 6 },
+  tabWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   tabBar: {
     flexDirection: 'row',
-    gap: TAB_SPACING,
-    padding: TAB_SPACING,
+    gap: 6,
+    padding: 6,
     borderRadius: 36,
     overflow: 'hidden',
     borderWidth: 1.5,
@@ -1111,8 +1130,9 @@ const s = StyleSheet.create({
   },
   tabIndicator: {
     position: 'absolute',
-    top: TAB_SPACING,
-    bottom: TAB_SPACING,
+    top: 6,
+    bottom: 6,
+    width: 100,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1.5,
@@ -1135,6 +1155,7 @@ const s = StyleSheet.create({
     shadowRadius: 4,
   },
   tabItem: {
+    width: 100,
     paddingVertical: 9,
     borderRadius: 24,
     alignItems: 'center',
