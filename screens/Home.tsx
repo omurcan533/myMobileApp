@@ -351,7 +351,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       setRoomAction(action.key);
                     }
                   }}>
-                    {recordLayout => <>
+                    {(recordLayout, previewIndex) => <>
                     <View pointerEvents="none" style={s.railGlass}>
                       <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
                       <LinearGradient
@@ -364,6 +364,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     </View>
                     {ROOM_ACTIONS.map(({ key, icon, label, tint }, index) => {
                       const selected = roomAction === key;
+                      const highlighted = previewIndex === null ? selected : previewIndex === index;
                       return (
                         <Pressable
                           key={key}
@@ -377,8 +378,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                           }}
                           style={[s.railTab, selected && s.railTabSelected]}
                         >
-                          {selected && (
-                            <View pointerEvents="none" style={s.railLens}>
+                          {highlighted && (
+                            <View pointerEvents="none" style={[s.railLens, !selected && s.railLensPreview]}>
                               <LinearGradient
                                 colors={['rgba(191, 216, 249, 0.27)', 'rgba(124, 149, 188, 0.08)']}
                                 start={{ x: 0, y: 0 }}
@@ -387,8 +388,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                               />
                             </View>
                           )}
-                          <Ionicons name={icon} size={20} color={selected ? tint : colors.textSoft} />
-                          <Text style={[s.railLabel, selected && { color: tint }]}>{t(label)}</Text>
+                          <Ionicons name={icon} size={20} color={highlighted ? tint : colors.textSoft} />
+                          <Text style={[s.railLabel, highlighted && { color: tint }]}>{t(label)}</Text>
                         </Pressable>
                       );
                     })}
@@ -838,6 +839,7 @@ const s = StyleSheet.create({
   railTab: { minHeight: 69, paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', gap: 5 },
   railTabSelected: { marginLeft: -8, paddingLeft: 9 },
   railLens: { ...StyleSheet.absoluteFill, borderRadius: 22, overflow: 'hidden', backgroundColor: 'rgba(32, 49, 75, 0.81)' },
+  railLensPreview: { left: -8 },
   railLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', color: colors.textSoft },
   dockIdle: { minHeight: 232, alignItems: 'center', justifyContent: 'center' },
   dockOrbit: { position: 'absolute', width: 118, height: 118, borderRadius: 36, borderWidth: 1, borderColor: '#7085AD45', backgroundColor: '#1C2A4655', transform: [{ rotate: '27deg' }] },

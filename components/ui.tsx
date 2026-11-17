@@ -796,41 +796,78 @@ type SwipeTabGroupProps = {
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onSwipe: (index: number) => void;
-  children: (recordLayout: (index: number, event: LayoutChangeEvent) => void) => React.ReactNode;
+  children: (recordLayout: (index: number, event: LayoutChangeEvent) => void, previewIndex: number | null) => React.ReactNode;
 };
 
 export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeTabGroupProps) {
   const groupRef = useRef<View>(null);
   const items = useRef<LayoutChangeEvent['nativeEvent']['layout'][]>([]);
-  // PanResponder only invokes the measurement callback after a gesture.
-  // eslint-disable-next-line react-hooks/refs
-  const responder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: (_, { dx, dy, numberActiveTouches }) => {
-      const along = Math.abs(axis === 'horizontal' ? dx : dy);
-      const across = Math.abs(axis === 'horizontal' ? dy : dx);
-      return numberActiveTouches === 1 && along >= 7 && along > across;
-    },
-    onPanResponderRelease: ({ nativeEvent: { pageX, pageY } }) => {
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const drag = useRef<{ x: number; y: number; origin?: { left: number; top: number } } | null>(null);
+  const responder = useMemo(() => {
+    const hitTest = (x: number, y: number, left: number, top: number) => items.current.findIndex(item => (
+      x - left >= item.x && x - left < item.x + item.width &&
+      y - top >= item.y && y - top < item.y + item.height
+    ));
+    const measure = (callback: (left: number, top: number) => void) => {
       const group = groupRef.current;
       if (!group) return;
-      const selectAt = (left: number, top: number) => {
-        if (groupRef.current !== group) return;
-        const x = pageX - left;
-        const y = pageY - top;
-        const index = items.current.findIndex(item => (
-          x >= item.x && x < item.x + item.width &&
-          y >= item.y && y < item.y + item.height
-        ));
-        if (index >= 0) onSwipe(index);
-      };
       if (Platform.OS === 'web' && group instanceof HTMLElement) {
         const bounds = group.getBoundingClientRect();
-        selectAt(bounds.left + window.scrollX, bounds.top + window.scrollY);
+        callback(bounds.left + window.scrollX, bounds.top + window.scrollY);
       } else {
-        group.measure((_x, _y, _width, _height, left, top) => selectAt(left, top));
+        group.measure((_x, _y, _width, _height, left, top) => {
+          if (groupRef.current === group) callback(left, top);
+        });
       }
-    },
-  }), [axis, onSwipe]);
+    };
+    const updatePreview = (point: NonNullable<typeof drag.current>) => {
+      if (!point.origin) return;
+      const index = hitTest(point.x, point.y, point.origin.left, point.origin.top);
+      // Keep the last highlight across the small gaps between buttons.
+      if (index >= 0) setPreviewIndex(index);
+    };
+    const clearPreview = () => {
+      drag.current = null;
+      setPreviewIndex(null);
+    };
+
+    // The responder callbacks read refs only while handling a gesture.
+    // eslint-disable-next-line react-hooks/refs
+    return PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, { dx, dy, numberActiveTouches }) => {
+        const along = Math.abs(axis === 'horizontal' ? dx : dy);
+        const across = Math.abs(axis === 'horizontal' ? dy : dx);
+        return numberActiveTouches === 1 && along >= 7 && along > across;
+      },
+      onPanResponderGrant: ({ nativeEvent: { pageX, pageY } }) => {
+        const point: NonNullable<typeof drag.current> = { x: pageX, y: pageY };
+        drag.current = point;
+        measure((left, top) => {
+          if (drag.current !== point) return;
+          point.origin = { left, top };
+          updatePreview(point);
+        });
+      },
+      onPanResponderMove: ({ nativeEvent: { pageX, pageY } }) => {
+        const point = drag.current;
+        if (!point) return;
+        point.x = pageX;
+        point.y = pageY;
+        updatePreview(point);
+      },
+      onPanResponderRelease: ({ nativeEvent: { pageX, pageY } }) => {
+        drag.current = null;
+        measure((left, top) => {
+          if (drag.current) return;
+          setPreviewIndex(null);
+          const index = hitTest(pageX, pageY, left, top);
+          if (index >= 0) onSwipe(index);
+        });
+      },
+      onPanResponderTerminate: clearPreview,
+    });
+  }, [axis, onSwipe]);
 
   const recordLayout = (index: number, event: LayoutChangeEvent) => {
     items.current[index] = event.nativeEvent.layout;
@@ -846,7 +883,7 @@ export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeT
     >
       {/* The render callback attaches recordLayout to the tabs’ onLayout events. */}
       {/* eslint-disable-next-line react-hooks/refs */}
-      {children(recordLayout)}
+      {children(recordLayout, previewIndex)}
     </View>
   );
 }
@@ -981,9 +1018,11 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
     >
       <SwipeTabGroup axis="horizontal" testID="home-swipe-tabs" style={s.tabBar} onSwipe={index => {
         const item = items[index];
-        if (item) selectTab(item.key);
+        if (!item) return;
+        slideAnim.setValue(index);
+        selectTab(item.key);
       }}>
-        {recordLayout => <>
+        {(recordLayout, previewIndex) => <>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
           colors={['rgba(10,22,46,0.92)', 'rgba(6,12,28,0.98)']}
@@ -995,7 +1034,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
           style={[
             s.tabIndicator,
             {
-              left: leftPos,
+              left: previewIndex === null ? leftPos : 6 + previewIndex * (TAB_ITEM_WIDTH + 6),
               transform: [{ scale: scaleAnim }],
             },
           ]}
@@ -1010,7 +1049,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
         </Animated.View>
 
         {items.map((it, index) => {
-          const on = it.key === active;
+          const on = previewIndex === null ? it.key === active : index === previewIndex;
           return (
             <Tap
               key={it.key}
