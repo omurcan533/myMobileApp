@@ -270,13 +270,16 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
             <ProgressBar pct={lvl.progress} colors={gradients.gold} height={8} />
           </View>
           <View style={s.topActions}>
-            <IconBtn
-              icon={simple ? 'albums-outline' : 'apps-outline'}
+            <Tap
+              accessibilityRole="button"
               accessibilityLabel={simple ? translate("Normal görünüme geç") : translate("Basit görünüme geç")}
-              active={simple}
               disabled={savingAppearance}
               onPress={() => { void changeAppearance(simple ? 'normal' : 'simple'); }}
-            />
+              style={[s.appearanceShortcut, simple && s.appearanceShortcutActive, savingAppearance && { opacity: 0.5 }]}
+            >
+              <Ionicons name={simple ? 'albums-outline' : 'apps-outline'} size={16} color={colors.cyan} />
+              <Text style={s.appearanceShortcutLabel}>{simple ? translate("Normal") : translate("Basit")}</Text>
+            </Tap>
             <IconBtn
               icon={sound ? 'volume-high' : 'volume-mute'}
               onPress={() => toggleSound(!sound)}
@@ -848,6 +851,9 @@ const s = StyleSheet.create({
   avatarChoiceLabel: { color: colors.text, fontSize: 11, fontWeight: '700' },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  appearanceShortcut: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 9, borderWidth: 1, borderColor: colors.borderLight, borderRadius: 22, backgroundColor: colors.glassStrong },
+  appearanceShortcutActive: { borderColor: alpha(colors.cyan, 0.55), backgroundColor: alpha(colors.cyan, 0.18) },
+  appearanceShortcutLabel: { color: colors.text, fontSize: 12, fontWeight: '800' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
   scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },

@@ -69,9 +69,11 @@ test('new users open Simple with Public Rooms selected and can edit their saved 
 test('the header appearance shortcut switches both ways and saves the same preference as Profile',async()=>{
  const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'normal'});
  h.render();await flush();
- const shortcut=label=>nodes(h.render(),'IconBtn').find(node=>node.props.accessibilityLabel===label);
+ const shortcut=label=>nodes(h.render(),'Tap').find(node=>node.props.accessibilityLabel===label);
+ assert.equal(nodes(shortcut('Basit görünüme geç'),'Text')[0].props.children[0],'Basit');
  shortcut('Basit görünüme geç').props.onPress();await flush();
  assert.equal(nodes(h.render(),'BlurView').length,1);
+ assert.equal(nodes(shortcut('Normal görünüme geç'),'Text')[0].props.children[0],'Normal');
  shortcut('Normal görünüme geç').props.onPress();await flush();
  assert.equal(nodes(h.render(),'BlurView').length,0);
  assert.deepEqual(h.writes,[['homeAppearance','simple'],['homeAppearance','normal']]);
