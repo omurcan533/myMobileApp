@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const flush=async()=>{for(let i=0;i<5;i++)await new Promise(setImmediate);};
-function mount(file,props,{saved=null,storageFails=false,rooms=[]}={}){
+function mount(file,props,{saved=null,appearance=null,storageFails=false,rooms=[]}={}){
  const slots=[],effects=[],writes=[],calls=[];let index=0;
  const react={__esModule:true,createElement:(type,props,...children)=>({type,props:{...props,children}}),Fragment:'Fragment',
   useState(initial){const i=index++;if(!(i in slots))slots[i]=typeof initial==='function'?initial():initial;return [slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v;}];},
@@ -15,14 +15,14 @@ function mount(file,props,{saved=null,storageFails=false,rooms=[]}={}){
  };react.default=react;
  const ui=new Proxy({},{get:(_,name)=>name});
  const chain={on(){return this;},subscribe(){return this;}};
- const storage={getItem:async()=>saved,setItem:async(k,v)=>{if(storageFails)throw Error('unavailable');writes.push([k,v]);}};
+ const storage={getItem:async key=>key==='homeAppearance'?appearance:saved,setItem:async(k,v)=>{if(storageFails)throw Error('unavailable');writes.push([k,v]);}};
  const modules={
   react,'react-native':{Platform:{OS:'web'},StyleSheet:{create:v=>v},useWindowDimensions:()=>({width:400}),AppState:{addEventListener:()=>({remove(){}})}},
-  '@react-native-async-storage/async-storage':{__esModule:true,default:storage},'expo-linear-gradient':{LinearGradient:'Gradient'},'@expo/vector-icons':{Ionicons:'Icon'},
+  '@react-native-async-storage/async-storage':{__esModule:true,default:storage},'expo-linear-gradient':{LinearGradient:'Gradient'},'expo-blur':{BlurView:'BlurView'},'@expo/vector-icons':{Ionicons:'Icon'},
   '../components/ui':ui,'./ui':ui,'../components/NicknameStep':{NicknameStep:'NicknameStep',validNickname:v=>v.trim().length>0},
   '../components/PrivacyInfo':{PrivacyInfo:'PrivacyInfo'},'../components/SafetyProfile':{SafetyProfile:'SafetyProfile'},
   '../lib/art':{avatarFor:()=>'',art:{fox:''},AVATAR_OPTIONS:[]},'../lib/theme':{colors:new Proxy({},{get:()=> '#FFFFFF'}),gradients:{gold:[],primary:[]},alpha:()=>''},
-  '../lib/i18n':{useLanguage:()=> 'tr',t:k=>k,translate:v=>v},'../lib/profile':{getProfile:async()=>({games:0,wins:0,lastRoom:null}),levelOf:()=>({level:1,progress:0})},
+  '../lib/i18n':{useLanguage:()=> 'tr',t:k=>k,translate:v=>v,format:(pattern,value)=>pattern.replace("{0}",String(value))},'../lib/profile':{getProfile:async()=>({games:0,wins:0,lastRoom:null}),levelOf:()=>({level:1,progress:0})},
   '../lib/soundEffects':{soundFx:{isEnabled:()=>true}},'../lib/supabase':{supabase:{channel:()=>chain,removeChannel:async()=>{}}},
   '../lib/coalescedTask':{coalescedTask:fn=>fn},'../lib/api':{api:{openRooms:async()=>rooms,createRoom:async(...args)=>{calls.push(['create',...args]);return {room_id:'room'};},joinRoom:async(...args)=>{calls.push(['join',...args]);return {room_id:'room'};}}},
  };
@@ -50,6 +50,20 @@ test('first-time and whitespace-only saved names must complete the name screen b
 test('a saved name bypasses onboarding after storage hydration',async()=>{
  const h=mount('../screens/Home.tsx',homeProps,{saved:'  Ömür  '});h.render();await flush();const tree=h.render();
  assert.equal(nodes(tree,'NicknameStep').length,0);assert.ok(nodes(tree,'Input').some(n=>n.props.value==='Ömür'));
+});
+test('Simple keeps the saved name and exposes editing in Profile',async()=>{
+ const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür',appearance:'simple'});
+ h.render();await flush();
+ const home=h.render();
+ assert.equal(nodes(home,'NicknameStep').length,0);
+ assert.equal(nodes(home,'Input').length,0);
+ assert.equal(nodes(home,'BlurView').length,1);
+ nodes(home,'TabBar')[0].props.onChange('profile');
+ const input=nodes(h.render(),'Input').find(node=>node.props.accessibilityLabel==='nickname');
+ assert.equal(input?.props.value,'Ömür');
+ input.props.onChangeText('Deniz');
+ nodes(h.render(),'Input').find(node=>node.props.accessibilityLabel==='nickname').props.onBlur();
+ assert.deepEqual(h.writes,[['nickname','Deniz']]);
 });
 test('deleting a name routes room creation through the name screen and resumes with the confirmed name',async()=>{
  const h=mount('../screens/Home.tsx',homeProps,{saved:'Ömür'});h.render();await flush();let tree=h.render();

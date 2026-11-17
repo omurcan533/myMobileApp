@@ -1,6 +1,7 @@
 import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, AppState, Easing, Pressable, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -264,7 +265,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
               </Reveal>
 
               {/* ================= TAKMA AD ================= */}
-              <Reveal delay={80}>
+              {!simple && <Reveal delay={80}>
                 <Card style={{ gap: 12 }}>
                   <Eyebrow icon="person-circle" color={colors.muted}>{t('nickname')}</Eyebrow>
                   <Input
@@ -283,11 +284,21 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                     maxLength={20}
                   />
                 </Card>
-              </Reveal>
+              </Reveal>}
 
               <View style={simple && s.dock}>
                 {simple && (
-                  <View style={s.rail}>
+                  <View style={s.rail} testID="simple-room-rail">
+                    <View pointerEvents="none" style={s.railGlass}>
+                      <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
+                      <LinearGradient
+                        colors={['rgba(174, 198, 234, 0.17)', 'rgba(69, 96, 142, 0.06)', 'rgba(9, 16, 33, 0.26)']}
+                        locations={[0, 0.43, 1]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    </View>
                     {ROOM_ACTIONS.map(({ key, icon, label, tint }) => {
                       const selected = roomAction === key;
                       return (
@@ -300,9 +311,19 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                             soundFx.click();
                             setRoomAction(current => current === key ? null : key);
                           }}
-                          style={[s.railTab, selected && s.railTabSelected, selected && { borderColor: alpha(tint, 0.52) }]}
+                          style={[s.railTab, selected && s.railTabSelected]}
                         >
-                          <Ionicons name={icon} size={20} color={tint} />
+                          {selected && (
+                            <View pointerEvents="none" style={s.railLens}>
+                              <LinearGradient
+                                colors={['rgba(191, 216, 249, 0.27)', 'rgba(124, 149, 188, 0.08)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0.85, y: 1 }}
+                                style={StyleSheet.absoluteFill}
+                              />
+                            </View>
+                          )}
+                          <Ionicons name={icon} size={20} color={selected ? tint : colors.textSoft} />
                           <Text style={[s.railLabel, selected && { color: tint }]}>{t(label)}</Text>
                         </Pressable>
                       );
@@ -613,8 +634,10 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       </Tap>
                     ))}
                   </View>
+                  {simple && <Text style={s.settingTitle}>{t('nickname')}</Text>}
                   <Input
                     icon="happy"
+                    accessibilityLabel={t('nickname')}
                     value={nick}
                     onChangeText={setNick}
                     onBlur={() => { const n = nick.trim(); if (n) AsyncStorage.setItem('nickname', n); }}
@@ -733,9 +756,11 @@ const s = StyleSheet.create({
   normalContent: { gap: 16 },
   dock: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 11 },
   dockContent: { flex: 1, minWidth: 0 },
-  rail: { width: 76, gap: 8, marginRight: -8, paddingTop: 9 },
-  railTab: { minHeight: 69, borderWidth: 1, borderRightWidth: 0, borderColor: '#34435C', borderTopLeftRadius: 20, borderBottomLeftRadius: 20, backgroundColor: '#141E34', paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', gap: 5 },
-  railTabSelected: { marginLeft: -8, backgroundColor: '#253650', shadowColor: '#050B20', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: -4, height: 3 } },
+  rail: { width: 82, padding: 4, marginRight: -4, marginTop: 9, borderRadius: 26, shadowColor: '#020510', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+  railGlass: { ...StyleSheet.absoluteFill, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(18, 28, 48, 0.82)', borderWidth: 1, borderColor: 'rgba(198, 218, 250, 0.21)' },
+  railTab: { minHeight: 69, paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', gap: 5 },
+  railTabSelected: { marginLeft: -8, paddingLeft: 9 },
+  railLens: { ...StyleSheet.absoluteFill, borderRadius: 22, overflow: 'hidden', backgroundColor: 'rgba(32, 49, 75, 0.81)' },
   railLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', color: colors.textSoft },
   dockIdle: { minHeight: 232, alignItems: 'center', justifyContent: 'center' },
   dockOrbit: { position: 'absolute', width: 118, height: 118, borderRadius: 36, borderWidth: 1, borderColor: '#7085AD45', backgroundColor: '#1C2A4655', transform: [{ rotate: '27deg' }] },
