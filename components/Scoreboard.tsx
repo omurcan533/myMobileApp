@@ -129,7 +129,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
 
 const s = StyleSheet.create({
   wrap: { marginBottom: 10 },
-  topRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  topRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 6 },
   roomCode: { color: colors.subtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
   questionBadge: {
     flexDirection: 'row',
