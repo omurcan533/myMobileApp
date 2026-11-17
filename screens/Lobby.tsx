@@ -84,7 +84,10 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
     setSavingAppearance(true);
     try {
       await AsyncStorage.setItem(HOME_APPEARANCE_KEY, next);
-      if (next === 'simple') scrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (next === 'simple') {
+        setPanel('games');
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+      }
       setAppearance(next);
     } catch {
       show(translate("Görünüm tercihi kaydedilemedi."), 'error');
@@ -99,7 +102,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   const [editedGames, setDraftGames] = useState<string[]>(() => [...selectedGames]);
   const [editingGames, setEditingGames] = useState(false);
   const gamesLocked = room.selected_games_locked === true;
-  const [panel, setPanel] = useState<LobbyPanel>(() => room.mode === 'custom' && me.is_host && !gamesLocked ? 'games' : 'invite');
+  const [panel, setPanel] = useState<LobbyPanel>('games');
   const canEditGames = room.mode === 'custom' && me.is_host && (!gamesLocked || editingGames) && !savingGames && !busy;
 
   // Locked selections come straight from the server; edits remain local until saved.
@@ -233,16 +236,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
     <Reveal>
       <View style={s.codeCard}>
         <LinearGradient colors={['#12305C', '#0A1830', '#1B1040']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View style={s.codeHeading}>
-          <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
-          <IconBtn
-            icon={simple ? 'albums-outline' : 'apps-outline'}
-            accessibilityLabel={simple ? translate("Normal görünüme geç") : translate("Basit görünüme geç")}
-            active={simple}
-            disabled={savingAppearance}
-            onPress={() => { void changeAppearance(); }}
-          />
-        </View>
+        <Eyebrow live color={colors.mint} dot={colors.mint}>{translate("Bekleme odası")}</Eyebrow>
         <Text style={s.codeLabel}>{translate("KATILIM KODU")}</Text>
         <Pulse amount={1.025}>
           <Text display style={s.code}>{room.code}</Text>
@@ -393,6 +387,21 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen>
+      {!simple && (
+        <Pressable
+          testID="lobby-simple-view"
+          accessibilityRole="button"
+          disabled={savingAppearance}
+          onPress={() => { void changeAppearance(); }}
+          style={({ pressed }) => [
+            s.normalViewLink,
+            s.simpleViewLink,
+            (pressed || savingAppearance) && s.normalViewLinkPressed,
+          ]}
+        >
+          <Text style={s.normalViewLabel}>{translate("Basit görünüme geç")}</Text>
+        </Pressable>
+      )}
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {simple ? <>
           <View style={s.simpleHeader}>
@@ -555,9 +564,10 @@ function CompactLobbyPanel({ panel, onChange, onNormalPress, savingAppearance, f
                   aria-selected={selected}
                   onPress={() => onChange(key)}
                   onLayout={event => recordLayout(index, event)}
-                  style={[s.compactRailButton, selected && s.compactRailSelected]}
+                  style={s.compactRailButton}
                 >
                   {({ pressed }) => <>
+                    {selected && <View pointerEvents="none" style={s.compactRailSelected} />}
                     <Ionicons name={icon} size={18} color={ink} style={{ transform: [{ scale: swipeTabIconScale(preview?.position ?? (pressed ? index : null), index) }] }} />
                     <Text style={[s.compactRailLabel, { color: ink }]}>{translate(label)}</Text>
                   </>}
@@ -578,13 +588,13 @@ const s = StyleSheet.create({
   kickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.76)', justifyContent: 'center', padding: 22 },
   kickDialog: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight, borderRadius: 20, padding: 20, gap: 12 },
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
-  codeHeading: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   simpleHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: 8 },
   simpleHeaderTitle: { flex: 1, gap: 5 },
   compactHeading: { paddingHorizontal: 15, paddingTop: 16, paddingBottom: 14, minHeight: 98, gap: 5 },
   compactHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   compactHeadingTitle: { flex: 1, minWidth: 0 },
   normalViewLink: { minHeight: 44, maxWidth: '48%', justifyContent: 'center' },
+  simpleViewLink: { alignSelf: 'flex-end' },
   normalViewLinkPressed: { opacity: 0.65 },
   normalViewLabel: { color: colors.mint, fontSize: 12, fontWeight: '700', textAlign: 'right' },
   compactBody: { flexDirection: 'row', alignItems: 'flex-start', gap: RAIL_GAP },
@@ -595,8 +605,8 @@ const s = StyleSheet.create({
   compactDetailsContent: { gap: 10, paddingVertical: 2 },
   compactRailWrap: { width: RAIL_WIDTH, flexShrink: 0, marginTop: RAIL_TOP_MARGIN },
   compactRail: { padding: 4, borderWidth: 1, borderColor: '#526884', borderRadius: 23, backgroundColor: '#22344F' },
-  compactRailButton: { minHeight: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 5, gap: 4 },
-  compactRailSelected: { backgroundColor: '#39576C', marginLeft: -5 },
+  compactRailButton: { minHeight: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, paddingVertical: 5, gap: 4 },
+  compactRailSelected: { ...StyleSheet.absoluteFill, left: -5, borderRadius: 17, backgroundColor: '#39576C' },
   compactRailLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   compactCode: { fontSize: 43, letterSpacing: 5, color: colors.mint, fontWeight: '900' },
   compactPlayer: { width: '48%', paddingVertical: 8 },
