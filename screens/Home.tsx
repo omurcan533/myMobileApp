@@ -207,7 +207,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
 
   return (
     <Screen>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={s.homeContent} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* ================= ÜST BAR ================= */}
         <View style={s.topBar}>
           <Avatar source={avatarFor(displayName, avatarId)} size={52} ring={colors.cyan} />
@@ -227,6 +227,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
 
         <ScrollView
           ref={scrollRef}
+          style={s.homeContent}
+          testID="home-scroll"
           contentContainerStyle={s.scroll}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -725,7 +727,8 @@ const s = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 12 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   topName: { color: colors.text, fontSize: 18, fontWeight: '800', flexShrink: 1 },
-  scroll: { gap: 16, paddingBottom: 130, paddingTop: 4 },
+  homeContent: { flex: 1, minHeight: 0 },
+  scroll: { gap: 16, paddingBottom: 12, paddingTop: 4 },
 
   normalContent: { gap: 16 },
   dock: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 11 },
