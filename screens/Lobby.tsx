@@ -19,6 +19,7 @@ const MAX_PLAYERS = 12;
 const MIN_SLOTS = 4;
 const RAIL_WIDTH = 76;
 const RAIL_GAP = 9;
+const RAIL_TOP_MARGIN = 14;
 const LOBBY_PANELS = [
   { key: 'invite', label: 'Davet', icon: 'ticket-outline' },
   { key: 'players', label: 'Oyuncular', icon: 'people-outline' },
@@ -451,14 +452,20 @@ function CompactLobbyPanel({ panel, onChange, footer, children }: {
 }) {
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const [railHeight, setRailHeight] = useState(228);
+  const [bodyTop, setBodyTop] = useState(98);
   const left = width - RAIL_WIDTH - RAIL_GAP;
-  const shoulder = height - railHeight - RAIL_GAP;
-  const path = width > RAIL_WIDTH + 60 && shoulder >= 34
+  const railTop = bodyTop + RAIL_TOP_MARGIN;
+  const railBottom = railTop + railHeight;
+  const upperShoulder = railTop - RAIL_GAP;
+  const lowerShoulder = railBottom + RAIL_GAP;
+  const path = width > RAIL_WIDTH + 60 && upperShoulder >= 34 && height - lowerShoulder >= 38
     ? [
       'M 20 1', `H ${width - 20} Q ${width - 1} 1 ${width - 1} 20`,
-      `V ${shoulder - 15} Q ${width - 1} ${shoulder} ${width - 17} ${shoulder}`,
-      `H ${left + 15} Q ${left} ${shoulder} ${left} ${shoulder + 15}`,
-      `V ${height - 18} Q ${left} ${height - 1} ${left - 18} ${height - 1}`,
+      `V ${upperShoulder - 15} Q ${width - 1} ${upperShoulder} ${width - 17} ${upperShoulder}`,
+      `H ${left + 15} Q ${left} ${upperShoulder} ${left} ${upperShoulder + 15}`,
+      `V ${lowerShoulder - 15} Q ${left} ${lowerShoulder} ${left + 15} ${lowerShoulder}`,
+      `H ${width - 17} Q ${width - 1} ${lowerShoulder} ${width - 1} ${lowerShoulder + 15}`,
+      `V ${height - 20} Q ${width - 1} ${height - 1} ${width - 20} ${height - 1}`,
       `H 20 Q 1 ${height - 1} 1 ${height - 20} V 20 Q 1 1 20 1 Z`,
     ].join(' ')
     : null;
@@ -487,12 +494,17 @@ function CompactLobbyPanel({ panel, onChange, footer, children }: {
         <Title size={23}>{panel === 'invite' ? translate("Katılım kodu") : translate(LOBBY_PANELS.find(item => item.key === panel)!.label)}</Title>
         {panel === 'invite' && <Muted>{translate("Arkadaşların bu kodla odaya katılabilir.")}</Muted>}
       </View>
-      <View style={s.compactBody}>
-        <View style={s.compactContent}>
-          <ScrollView key={panel} nestedScrollEnabled style={s.compactDetails} contentContainerStyle={s.compactDetailsContent}>
+      <View style={s.compactBody} onLayout={({ nativeEvent }) => setBodyTop(nativeEvent.layout.y)}>
+        <View style={[s.compactContent, panel !== 'invite' && s.expandedCompactContent]}>
+          <ScrollView
+            key={panel}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            style={s.compactDetails}
+            contentContainerStyle={s.compactDetailsContent}
+          >
             {children}
           </ScrollView>
-          {footer}
         </View>
         <View style={s.compactRailWrap} onLayout={({ nativeEvent }) => setRailHeight(nativeEvent.layout.height)}>
           <SwipeTabGroup axis="vertical" testID="lobby-right-menu" style={s.compactRail} onSwipe={index => {
@@ -523,6 +535,9 @@ function CompactLobbyPanel({ panel, onChange, footer, children }: {
           </SwipeTabGroup>
         </View>
       </View>
+      <View style={s.compactFooter}>
+        {footer}
+      </View>
     </View>
   );
 }
@@ -535,11 +550,13 @@ const s = StyleSheet.create({
   simpleHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: 8 },
   simpleHeaderTitle: { flex: 1, gap: 5 },
   compactHeading: { paddingHorizontal: 15, paddingTop: 16, paddingBottom: 14, minHeight: 98, gap: 5 },
-  compactBody: { flexDirection: 'row', alignItems: 'flex-end', gap: RAIL_GAP },
-  compactContent: { flex: 1, minWidth: 0, minHeight: 258, justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 14, gap: 12 },
-  compactDetails: { maxHeight: 180 },
+  compactBody: { flexDirection: 'row', alignItems: 'flex-start', gap: RAIL_GAP },
+  compactContent: { flex: 1, minWidth: 0, minHeight: 228, paddingHorizontal: 12, paddingBottom: 8 },
+  expandedCompactContent: { minHeight: 330 },
+  compactDetails: { maxHeight: 322 },
+  compactFooter: { minHeight: 78, paddingHorizontal: 14, paddingTop: 20, paddingBottom: 13, alignItems: 'flex-end', justifyContent: 'flex-end' },
   compactDetailsContent: { gap: 10, paddingVertical: 2 },
-  compactRailWrap: { width: RAIL_WIDTH, flexShrink: 0 },
+  compactRailWrap: { width: RAIL_WIDTH, flexShrink: 0, marginTop: RAIL_TOP_MARGIN },
   compactRail: { padding: 4, borderWidth: 1, borderColor: '#526884', borderRadius: 23, backgroundColor: '#22344F' },
   compactRailButton: { minHeight: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2, paddingVertical: 5, gap: 4 },
   compactRailSelected: { backgroundColor: '#39576C', marginLeft: -5 },
