@@ -19,6 +19,7 @@ type State = PongFrameState & {
 type Props = {ctx:Ctx;mg:Minigame;live:boolean;onControlHoldChange?:(holding:boolean)=>void};
 const emojiList=['👏','🔥','😂','😱','❤️'];
 const dirs=[-1,1];
+const pongServerUrl=process.env.EXPO_PUBLIC_PONG_SERVER_URL?.trim();
 
 export const PongDuel=memo(function PongDuel(props:Props){
  return <PongMatch key={props.mg.id} {...props}/>;
@@ -35,6 +36,11 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
  const height=area.active?Math.max(100,Math.min(320,Math.round(width*0.78),area.height-250)):Math.max(165,Math.min(320,Math.round(width*0.78),Math.round(screenHeight*0.34)));
  const compactControls=screenHeight<780;
  const matchSeconds=Math.max(0,Math.ceil((Date.parse(data.room.phase_ends_at??'')-serverNow())/1000));
+ const dedicated=Boolean(pongServerUrl && live && mg.starts_at);
+ const socketRef=useRef<WebSocket|null>(null);
+ const [socketReady,setSocketReady]=useState(false);
+ const [socketPaused,setSocketPaused]=useState(false);
+ const [socketEpoch,setSocketEpoch]=useState(0);
  const [state,setState]=useState<State|null>((mg.pong_state as State|null)??null);
  const [previousPongState,setPreviousPongState]=useState(mg.pong_state);
  // Reconcile changed room snapshots before commit, without an effect render.
@@ -42,7 +48,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
  if(mg.pong_state!==previousPongState){
   setPreviousPongState(mg.pong_state);
   const incoming=mg.pong_state as State|null;
-  if(incoming)setState(old=>{
+  if(incoming&&!dedicated)setState(old=>{
    if(!old)return incoming;
    const oldTick=Date.parse(old.tick??'');
    const newTick=Date.parse(incoming.tick??'');
@@ -104,7 +110,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
 
  const goAt=mg.starts_at?Date.parse(mg.starts_at):0;
  const countdown=live&&goAt?Math.max(0,Math.ceil((goAt-clock)/1000)):0;
- const active=live&&!serverFinished&&goAt>0&&countdown===0&&!data.room.paused;
+ const active=live&&!serverFinished&&goAt>0&&countdown===0&&!data.room.paused&&(!dedicated||(socketReady&&!socketPaused));
  const myIds=players.filter(p=>p.user_id===me.user_id).map(p=>p.id);
  if(!myIds.includes(me.id))myIds.push(me.id);
  const mySlot=state?(['a1','a2','b1','b2'] as const).find(k=>myIds.includes(state[k])):undefined;
@@ -140,6 +146,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   const channel=supabase.channel('pong-'+mg.id);
   channel.on('broadcast',{event:'cheer'},({payload})=>setReaction(String(payload?.emoji??'👏')));
   channel.on('broadcast',{event:'pong_frame'},({payload})=>{
+   if(dedicated)return;
    const frame=payload?.state as State|undefined;
    if(!frame||typeof frame.x!=='number'||typeof frame.tick!=='string')return;
    recordMetric('broadcastSnapshotAge',serverNow()-Date.parse(frame.tick));
@@ -152,11 +159,85 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   cheerChannel.current=channel;
   channel.subscribe();
   return ()=>{cheerChannel.current=null;void supabase.removeChannel(channel);};
- },[mg.id,recordMetric,recordFrameArrival]);
+ },[dedicated,mg.id,recordMetric,recordFrameArrival]);
+
+ useEffect(()=>{
+  if(!dedicated||!pongServerUrl)return;
+  let closed=false, finished=false, retries=0;
+  let socket:WebSocket|undefined;
+  let retry:ReturnType<typeof setTimeout>|undefined;
+  let lastMessage=performance.now();
+  const reconnect=()=>{
+   if(closed||finished)return;
+   setSocketReady(false);
+   retry=setTimeout(()=>{void connect();},Math.min(3000,350*2**Math.min(retries++,4)));
+  };
+  const connect=async()=>{
+   try{
+    const {data:{session},error}=await supabase.auth.getSession();
+    if(closed)return;
+    if(error||!session)throw new Error('Pong session unavailable');
+    const connection=new WebSocket(pongServerUrl);
+    socket=connection;
+    let firstFrame=true;
+    lastMessage=performance.now();
+    connection.onopen=()=>connection.send(JSON.stringify({type:'join',match:mg.id,token:session.access_token}));
+    connection.onmessage=({data:payload})=>{
+     if(closed||socket!==connection)return;
+     let message:{type?:string;state?:State;paused?:boolean;id?:number};
+     try { message=JSON.parse(String(payload)); } catch { return; }
+     lastMessage=performance.now();
+     if(message?.type==='pong'&&typeof message.id==='number'){
+      recordMetric('gameServerRoundTrip',lastMessage-message.id);
+      return;
+     }
+     const frame=message?.state;
+     if((message?.type!=='frame'&&message?.type!=='finished')||!frame||!Number.isFinite(frame.x))return;
+     retries=0;
+     if(firstFrame){
+      firstFrame=false;
+      socketRef.current=connection;
+      setSocketEpoch(epoch=>epoch+1);
+      setSocketReady(true);
+      setControlError(null);
+      setState(frame);
+     } else {
+      setState(previous=>Date.parse(frame.tick??'')<Date.parse(previous?.tick??'')?previous:frame);
+     }
+     if(message.type==='finished'){
+      finished=true;
+      setServerFinished(true);
+     }
+     setSocketPaused(message.paused===true);
+     recordFrameArrival();
+    };
+    connection.onerror=()=>connection.close();
+    connection.onclose=()=>{
+     if(socketRef.current===connection)socketRef.current=null;
+     if(socket===connection)reconnect();
+    };
+   }catch{reconnect();}
+  };
+  void connect();
+  const watchdog=setInterval(()=>{
+   if(!socket||finished)return;
+   if(performance.now()-lastMessage>5000){socket.close();return;}
+   if(socketRef.current===socket&&socket.readyState===1){
+    socket.send(JSON.stringify({type:'ping',id:performance.now()}));
+   }
+  },1000);
+  return ()=>{
+   closed=true;
+   clearTimeout(retry);
+   clearInterval(watchdog);
+   socketRef.current=null;
+   socket?.close();
+  };
+ },[dedicated,mg.id,recordFrameArrival,recordMetric]);
 
  // Ağ güncellemeleri yalnızca oyun durumunu sabitler; 60 FPS çizim PongArena içinde yapılır.
  useEffect(()=>{
-  if(!live)return;
+  if(!live||dedicated)return;
   let mounted=true,inFlight=false,failures=0;
   stopped.current=false;
   const applySnapshot=(incoming:State)=>setState(previous=>{
@@ -211,10 +292,15 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   void poll();
   const timer=setInterval(poll,me.is_host&&mg.starts_at?125:1000);
   return ()=>{mounted=false;clearInterval(timer);};
- },[live,me.is_host,mg.id,mg.starts_at,data.room.paused,loc,recordMetric,recordFrameArrival]);
+ },[dedicated,live,me.is_host,mg.id,mg.starts_at,data.room.paused,loc,recordMetric,recordFrameArrival]);
 
  // İstek sırası aynı düğme için korunur: basma ardından bırakma sunucuya ters sırada gitmez.
  const sendHeld=useCallback((direction:number,pressed:boolean)=>{
+  if(dedicated){
+   const connection=socketRef.current;
+   if(connection?.readyState===1)connection.send(JSON.stringify({type:'hold',direction,pressed}));
+   return;
+  }
   const prev=sendQueue.current[direction]??Promise.resolve();
   const queuedAt=performance.now();
   const next=prev.catch(()=>{}).then(async()=>{
@@ -228,7 +314,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
    }else setControlError(null);
   });
   sendQueue.current[direction]=next;
- },[mg.id,recordMetric]);
+ },[dedicated,mg.id,recordMetric]);
  const syncHolding=useCallback(()=>{
   const up=activeDirections.current.has(-1),down=activeDirections.current.has(1);
   setHeld({up,down});
@@ -297,14 +383,15 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
      <Text style={{color:colors.cyan,fontSize:12}}>{showDiagnostics?loc('Performans testini kapat','Stop performance test'):loc('Performans testi','Performance test')}</Text>
     </Pressable>
     {showDiagnostics&&<View style={{gap:4,padding:10,backgroundColor:'#10243A',borderRadius:8}}>
-     <Muted>{loc('Bu cihazın son 100 ölçümü. Metne basılı tutarak kopyalayabilirsin.','Last 100 samples on this device. Long-press to copy.')}</Muted>
+     <Muted>{loc('Bu cihazın son 100 ölçümü.','Last 100 samples on this device.')}</Muted>
      <Text style={{fontSize:11,color:'#FFFFFF'}}>{metricSummary||loc('Ölçüm bekleniyor…','Waiting for measurements…')}</Text>
     </View>}
    </View>
+   {dedicated&&!socketReady&&!serverFinished&&<Muted>{loc('Oyun sunucusuna bağlanılıyor…','Connecting to the game server…')}</Muted>}
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
-     <PongArena key={mg.id} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
+     <PongArena key={mg.id+':'+socketEpoch} renderDelayMs={dedicated?65:undefined} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
      {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>{loc('Hazır ol! Maç başlıyor…','Get ready! Match starting…')}</Muted></View>}
      {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ {loc('GOOOL! TAKIM','GOAL! TEAM')} {goal.side} 🎉</Title></View>}
     </View>

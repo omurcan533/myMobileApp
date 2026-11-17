@@ -73,3 +73,35 @@ tests and the web build also pass; physical-device testing remains necessary.
 
 If reverting the input-boundary server change is needed, the previous function
 definitions are preserved in `docs/rollback-pong-input-transitions.sql`.
+
+## Dedicated Node.js game server
+
+The optional WebSocket engine in `game-server/` advances Pong at about 60
+updates per second and sends authoritative frames at about 30 per second.
+The client interpolates that stream with a 65 ms buffer and still predicts
+local paddle motion. The database stores periodic checkpoints and the final
+result. A short database lease prevents a second server, browser tick or timeout
+resolver from competing for the same match. After disconnection the client
+rejoins using its Supabase session, and held directions expire or are cleared
+when the socket closes.
+
+1. Apply the `dedicated_pong_server` Supabase migration.
+2. Run `npm ci` and `npm start` from `game-server/` on a Node 22+ host. Set
+   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVER_KEY` in the
+   host environment. The last key is a server-only Supabase secret or legacy
+   service-role key. The process serves `GET /health` and upgrades `/pong`
+   to WebSocket. It uses the host's `PORT` or defaults to 8080. Put it behind
+   a TLS endpoint supporting WebSocket connections and start with one replica.
+3. For a test client, set `EXPO_PUBLIC_PONG_SERVER_URL` to the full `wss://…/pong`
+   endpoint and restart Metro or rebuild. For GitHub Pages the corresponding
+   repository variable is `PONG_SERVER_URL`. For native builds set the Expo
+   variable in that build environment. An empty variable keeps the original Pong
+   engine. Keep both players and spectators on the configured build during rollout.
+4. Test two physical devices and one spectator, including a backgrounded host,
+   reconnects and a slower mobile network. Compare `gameServerRoundTrip` and
+   `frameArrivalInterval` with the existing metrics. The 65 ms value is a render
+   buffer. It does not measure phone-to-phone latency.
+
+Run `npm ci --prefix game-server` and
+`node --test scripts/pong-game-server.test.mjs scripts/pong-server-database.test.mjs`
+for the WebSocket and database integration checks.

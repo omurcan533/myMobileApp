@@ -60,9 +60,9 @@ export function paddleTarget(state: PongFrameState, side: 'A' | 'B', now: number
 }
 
 // Every client samples the same server timeline. Never invent a paddle hit locally.
-export function sampleTimeline(history: PongSnapshot[], now: number): PongFrameState | null {
+export function sampleTimeline(history: PongSnapshot[], now: number, renderDelayMs = PONG_RENDER_DELAY_MS): PongFrameState | null {
   if (!history.length) return null;
-  const target = now - PONG_RENDER_DELAY_MS;
+  const target = now - renderDelayMs;
   if (target <= history[0].at) return history[0].state;
   for (let i = 1; i < history.length; i++) {
     const before = history[i - 1], after = history[i];

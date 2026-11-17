@@ -6,9 +6,9 @@ import { appendSnapshot, clamp, controlAcknowledged, paddleTarget, sampleTimelin
 import type { PongFrameState, PongSnapshot } from '../lib/pongTimeline';
 export type { PongFrameState } from '../lib/pongTimeline';
 
-type Props = { state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
+type Props = { renderDelayMs?:number; state:PongFrameState|null; width:number; height:number; playing:boolean; mySide:'A'|'B'|null; allowedDirections:number[]; held:{up:boolean;down:boolean} };
 
-export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held}:Props){
+export const PongArena=memo(function PongArena({state,width,height,playing,mySide,allowedDirections,held,renderDelayMs}:Props){
  const paddleHeight=height*0.2;
  const ballX=useRef(new Animated.Value(width/2-6)).current;
  const ballY=useRef(new Animated.Value(height/2-6)).current;
@@ -44,7 +44,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
    last=clock;
    const cfg=params.current;
    const latest=history.current[history.current.length-1];
-   const sampled=cfg.playing?sampleTimeline(history.current,serverNow()):latest?.state;
+   const sampled=cfg.playing?sampleTimeline(history.current,serverNow(),renderDelayMs):latest?.state;
    if(sampled&&latest){
     for(const side of ['A','B'] as const){
      const local=cfg.playing&&cfg.mySide===side;
@@ -70,7 +70,7 @@ export const PongArena=memo(function PongArena({state,width,height,playing,mySid
   };
   frame=requestAnimationFrame(draw);
   return ()=>cancelAnimationFrame(frame);
- },[width,height,paddleHeight,ballX,ballY,leftY,rightY]);
+ },[width,height,paddleHeight,ballX,ballY,leftY,rightY,renderDelayMs]);
  if(!state)return null;
  return <View style={[styles.board,{width,height}]}>
   <View style={[styles.midline,{left:width/2}]} />
