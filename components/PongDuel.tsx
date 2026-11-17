@@ -334,6 +334,17 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   Array.from(activeDirections.current).forEach(stopHold);
  },[active,stopHold]);
  useEffect(()=>()=>{Array.from(activeDirections.current).forEach(stopHold);},[mg.id,stopHold]);
+ useEffect(()=>{
+  if(Platform.OS!=='web'||typeof document==='undefined')return;
+  const suppressTouchPreview=(event:Event)=>{
+   if(event.cancelable&&event.target instanceof Element&&event.target.closest('#pong-paddle-up, #pong-paddle-down')){
+    event.preventDefault();
+   }
+  };
+  // A non-passive touchstart cancels Safari's preview before the hold timer starts.
+  document.addEventListener('touchstart',suppressTouchPreview,{capture:true,passive:false});
+  return ()=>document.removeEventListener('touchstart',suppressTouchPreview,true);
+ },[]);
 
  const chooseMode=async(mode:'solo'|'duo')=>{
   if(choiceBusy)return;
@@ -417,9 +428,9 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
       accessibilityLabel={direction===-1?loc('Yukarı','Up'):loc('Aşağı','Down')}
       hitSlop={4}
       pressRetentionOffset={160}
-      onTouchMove={Platform.OS==='web'?(event:any)=>event.preventDefault?.():undefined}
+      nativeID={direction===-1?'pong-paddle-up':'pong-paddle-down'}
       disabled={!active}
-      style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
+      style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',WebkitTapHighlightColor:'transparent',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
      ><View pointerEvents="none"><Text selectable={false} style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></View></Pressable>)}
     </View>
