@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
-  SectionLabel, SwipeTabGroup, TabBar, TabItem, Tap, Text, Title, useToast,
+  SectionLabel, SwipeTabGroup, swipeTabTint, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
@@ -351,7 +351,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       setRoomAction(action.key);
                     }
                   }}>
-                    {(recordLayout, previewIndex) => <>
+                    {(recordLayout, preview) => <>
                     <View pointerEvents="none" style={s.railGlass}>
                       <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
                       <LinearGradient
@@ -362,9 +362,10 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                         style={StyleSheet.absoluteFill}
                       />
                     </View>
+                    {preview && <RailLens top={preview.top} height={preview.height} />}
                     {ROOM_ACTIONS.map(({ key, icon, label, tint }, index) => {
                       const selected = roomAction === key;
-                      const highlighted = previewIndex === null ? selected : previewIndex === index;
+                      const iconColor = preview ? swipeTabTint(colors.textSoft, tint, preview.position, index) : selected ? tint : colors.textSoft;
                       return (
                         <Pressable
                           key={key}
@@ -378,18 +379,9 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                           }}
                           style={[s.railTab, selected && s.railTabSelected]}
                         >
-                          {highlighted && (
-                            <View pointerEvents="none" style={[s.railLens, !selected && s.railLensPreview]}>
-                              <LinearGradient
-                                colors={['rgba(191, 216, 249, 0.27)', 'rgba(124, 149, 188, 0.08)']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0.85, y: 1 }}
-                                style={StyleSheet.absoluteFill}
-                              />
-                            </View>
-                          )}
-                          <Ionicons name={icon} size={20} color={highlighted ? tint : colors.textSoft} />
-                          <Text style={[s.railLabel, highlighted && { color: tint }]}>{t(label)}</Text>
+                          {selected && !preview && <RailLens />}
+                          <Ionicons name={icon} size={20} color={iconColor} />
+                          <Text style={[s.railLabel, { color: iconColor }]}>{t(label)}</Text>
                         </Pressable>
                       );
                     })}
@@ -779,6 +771,24 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   );
 }
 
+function RailLens({ top, height }: { top?: number; height?: number }) {
+  const moving = top !== undefined;
+  return (
+    <View
+      pointerEvents="none"
+      testID={moving ? 'room-tab-highlight' : undefined}
+      style={[s.railLens, moving && { left: -4, right: 4, top, bottom: undefined, height }]}
+    >
+      <LinearGradient
+        colors={['rgba(191, 216, 249, 0.27)', 'rgba(124, 149, 188, 0.08)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
 function HomeRoomPanel({ simple, delay, children }: { simple: boolean; delay: number; children: React.ReactNode }) {
   return simple ? <DockPanel>{children}</DockPanel> : <Reveal delay={delay}>{children}</Reveal>;
 }
@@ -839,7 +849,6 @@ const s = StyleSheet.create({
   railTab: { minHeight: 69, paddingHorizontal: 6, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', gap: 5 },
   railTabSelected: { marginLeft: -8, paddingLeft: 9 },
   railLens: { ...StyleSheet.absoluteFill, borderRadius: 22, overflow: 'hidden', backgroundColor: 'rgba(32, 49, 75, 0.81)' },
-  railLensPreview: { left: -8 },
   railLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', color: colors.textSoft },
   dockIdle: { minHeight: 232, alignItems: 'center', justifyContent: 'center' },
   dockOrbit: { position: 'absolute', width: 118, height: 118, borderRadius: 36, borderWidth: 1, borderColor: '#7085AD45', backgroundColor: '#1C2A4655', transform: [{ rotate: '27deg' }] },

@@ -791,18 +791,30 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 // ============================================================================
 // Alt sekme çubuğu (Tap-2-Earn tarzı yüzen cam hap)
 // ============================================================================
+type SwipeTabPreview = { position: number; top: number; height: number };
+
+export function swipeTabTint(base: string, active: string, position: number, index: number) {
+  const weight = Math.max(0, 1 - Math.abs(position - index));
+  const channels = [1, 3, 5].map(offset => {
+    const from = parseInt(base.slice(offset, offset + 2), 16);
+    const to = parseInt(active.slice(offset, offset + 2), 16);
+    return Math.round(from + (to - from) * weight);
+  });
+  return `rgb(${channels.join(', ')})`;
+}
+
 type SwipeTabGroupProps = {
   axis: 'horizontal' | 'vertical';
   style?: StyleProp<ViewStyle>;
   testID?: string;
   onSwipe: (index: number) => void;
-  children: (recordLayout: (index: number, event: LayoutChangeEvent) => void, previewIndex: number | null) => React.ReactNode;
+  children: (recordLayout: (index: number, event: LayoutChangeEvent) => void, preview: SwipeTabPreview | null) => React.ReactNode;
 };
 
 export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeTabGroupProps) {
   const groupRef = useRef<View>(null);
   const items = useRef<LayoutChangeEvent['nativeEvent']['layout'][]>([]);
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [preview, setPreview] = useState<SwipeTabPreview | null>(null);
   const drag = useRef<{ x: number; y: number; origin?: { left: number; top: number } } | null>(null);
   const responder = useMemo(() => {
     const hitTest = (x: number, y: number, left: number, top: number) => items.current.findIndex(item => (
@@ -823,13 +835,34 @@ export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeT
     };
     const updatePreview = (point: NonNullable<typeof drag.current>) => {
       if (!point.origin) return;
-      const index = hitTest(point.x, point.y, point.origin.left, point.origin.top);
-      // Keep the last highlight across the small gaps between buttons.
-      if (index >= 0) setPreviewIndex(index);
+      const tabs = items.current;
+      const last = tabs.length - 1;
+      if (!tabs[0] || !tabs[last]) return;
+      const center = (tab: typeof tabs[number]) => axis === 'horizontal'
+        ? tab.x + tab.width / 2
+        : tab.y + tab.height / 2;
+      const coordinate = axis === 'horizontal' ? point.x - point.origin.left : point.y - point.origin.top;
+
+      for (let index = 0; index < last; index++) {
+        const current = tabs[index];
+        const next = tabs[index + 1];
+        if (!current || !next) return;
+        const start = center(current);
+        const end = center(next);
+        if (coordinate > end || end <= start) continue;
+        const blend = Math.max(0, (coordinate - start) / (end - start));
+        setPreview({
+          position: index + blend,
+          top: current.y + (next.y - current.y) * blend,
+          height: current.height + (next.height - current.height) * blend,
+        });
+        return;
+      }
+      setPreview({ position: last, top: tabs[last].y, height: tabs[last].height });
     };
     const clearPreview = () => {
       drag.current = null;
-      setPreviewIndex(null);
+      setPreview(null);
     };
 
     // The responder callbacks read refs only while handling a gesture.
@@ -860,7 +893,7 @@ export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeT
         drag.current = null;
         measure((left, top) => {
           if (drag.current) return;
-          setPreviewIndex(null);
+          setPreview(null);
           const index = hitTest(pageX, pageY, left, top);
           if (index >= 0) onSwipe(index);
         });
@@ -883,7 +916,7 @@ export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeT
     >
       {/* The render callback attaches recordLayout to the tabs’ onLayout events. */}
       {/* eslint-disable-next-line react-hooks/refs */}
-      {children(recordLayout, previewIndex)}
+      {children(recordLayout, preview)}
     </View>
   );
 }
@@ -893,7 +926,7 @@ export interface TabItem<K extends string> { key: K; label: string; icon: IconNa
 const TAB_ITEM_WIDTH = 100;
 
 /** Sekme ikonu: aktif olunca yaylanarak büyür ve hafifçe sallanır. */
-function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: number }) {
+function TabIcon({ on, name, tint, size = 22 }: { on: boolean; name: IconName; tint?: string; size?: number }) {
   const [v] = useState(() => new Animated.Value(on ? 1 : 0));
   useEffect(() => {
     if (!on) { v.setValue(0); return; }
@@ -910,7 +943,7 @@ function TabIcon({ on, name, size = 22 }: { on: boolean; name: IconName; size?: 
         ],
       }}
     >
-      <Ionicons name={name} size={size} color={on ? colors.cyan : colors.muted} />
+      <Ionicons name={name} size={size} color={tint ?? (on ? colors.cyan : colors.muted)} />
     </Animated.View>
   );
 }
@@ -1022,7 +1055,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
         slideAnim.setValue(index);
         selectTab(item.key);
       }}>
-        {(recordLayout, previewIndex) => <>
+        {(recordLayout, preview) => <>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
           colors={['rgba(10,22,46,0.92)', 'rgba(6,12,28,0.98)']}
@@ -1031,10 +1064,12 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
 
         {/* Akıcı Kayan Gösterge (Sliding Glow Pill) */}
         <Animated.View
+          testID="home-tab-highlight"
+          pointerEvents="none"
           style={[
             s.tabIndicator,
             {
-              left: previewIndex === null ? leftPos : 6 + previewIndex * (TAB_ITEM_WIDTH + 6),
+              left: preview ? 6 + preview.position * (TAB_ITEM_WIDTH + 6) : leftPos,
               transform: [{ scale: scaleAnim }],
             },
           ]}
@@ -1049,7 +1084,8 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
         </Animated.View>
 
         {items.map((it, index) => {
-          const on = previewIndex === null ? it.key === active : index === previewIndex;
+          const on = it.key === active;
+          const tint = preview ? swipeTabTint(colors.muted, colors.cyan, preview.position, index) : undefined;
           return (
             <Tap
               key={it.key}
@@ -1060,11 +1096,12 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
               onPress={() => selectTab(it.key)}
               style={s.tabItem}
             >
-              <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} />
+              <TabIcon on={on && !preview} name={on ? it.iconActive ?? it.icon : it.icon} tint={tint} />
               <Text
                 style={[
                   s.tabLabel,
                   on ? { color: colors.text, fontWeight: '800' } : { color: colors.subtle },
+                  preview && { color: swipeTabTint(colors.subtle, colors.text, preview.position, index), fontWeight: '700' },
                 ]}
               >
                 {it.label}
