@@ -427,12 +427,12 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             </>}
             {panel === 'players' && playersPanel}
             {panel === 'games' && gamesPanel}
-            {panel === 'settings' && <>
-              {settingsPanel}
-              {exitActions}
-            </>}
+            {panel === 'settings' && settingsPanel}
           </CompactLobbyPanel>
           {personalQuestions}
+          <View style={s.lobbyExitActions} testID="lobby-exit-actions">
+            {exitActions}
+          </View>
         </> : <>
           {playersPanel}
           {gamesPanel}
@@ -588,6 +588,7 @@ const s = StyleSheet.create({
   kickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.76)', justifyContent: 'center', padding: 22 },
   kickDialog: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight, borderRadius: 20, padding: 20, gap: 12 },
   scroll: { gap: 16, paddingBottom: 30, paddingTop: 6 },
+  lobbyExitActions: { gap: 12 },
   simpleHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: 8 },
   simpleHeaderTitle: { flex: 1, gap: 5 },
   compactHeading: { paddingHorizontal: 15, paddingTop: 16, paddingBottom: 14, minHeight: 98, gap: 5 },
