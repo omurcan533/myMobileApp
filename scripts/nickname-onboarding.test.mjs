@@ -34,7 +34,7 @@ function mount(file,props,{saved=null,appearance=null,storageFails=false,rooms=[
  const component=exports.HomeScreen??exports.NicknameStep;
  return {writes,calls,exports,render(){index=0;const tree=component(props);for(const effect of effects.splice(0))effect();return tree;}};
 }
-function nodes(tree,type){if(!tree||typeof tree!=='object')return [];if(Array.isArray(tree))return tree.flatMap(t=>nodes(t,type));return [...(tree.type===type?[tree]:[]),...nodes(tree.props?.children,type)];}
+function nodes(tree,type){if(!tree||typeof tree!=='object')return [];if(Array.isArray(tree))return tree.flatMap(t=>nodes(t,type));const children=tree.type==='SwipeTabGroup'?tree.props.children[0](()=>{}):tree.props?.children;return [...(tree.type===type?[tree]:[]),...nodes(children,type)];}
 const homeProps={avatarId:'fox',onEnter(){},onAvatarChange(){}};
 
 test('first-time and whitespace-only saved names must complete the name screen before seeing rooms',async()=>{

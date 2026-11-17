@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Avatar, Btn, Card, Chip, Eyebrow, Float, IconBtn, IconName, Input, Muted, ProgressBar, Reveal, Screen,
-  SectionLabel, TabBar, TabItem, Tap, Text, Title, useToast,
+  SectionLabel, SwipeTabGroup, TabBar, TabItem, Tap, Text, Title, useToast,
 } from '../components/ui';
 import { api, type OpenRoom } from '../lib/api';
 import { coalescedTask } from '../lib/coalescedTask';
@@ -344,7 +344,14 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
 
               <View style={simple && s.dock}>
                 {simple && (
-                  <View style={s.rail} testID="simple-room-rail">
+                  <SwipeTabGroup axis="vertical" style={s.rail} testID="simple-room-rail" onSwipe={index => {
+                    const action = ROOM_ACTIONS[index];
+                    if (action && action.key !== roomAction) {
+                      soundFx.click();
+                      setRoomAction(action.key);
+                    }
+                  }}>
+                    {recordLayout => <>
                     <View pointerEvents="none" style={s.railGlass}>
                       <BlurView intensity={26} tint="dark" style={StyleSheet.absoluteFill} />
                       <LinearGradient
@@ -355,7 +362,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                         style={StyleSheet.absoluteFill}
                       />
                     </View>
-                    {ROOM_ACTIONS.map(({ key, icon, label, tint }) => {
+                    {ROOM_ACTIONS.map(({ key, icon, label, tint }, index) => {
                       const selected = roomAction === key;
                       return (
                         <Pressable
@@ -363,6 +370,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                           accessibilityRole="button"
                           accessibilityLabel={t(label)}
                           aria-expanded={selected}
+                          onLayout={event => recordLayout(index, event)}
                           onPress={() => {
                             soundFx.click();
                             setRoomAction(current => current === key ? null : key);
@@ -384,7 +392,8 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                         </Pressable>
                       );
                     })}
-                  </View>
+                    </>}
+                  </SwipeTabGroup>
                 )}
                 <View style={simple ? s.dockContent : s.normalContent}>
                   {simple && roomAction === null && (

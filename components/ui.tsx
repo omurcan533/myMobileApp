@@ -1,8 +1,8 @@
 import { translate } from '../lib/i18n';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, GestureResponderEvent, Image, ImageBackground, ImageSourcePropType, LayoutChangeEvent,
-  Modal, Platform, Pressable, PressableProps, ScrollView, useWindowDimensions,
+  Modal, PanResponder, Platform, Pressable, PressableProps, ScrollView, useWindowDimensions,
   StyleProp, StyleSheet, Text as RNText, TextInput, TextInputProps, TextProps, TextStyle, View, ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -351,7 +351,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
  * Her tıklanabilir kart/çip/buton için `Pressable` yerine kullanılır.
  */
 export function Tap({
-  children, style, onPress, onPressIn, onPressOut, color = 'rgba(255,255,255,0.3)', accent = '#FFFFFF', scaleTo = 0.93, ...rest
+  children, style, onPress, onPressIn, onPressOut, onLayout, color = 'rgba(255,255,255,0.3)', accent = '#FFFFFF', scaleTo = 0.93, ...rest
 }: Omit<PressableProps, 'style' | 'children'> & {
   children: React.ReactNode; style?: StyleProp<ViewStyle>; color?: string; accent?: string; scaleTo?: number;
 }) {
@@ -368,7 +368,7 @@ export function Tap({
     <AnimatedPressable
       {...rest}
       ref={rp.attach as any}
-      onLayout={rp.onLayout}
+      onLayout={(event) => { rp.onLayout(event); onLayout?.(event); }}
       onPress={onPress}
       onPressIn={(e: GestureResponderEvent) => { spring(1); rp.onPressIn(e); onPressIn?.(e); }}
       onPressOut={(e: GestureResponderEvent) => { spring(0); rp.onPressOut(); onPressOut?.(e); }}
@@ -791,6 +791,66 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
 // ============================================================================
 // Alt sekme çubuğu (Tap-2-Earn tarzı yüzen cam hap)
 // ============================================================================
+type SwipeTabGroupProps = {
+  axis: 'horizontal' | 'vertical';
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+  onSwipe: (index: number) => void;
+  children: (recordLayout: (index: number, event: LayoutChangeEvent) => void) => React.ReactNode;
+};
+
+export function SwipeTabGroup({ axis, style, testID, onSwipe, children }: SwipeTabGroupProps) {
+  const groupRef = useRef<View>(null);
+  const items = useRef<LayoutChangeEvent['nativeEvent']['layout'][]>([]);
+  // PanResponder only invokes the measurement callback after a gesture.
+  // eslint-disable-next-line react-hooks/refs
+  const responder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, { dx, dy, numberActiveTouches }) => {
+      const along = Math.abs(axis === 'horizontal' ? dx : dy);
+      const across = Math.abs(axis === 'horizontal' ? dy : dx);
+      return numberActiveTouches === 1 && along >= 7 && along > across;
+    },
+    onPanResponderRelease: ({ nativeEvent: { pageX, pageY } }) => {
+      const group = groupRef.current;
+      if (!group) return;
+      const selectAt = (left: number, top: number) => {
+        if (groupRef.current !== group) return;
+        const x = pageX - left;
+        const y = pageY - top;
+        const index = items.current.findIndex(item => (
+          x >= item.x && x < item.x + item.width &&
+          y >= item.y && y < item.y + item.height
+        ));
+        if (index >= 0) onSwipe(index);
+      };
+      if (Platform.OS === 'web' && group instanceof HTMLElement) {
+        const bounds = group.getBoundingClientRect();
+        selectAt(bounds.left + window.scrollX, bounds.top + window.scrollY);
+      } else {
+        group.measure((_x, _y, _width, _height, left, top) => selectAt(left, top));
+      }
+    },
+  }), [axis, onSwipe]);
+
+  const recordLayout = (index: number, event: LayoutChangeEvent) => {
+    items.current[index] = event.nativeEvent.layout;
+  };
+
+  return (
+    <View
+      ref={groupRef}
+      testID={testID}
+      collapsable={false}
+      style={[style, Platform.OS === 'web' && s.swipeTabsTouch]}
+      {...responder.panHandlers}
+    >
+      {/* The render callback attaches recordLayout to the tabs’ onLayout events. */}
+      {/* eslint-disable-next-line react-hooks/refs */}
+      {children(recordLayout)}
+    </View>
+  );
+}
+
 export interface TabItem<K extends string> { key: K; label: string; icon: IconName; iconActive?: IconName }
 
 const TAB_ITEM_WIDTH = 100;
@@ -893,6 +953,13 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
     outputRange: [6, 6 + (items.length - 1) * (TAB_ITEM_WIDTH + 6)],
   });
 
+  const selectTab = (key: K) => {
+    if (key === active) return;
+    soundFx.click();
+    haptic.light();
+    onChange(key);
+  };
+
   return (
     <Animated.View
       style={[
@@ -912,7 +979,11 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
       ]}
       pointerEvents={isKeyboardOpen ? 'none' : 'box-none'}
     >
-      <View style={s.tabBar}>
+      <SwipeTabGroup axis="horizontal" testID="home-swipe-tabs" style={s.tabBar} onSwipe={index => {
+        const item = items[index];
+        if (item) selectTab(item.key);
+      }}>
+        {recordLayout => <>
         <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
         <LinearGradient
           colors={['rgba(10,22,46,0.92)', 'rgba(6,12,28,0.98)']}
@@ -938,7 +1009,7 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
           <View style={s.indicatorSheen} />
         </Animated.View>
 
-        {items.map((it) => {
+        {items.map((it, index) => {
           const on = it.key === active;
           return (
             <Tap
@@ -946,13 +1017,8 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
               color={alpha(colors.cyan, 0.3)}
               accent={colors.cyan}
               scaleTo={0.9}
-              onPress={() => {
-                if (!on) {
-                  soundFx.click();
-                  haptic.light();
-                  onChange(it.key);
-                }
-              }}
+              onLayout={event => recordLayout(index, event)}
+              onPress={() => selectTab(it.key)}
               style={s.tabItem}
             >
               <TabIcon on={on} name={on ? it.iconActive ?? it.icon : it.icon} />
@@ -967,7 +1033,8 @@ export function TabBar<K extends string>({ items, active, onChange }: { items: T
             </Tap>
           );
         })}
-      </View>
+        </>}
+      </SwipeTabGroup>
     </Animated.View>
   );
 }
@@ -1115,6 +1182,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16,
   },
 
+  swipeTabsTouch: { touchAction: 'none' } as unknown as ViewStyle,
   tabWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   tabBar: {
     flexDirection: 'row',
