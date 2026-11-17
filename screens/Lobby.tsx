@@ -396,7 +396,13 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
               <Text style={s.countMax}>/{MAX_PLAYERS}</Text>
             </View>
           </View>
-          <CompactLobbyPanel panel={panel} onChange={setPanel} footer={startAction}>
+          <CompactLobbyPanel
+            panel={panel}
+            onChange={setPanel}
+            onNormalPress={() => { void changeAppearance(); }}
+            savingAppearance={savingAppearance}
+            footer={startAction}
+          >
             {panel === 'invite' && <>
               <Text display style={s.compactCode}>{room.code}</Text>
               <Btn title={translate("Arkadaşlarına Gönder")} tone="ghost" icon="share-social" size="md" onPress={share} />
@@ -404,7 +410,6 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             {panel === 'players' && playersPanel}
             {panel === 'games' && gamesPanel}
             {panel === 'settings' && <>
-              <Btn title={translate("Normal görünüme geç")} icon="apps-outline" size="sm" tone="ghost" disabled={savingAppearance} onPress={() => { void changeAppearance(); }} />
               {settingsPanel}
               {exitActions}
             </>}
@@ -447,8 +452,13 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
   );
 }
 
-function CompactLobbyPanel({ panel, onChange, footer, children }: {
-  panel: LobbyPanel; onChange: (panel: LobbyPanel) => void; footer: React.ReactNode; children: React.ReactNode;
+function CompactLobbyPanel({ panel, onChange, onNormalPress, savingAppearance, footer, children }: {
+  panel: LobbyPanel;
+  onChange: (panel: LobbyPanel) => void;
+  onNormalPress: () => void;
+  savingAppearance: boolean;
+  footer: React.ReactNode;
+  children: React.ReactNode;
 }) {
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
   const [railHeight, setRailHeight] = useState(228);
@@ -491,7 +501,20 @@ function CompactLobbyPanel({ panel, onChange, footer, children }: {
         </Svg>
       </View>}
       <View style={s.compactHeading}>
-        <Title size={23}>{panel === 'invite' ? translate("Katılım kodu") : translate(LOBBY_PANELS.find(item => item.key === panel)!.label)}</Title>
+        <View style={s.compactHeadingRow}>
+          <View style={s.compactHeadingTitle}>
+            <Title size={23}>{panel === 'invite' ? translate("Katılım kodu") : translate(LOBBY_PANELS.find(item => item.key === panel)!.label)}</Title>
+          </View>
+          <Pressable
+            testID="lobby-normal-view"
+            accessibilityRole="button"
+            disabled={savingAppearance}
+            onPress={onNormalPress}
+            style={({ pressed }) => [s.normalViewLink, (pressed || savingAppearance) && s.normalViewLinkPressed]}
+          >
+            <Text style={s.normalViewLabel}>{translate("Normal görünüme geç")}</Text>
+          </Pressable>
+        </View>
         {panel === 'invite' && <Muted>{translate("Arkadaşların bu kodla odaya katılabilir.")}</Muted>}
       </View>
       <View style={s.compactBody} onLayout={({ nativeEvent }) => setBodyTop(nativeEvent.layout.y)}>
@@ -550,6 +573,11 @@ const s = StyleSheet.create({
   simpleHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingTop: 8 },
   simpleHeaderTitle: { flex: 1, gap: 5 },
   compactHeading: { paddingHorizontal: 15, paddingTop: 16, paddingBottom: 14, minHeight: 98, gap: 5 },
+  compactHeadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  compactHeadingTitle: { flex: 1, minWidth: 0 },
+  normalViewLink: { minHeight: 44, maxWidth: '48%', justifyContent: 'center' },
+  normalViewLinkPressed: { opacity: 0.65 },
+  normalViewLabel: { color: colors.mint, fontSize: 12, fontWeight: '700', textAlign: 'right' },
   compactBody: { flexDirection: 'row', alignItems: 'flex-start', gap: RAIL_GAP },
   compactContent: { flex: 1, minWidth: 0, minHeight: 228, paddingHorizontal: 12, paddingBottom: 8 },
   expandedCompactContent: { minHeight: 330 },
