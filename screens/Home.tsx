@@ -712,7 +712,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                   <Muted>{translate("Avatarını değiştir")}</Muted>
                   <View style={s.avatarPicker}>
                     {AVATAR_OPTIONS.map((option) => (
-                      <Tap key={option.id} onPress={() => onAvatarChange(option.id)} style={[s.avatarChoice, avatarId === option.id && s.avatarChoiceSelected]}>
+                      <Tap key={option.id} accessibilityState={{ selected: avatarId === option.id }} onPress={() => onAvatarChange(option.id)} style={[s.avatarChoice, avatarId === option.id && s.avatarChoiceSelected]}>
                         <Avatar source={option.source} size={48} ring={avatarId === option.id ? colors.cyan : colors.borderLight} />
                         <Text style={s.avatarChoiceLabel}>{translate(option.label)}</Text>
                         {avatarId === option.id && <Ionicons name="checkmark-circle" size={16} color={colors.cyan} />}

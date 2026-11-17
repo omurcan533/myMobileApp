@@ -901,7 +901,7 @@ function SocialGuess({
                   isSelected && s.playerVoteCardSelected,
                 ]}
               >
-                <Avatar source={avatarFor(p.nickname)} size={area.active?24:46} ring={tColor} glow={isSelected} />
+                <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={area.active?24:46} ring={tColor} glow={isSelected} />
                 <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                   <View style={{ alignItems: 'flex-start', gap: 3 }}>
                     <Text numberOfLines={2} style={[s.playerNickText,area.active&&{fontSize:12}]}>
@@ -932,7 +932,7 @@ function SocialGuess({
               <View key={p.id} style={{ gap: 6 }}>
                 <View style={s.rowBetween}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Avatar source={avatarFor(p.nickname)} size={30} ring={tColor} glow={false} />
+                    <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={30} ring={tColor} glow={false} />
                     <Text style={s.resName}>{p.nickname} <Text style={{ color: colors.muted }}>({n} {translate("oy")})</Text></Text>
                   </View>
                   <Text display style={[s.resPct, { color: tColor }]}>{pct}%</Text>
@@ -1032,7 +1032,7 @@ function MathGuessGame({
                 isWinner && { borderColor: colors.gold, backgroundColor: alpha(colors.gold, 0.12) },
               ]}
             >
-              <Avatar source={avatarFor(p.nickname)} size={live ? 36 : 26} ring={tColor} />
+              <Avatar source={avatarFor(p.nickname, p.avatar_id)} size={live ? 36 : 26} ring={tColor} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
                   {p.nickname} {isMe ? translate('(Sen)') : ''}

@@ -316,7 +316,7 @@ function PlayerSpotlight({
           ]}
         />
 
-        <Avatar source={avatarFor(player.nickname)} size={70} ring={color} glow />
+        <Avatar source={avatarFor(player.nickname, player.avatar_id)} size={70} ring={color} glow />
 
         <View style={s.spotlightInfo}>
           <Text style={[s.assignment, { color }]}>
@@ -360,7 +360,7 @@ function PlayerRowItem({ player, color, rolls }: { player: Player; color: string
   return (
     <Animated.View style={[s.playerRow, { transform: [{ scale }], opacity }]}>
       <Avatar
-        source={avatarFor(player.nickname)}
+        source={avatarFor(player.nickname, player.avatar_id)}
         size={30}
         ring={player.is_captain ? colors.gold : alpha(color, 0.75)}
       />
@@ -455,7 +455,7 @@ function CaptainCard({ player, side, winningRoll }: { player: Player; side: Side
   return (
     <View style={[s.captainCard, { borderColor: alpha(color, 0.55) }]}>
       <LinearGradient colors={[alpha(color, 0.34), 'rgba(5,10,20,0.94)']} style={[StyleSheet.absoluteFill, { borderRadius: 16 }]} />
-      <Avatar source={avatarFor(player.nickname)} size={46} ring={colors.gold} glow />
+      <Avatar source={avatarFor(player.nickname, player.avatar_id)} size={46} ring={colors.gold} glow />
       <View style={s.captainInfo}>
         <Text style={[s.captainTeam, { color }]}>{translate("TAKIM")} {side}  {translate("KAPTANI")}</Text>
         <Text numberOfLines={1} style={s.captainName}>{player.nickname}</Text>
@@ -609,7 +609,7 @@ function GiantDiceDuelArena({
       ) : isRolling ? (
         <View style={[s.turnBanner, { borderColor: colors.gold, backgroundColor: 'rgba(255, 181, 46, 0.16)' }]}>
           {lastRoller && (
-            <Avatar source={avatarFor(lastRoller.nickname)} size={40} ring={colors.gold} glow />
+            <Avatar source={avatarFor(lastRoller.nickname, lastRoller.avatar_id)} size={40} ring={colors.gold} glow />
           )}
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={[s.turnLabel, { color: colors.gold }]}>
@@ -632,7 +632,7 @@ function GiantDiceDuelArena({
         >
           {turnPlayer && (
             <Avatar
-              source={avatarFor(turnPlayer.nickname)}
+              source={avatarFor(turnPlayer.nickname, turnPlayer.avatar_id)}
               size={40}
               ring={isMyTurn ? colors.gold : color}
               glow={isMyTurn}
@@ -752,7 +752,7 @@ function GiantDiceDuelArena({
               const isLead = r.total === maxRollInRound;
               return (
                 <View key={r.player_id} style={[s.standingChip, isLead && s.standingChipLead]}>
-                  <Avatar source={avatarFor(p?.nickname ?? '')} size={22} ring={isLead ? colors.gold : color} />
+                  <Avatar source={avatarFor(p?.nickname, p?.avatar_id)} size={22} ring={isLead ? colors.gold : color} />
                   <Text numberOfLines={1} style={s.standingNick}>{p?.nickname}</Text>
                   <Text style={[s.standingScore, isLead && { color: colors.gold }]}>
                     🎲 {r.total}
