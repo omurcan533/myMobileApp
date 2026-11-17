@@ -606,7 +606,7 @@ const s = StyleSheet.create({
   compactRailWrap: { width: RAIL_WIDTH, flexShrink: 0, marginTop: RAIL_TOP_MARGIN },
   compactRail: { padding: 4, borderWidth: 1, borderColor: '#526884', borderRadius: 23, backgroundColor: '#22344F' },
   compactRailButton: { minHeight: 54, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, paddingVertical: 5, gap: 4 },
-  compactRailSelected: { ...StyleSheet.absoluteFill, left: -5, borderRadius: 17, backgroundColor: '#39576C' },
+  compactRailSelected: { ...StyleSheet.absoluteFill, borderRadius: 17, backgroundColor: '#39576C' },
   compactRailLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   compactCode: { fontSize: 43, letterSpacing: 5, color: colors.mint, fontWeight: '900' },
   compactPlayer: { width: '48%', paddingVertical: 8 },
