@@ -16,7 +16,7 @@ type State = PongFrameState & {
  modeVotes?:Record<string,string>;
  savesA?:number; savesB?:number; goalsByPlayer?:Record<string,number>;
 };
-type Props = {ctx:Ctx;mg:Minigame;live:boolean;onControlHoldChange?:(holding:boolean)=>void};
+type Props = {ctx:Ctx;mg:Minigame;live:boolean;briefingAction?:React.ReactNode;onControlHoldChange?:(holding:boolean)=>void};
 const emojiList=['👏','🔥','😂','😱','❤️'];
 const dirs=[-1,1];
 const pongServerUrl=process.env.EXPO_PUBLIC_PONG_SERVER_URL?.trim();
@@ -25,7 +25,7 @@ export const PongDuel=memo(function PongDuel(props:Props){
  return <PongMatch key={props.mg.id} {...props}/>;
 });
 
-function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
+function PongMatch({ctx,mg,live,briefingAction,onControlHoldChange}:Props){
  useLanguage();
  const en=getLanguage()==='en';
  const loc=useCallback((tr:string,english:string)=>en?english:tr,[en]);
@@ -380,6 +380,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
   <Card accent={colors.cyan} style={[styles.gameCard,area.active&&{padding:8,gap:5}]}>
    <View style={styles.matchHeading}>
     <Eyebrow color={colors.cyan}>{loc('PONG DÜELLOSU','PONG DUEL')}</Eyebrow>
+    {!mg.starts_at && briefingAction}
     {live&&mg.starts_at&&<Text style={styles.matchTime}>◷ {Number.isFinite(matchSeconds)?matchSeconds:300} {loc('sn','sec')}</Text>}
    </View>
    <View style={styles.score}>

@@ -211,15 +211,14 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       busy={busy}
     />
   );
-  const pongStartButton = me.is_host && <View style={{paddingHorizontal:12,paddingBottom:8}}>
-    <Btn title={canContinueBriefing ? translate("Pong Oyununu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
-      icon="play" tone="success" disabled={!canContinueBriefing || busy || data.room.paused}
+  const pongStartButton = me.is_host ? (
+    <Btn title={translate("Başlat")} size="sm" tone="success"
+      disabled={!canContinueBriefing || busy || data.room.paused}
       loading={busy} onPress={startMinigame} />
-  </View>;
+  ) : null;
   return (
     <Screen key={mg.id+String(isPreparing)} active={live&&!isPreparing}>
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
-      {isPreparing && mg.kind === 'pong' && pongStartButton}
       <PlayArea active={live&&!isPreparing} viewportRef={viewportRef} onLayout={measure}>
       <ScrollView key={mg.id+':'+String(isPreparing)+':'+String(mg.kind === 'math_guess' && !live)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding && !(mg.kind === 'line_connect' && lineDrawing)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
         {!live && mathGame}
@@ -253,7 +252,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
               {me.is_host&&mathIndex===1?<View style={{flexDirection:'row',gap:10}}>{([1,3,5] as const).map(count=><Pressable key={count} accessibilityRole="button" accessibilityState={{selected:mathCount===count}} onPress={()=>setMathSelection({id:mg.id,count})} style={{flex:1,padding:16,borderRadius:12,borderWidth:2,borderColor:mathCount===count?colors.cyan:colors.border,backgroundColor:mathCount===count?alpha(colors.cyan,0.2):colors.glassStrong}}><Text style={{textAlign:'center',fontWeight:'900',color:mathCount===count?colors.cyan:colors.text}}>{count}  {translate("soru")}</Text></Pressable>)}</View>:mathIndex===1?<Muted>{translate("Oda kurucusu 1, 3 veya 5 soru seçecek.")}</Muted>:null}
               <Muted>{translate("Her sorunun ayrı tahmin süresi ve sonucu var.")}</Muted>
             </View>}
-            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} onControlHoldChange={setPongHolding} />}
+            {mg.kind === 'pong' && <PongDuel ctx={ctx} mg={mg} live={live} briefingAction={pongStartButton} onControlHoldChange={setPongHolding} />}
             {me.is_host && mg.kind !== 'pong' ? (
               <Btn
                 title={canContinueBriefing ? translate("Oyunu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
