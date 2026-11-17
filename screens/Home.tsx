@@ -77,6 +77,55 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
   const scrollRef = useRef<ScrollView>(null);
   const modeCarouselRef = useRef<ScrollView>(null);
 
+  const joinFormRef = useRef<View>(null);
+  const joinFormVisible = !simple || roomAction === 'join';
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !joinFormVisible || tab !== 'play' || appearance === null || !nameLoaded || nameRequired) return;
+    const scroll = scrollRef.current?.getScrollableNode();
+    const form = joinFormRef.current;
+    if (!scroll || !form || !(scroll instanceof HTMLElement) || !(form instanceof HTMLElement)) return;
+    const viewport = window.visualViewport;
+    let frame = 0;
+
+    const revealForm = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const input = document.activeElement;
+        if (!(input instanceof HTMLInputElement) || !form.contains(input)) return;
+        const scrollBounds = scroll.getBoundingClientRect();
+        const viewportTop = viewport?.offsetTop ?? 0;
+        const top = Math.max(scrollBounds.top, viewportTop) + 12;
+        const bottom = Math.min(scrollBounds.bottom, viewportTop + (viewport?.height ?? window.innerHeight)) - 12;
+        if (bottom <= top) return;
+
+        const formBounds = form.getBoundingClientRect();
+        // Prefer showing both the code field and the join button when they fit.
+        const bounds = formBounds.height <= bottom - top ? formBounds : input.getBoundingClientRect();
+        if (bounds.bottom > bottom) scroll.scrollTop += Math.ceil(bounds.bottom - bottom);
+        else if (bounds.top < top) scroll.scrollTop -= Math.ceil(top - bounds.top);
+      });
+    };
+
+    // Safari can resize the visible viewport before the React scroll area relayouts.
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(revealForm);
+    observer?.observe(scroll);
+    form.addEventListener('focusin', revealForm);
+    viewport?.addEventListener('resize', revealForm);
+    viewport?.addEventListener('scroll', revealForm);
+    window.addEventListener('resize', revealForm);
+    revealForm();
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      form.removeEventListener('focusin', revealForm);
+      viewport?.removeEventListener('resize', revealForm);
+      viewport?.removeEventListener('scroll', revealForm);
+      window.removeEventListener('resize', revealForm);
+    };
+  }, [appearance, joinFormVisible, nameLoaded, nameRequired, tab]);
+
   useEffect(() => {
     let active = true;
     AsyncStorage.getItem('nickname').then(value => {
@@ -469,7 +518,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
               </HomeRoomPanel>}
 
               {/* ================= ODAYA KATIL ================= */}
-              {(!simple || roomAction === 'join') && <HomeRoomPanel simple={simple} delay={240}>
+              {joinFormVisible && <HomeRoomPanel simple={simple} delay={240}>
                 <Card accent={simple ? undefined : colors.cyan} style={[{ gap: 14 }, simple && s.dockPanel]}>
                   <View style={[s.cardHead, simple && s.compactCardHead]}>
                     <View style={[s.cardIcon, simple && s.compactCardIcon, { backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
@@ -480,16 +529,18 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       <Muted>{t('joinDescription')}</Muted>
                     </View>
                   </View>
-                  <Input
-                    center
-                    value={code}
-                    onChangeText={(t) => setCode(t.toUpperCase())}
-                    placeholder={t('roomCode')}
-                    autoCapitalize="characters"
-                    maxLength={5}
-                    style={[s.codeInput, simple && s.compactCodeInput]}
-                  />
-                  <Btn size={simple ? "md" : "lg"} title={t('roomJoin')} tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
+                  <View ref={joinFormRef} style={s.joinForm}>
+                    <Input
+                      center
+                      value={code}
+                      onChangeText={(t) => setCode(t.toUpperCase())}
+                      placeholder={t('roomCode')}
+                      autoCapitalize="characters"
+                      maxLength={5}
+                      style={[s.codeInput, simple && s.compactCodeInput]}
+                    />
+                    <Btn size={simple ? "md" : "lg"} title={t('roomJoin')} tone="primary" icon="log-in" loading={busy === 'join'} onPress={() => run('join')} />
+                  </View>
                 </Card>
               </HomeRoomPanel>}
 
@@ -834,6 +885,7 @@ const s = StyleSheet.create({
   modeSub: { color: colors.subtle, fontSize: 10, fontWeight: '600', textAlign: 'center' },
   modeCheck: { position: 'absolute', top: 6, right: 6, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 
+  joinForm: { gap: 14 },
   codeInput: { fontFamily: 'Outfit_900Black', fontSize: 26, letterSpacing: 10, paddingVertical: 12 },
 
   step: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
