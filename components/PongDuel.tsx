@@ -409,7 +409,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
    {mg.starts_at && state ? (
     <View style={styles.arenaContainer}>
-     <PongArena key={mg.id+':'+socketEpoch} renderDelayMs={dedicated?115:undefined} now={dedicated?pongNow:undefined} onPresentedScore={dedicated?presentScore:undefined} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
+     <PongArena key={mg.id+':'+socketEpoch} renderDelayMs={dedicated?115:undefined} authoritativePaddles={dedicated} now={dedicated?pongNow:undefined} onPresentedScore={dedicated?presentScore:undefined} state={state} width={width} height={height} playing={active} mySide={mySide} allowedDirections={directions} held={held}/>
      {countdown>0&&<View pointerEvents="none" style={styles.countdownOverlay}><Text style={styles.countdownNumber}>{countdown}</Text><Muted>{loc('Hazır ol! Maç başlıyor…','Get ready! Match starting…')}</Muted></View>}
      {goal&&<View pointerEvents="none" style={styles.goalOverlay}><Title size={19}>⚽ {loc('GOOOL! TAKIM','GOAL! TEAM')} {goal.side} 🎉</Title></View>}
     </View>
