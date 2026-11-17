@@ -32,16 +32,7 @@ const TASKS=[
 'En çok oy alan 3 kişi el ele tutuşup sesli bir şekilde Selana’yı çağırsın!'
 ];
 // Ucube Mahkemesi şimdilik menüde gösterilmiyor.
-const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['spot_diff','Farkı Bul'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?']] as const;
-// Aynı olay kimliğinde herkes aynı bulmacayı görür; doğru cevap bulmacadan hesaplanır.
-const SCENE_PAIRS = [
-  [['🌳','🐱','🌞','🚗','🌷','🏠','🐶','🚲','🍎'],['🌳','🐱','🌛','🚗','🌻','🏠','🐶','🛴','🍎']],
-  [['🐻','🎈','🍓','🚀','🌈','🦋','🍕','🎸','🌻'],['🐻','🎈','🍒','🚀','🌦️','🦋','🍔','🎸','🌹']],
-  [['🚕','🏖️','🐬','🕶️','🍦','⛵','🐠','🌴','🏐'],['🚕','🏖️','🐳','👒','🍦','🚤','🐠','🌲','🏀']],
-  [['🦊','📚','🕯️','☕','🎩','🪴','🧸','🖼️','🐈'],['🐺','📚','💡','☕','👑','🌵','🧸','🖼️','🐈']],
-  [['🎪','🤹','🎯','🎠','🍿','🎡','🥁','🎟️','🎭'],['🎪','🤹','🏹','🎠','🍭','🎢','🎺','🎟️','🎭']]
-] as const;
-const puzzleIndex = (id: string) => [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % SCENE_PAIRS.length;
+const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?']] as const;
 export function PartyBreak({roomId,players,myId,isHost,canStart,autoKey}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean;autoKey?:string|null}){
 const insets=useSafeAreaInsets();
 const [dismissed,setDismissed]=useState(false);
@@ -61,7 +52,7 @@ const finishMission=async(status:'done'|'skipped')=>{setMissionBusy(true);try{aw
 
 const [tick,setTick]=useState(0);
 useEffect(()=>{const t=setInterval(()=>setTick(Date.now()),1000);return()=>clearInterval(t);},[]);
-const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null);
+const [event,setEvent]=useState<any>(null),[showMenu,setShowMenu]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[age,setAge]=useState<Record<string,string>>({}),[winner,setWinner]=useState<string|null>(null);
 const refresh=useCallback(async()=>{try{const e=await api.partyEventCurrent(roomId);setEvent(e);if(!e)setWinner(null);}catch{}},[roomId]);
 useEffect(()=>{const first=setTimeout(()=>{void refresh();},0);const t=setInterval(()=>{void refresh();},2500);return()=>{clearTimeout(first);clearInterval(t);};},[refresh]);
 const run=async(fn:()=>Promise<any>)=>{setBusy(true);setError('');try{await fn();await refresh();}catch(e){setError((e as Error).message);}finally{setBusy(false);}};
@@ -72,7 +63,7 @@ const start=(kind:string)=>run(async()=>{
 //  await api.partyCourtStart(roomId,charge);
 //  setShowMenu(false);return;
 // }
-const prompt=kind==='who_is_ucube'?UCUBE_QUESTIONS[Math.floor(Math.random()*UCUBE_QUESTIONS.length)]:kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?"Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!":kind==='age_guess'?"Herkes diğer oyuncuların yaşını tahmin etsin!":kind==='spot_diff'?"İki resimde kaç fark var?" :"Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='who_is_ucube'||kind==='age_guess'||kind==='spot_diff')await api.testBotsVote(eventId);setShowMenu(false);setAnswer('');setAge({});setWinner(null);});
+const prompt=kind==='who_is_ucube'?UCUBE_QUESTIONS[Math.floor(Math.random()*UCUBE_QUESTIONS.length)]:kind==='challenge'?(players.length>=4?TASKS:TASKS.slice(0,-1))[Math.floor(Math.random()*(players.length>=4?TASKS.length:TASKS.length-1))]:kind==='first_word'?"Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!":kind==='age_guess'?"Herkes diğer oyuncuların yaşını tahmin etsin!":"Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";const eventId=await api.partyEventStart(roomId,kind,prompt);if(kind==='challenge'||kind==='who_is_ucube'||kind==='age_guess')await api.testBotsVote(eventId);setShowMenu(false);setAge({});setWinner(null);});
 // Bir mini oyun sonrası tek seferlik, ev sahibi kontrollü sürpriz etkinlik.
 const autoBusy = useRef(false);
 useEffect(() => {
@@ -90,20 +81,18 @@ useEffect(() => {
       const current = await api.partyEventCurrent(roomId);
       if (current || cancelled) return;
       const kinds = players.length % 2 === 0
-        ? ['challenge', 'first_word', 'spot_diff', 'eye_duel']
-        : ['challenge', 'first_word', 'spot_diff'];
+        ? ['challenge', 'first_word', 'eye_duel']
+        : ['challenge', 'first_word'];
       const kind = kinds[seed % kinds.length];
       const available = players.length >= 4 ? TASKS : TASKS.slice(0, -1);
       const prompt = kind === 'challenge'
         ? available[(seed * 7 + 3) % available.length]
         : kind === 'first_word'
           ? "Herkes seçilen kişiye baksın ve aklına gelen ilk kelimeyi sırayla söylesin!"
-          : kind === 'spot_diff'
-            ? "İki resimde kaç fark var?"
-            : "Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";
+          : "Eşleşen oyuncular 60 saniye göz göze baksın. İlk gülen kaybeder!";
       if (cancelled) return;
       const id = await api.partyEventStart(roomId, kind, prompt);
-      if (kind === 'challenge' || kind === 'spot_diff') await api.testBotsVote(id);
+      if (kind === 'challenge') await api.testBotsVote(id);
       if (!cancelled) await refresh();
     } catch (e) {
       if (!cancelled) setError((e as Error).message);
@@ -115,14 +104,10 @@ useEffect(() => {
   return () => { cancelled = true; };
 }, [autoKey, roomId, isHost, players.length, refresh]);
 const votes=event?.votes??[];
-const scenes = SCENE_PAIRS[puzzleIndex(event?.id??'')];
-const differenceCount = scenes[0].filter((emoji,i)=>emoji!==scenes[1][i]).length;
 const paired=[...players].sort((a,b)=>{const hash=(v:string)=>[...v].reduce((n,ch)=>((n*31+ch.charCodeAt(0))|0),0);return hash((event?.id??'')+a.id)-hash((event?.id??'')+b.id);});
 const mine=votes.find((v:any)=>v.player_id===myId);
 const voteCount=Number(event?.vote_count??votes.length);
 const allVoted=voteCount>=players.length;
-const myDifferenceAnswer = mine?.answer == null ? null : Number(mine.answer);
-const differenceCorrect = myDifferenceAnswer === differenceCount;
 const count=(id:string)=>votes.filter((v:any)=>v.target_id===id).length;
 const top=players.filter(p=>count(p.id)>0&&count(p.id)===Math.max(...players.map(x=>count(x.id))));
 const chosen=top.length===1?top[0]:null;
@@ -196,10 +181,9 @@ return <View style={{gap:10}}>
 {allVoted&&<View style={{gap:8}}><Title size={20}>{threeWinners.length?translate("🎉 Seçilenler: ")+threeWinners.map(p=>p.nickname).join(', '):chosen?translate("🎉 Şanslı kişi: ")+chosen.nickname:translate("Beraberlik! Kurucu kura çekebilir.")}</Title>{top.length>1&&isHost&&<Btn title={translate("Beraberliği Kura ile Çöz")} onPress={()=>setWinner(top[Math.floor(Math.random()*top.length)].nickname)}/>}{winner&&<Title size={18}>{translate("🎲 Seçilen:")} {winner}</Title>}<Muted>{translate("Görev gönüllülük esaslıdır. İsteyen pas geçebilir.")}</Muted></View>}</View>}
 {event.kind==='first_word'&&<View style={{gap:6}}><Title size={20}>{players.find(p=>p.id===event.target_id)?.nickname}</Title><Muted>{translate("Herkes sırayla ilk aklına gelen kelimeyi sesli söylesin. Puan yok.")}</Muted></View>}
 {event.kind==='eye_duel'&&<View style={{gap:8}}><Title size={20}>⏱ {Math.max(0,60-Math.floor((tick-Date.parse(event.created_at))/1000))}  {translate("saniye")}</Title>{paired.filter((_,i)=>i%2===0).map((p,i)=><Text style={{color:'#E8F1FF',fontSize:15,lineHeight:22}} key={p.id}>👀 {p.nickname} ↔ {paired[i*2+1]?.nickname}</Text>)}<Muted>{translate("60 saniyeyi birlikte sayın; ilk dişlerini gösterip gülen kaybeder.")}</Muted></View>}
-{event.kind==='spot_diff'&&<View style={{gap:12}}>{scenes.map((scene,i)=><View key={i} style={{flexDirection:'row',flexWrap:'wrap',width:240,maxWidth:'100%',alignSelf:'center',backgroundColor:'#17334D',padding:12,borderRadius:14}}>{scene.map((v,j)=><Text key={j} style={{width:'33.333%',fontSize:32,textAlign:'center'}}>{v}</Text>)}</View>)}{!mine?<View style={{gap:6}}><TextInput contextMenuHidden value={answer} onChangeText={setAnswer} keyboardType="number-pad" placeholder={translate("Kaç fark var?")} placeholderTextColor="#A8B5C8" style={{color:'white',borderWidth:1,borderColor:'#72849D',padding:12,borderRadius:10}}/><Btn title={busy?translate("Gönderiliyor…"):translate("Tahmin Gönder")} onPress={()=>submit(null,answer)} disabled={busy||answer.trim().length===0||!Number.isInteger(Number(answer.trim()))||Number(answer.trim())<0}/></View>:<Card style={{gap:8}}><Title size={20}>{translate("✓ Tahminin kaydedildi:")} {mine.answer}</Title><Muted>{translate("Diğer oyuncular bekleniyor:")} {voteCount}/{players.length}  {translate("tahmin tamamlandı.")}</Muted><Muted>{translate("Sonuç, herkes tahminini gönderdiğinde burada açıklanacak. Ekran otomatik kapanmayacak.")}</Muted></Card>}{allVoted&&<Card style={{gap:10}}><Title size={23}>{translate("🏆 Farkı Bul Sonuçları")}</Title><Title size={20}>{translate("Doğru cevap:")} {differenceCount}  {translate("fark")}</Title>{mine&&<Title size={19}>{differenceCorrect?translate("🎉 Tebrikler, doğru bildin!"):translate("😅 Bu kez olmadı! Senin tahminin: ")+mine.answer}</Title>}<Muted>{votes.filter((v:any)=>v.answer===String(differenceCount)).length}/{players.length}  {translate("oyuncu doğru bildi.")}</Muted>{players.map(p=>{const vote=votes.find((v:any)=>v.player_id===p.id);return <Text style={{color:'#E8F1FF',fontSize:15,lineHeight:22}} key={p.id}>{vote?.answer===String(differenceCount)?'✅':'❌'} {p.nickname}: {vote?.answer??'—'}</Text>;})}<Muted>{translate("Oda kurucusu etkinliği bitirene kadar sonuçlar ekranda kalır.")}</Muted></Card>}</View>}
 
 {event.kind==='age_guess'&&<View style={{gap:10}}>{!mine?<View style={{gap:8}}><Muted>{translate("Diğer oyuncuların yaşlarını tahmin et. Her oyuncu için bir sayı gir.")}</Muted>{players.filter(p=>p.id!==myId).map(p=><View key={p.id} style={{gap:4}}><Text style={{color:'#E8F1FF'}}>{p.nickname}</Text><TextInput contextMenuHidden value={age[p.id]??''} onChangeText={v=>setAge(s=>({...s,[p.id]:v}))} keyboardType="number-pad" maxLength={3} placeholder={translate("Yaş tahminin")} placeholderTextColor="#A8B5C8" style={{color:'white',borderWidth:1,borderColor:'#72849D',padding:10,borderRadius:10}}/></View>)}<Btn title={busy?translate("Gönderiliyor…"):translate("Tüm Yaş Tahminlerini Gönder")} disabled={busy||players.filter(p=>p.id!==myId).some(p=>!Number.isInteger(Number((age[p.id]??'').trim()))||(age[p.id]??'').trim().length===0||Number(age[p.id])<1||Number(age[p.id])>120)} onPress={()=>submit(null,JSON.stringify(age))}/></View>:<Card style={{gap:8}}><Title size={20}>{translate("✓ Yaş tahminlerin kaydedildi")}</Title>{players.filter(p=>p.id!==myId).map(p=>{let guess='—';try{guess=String(JSON.parse(mine.answer??'{}')[p.id]??'—');}catch{}return <Text style={{color:'#E8F1FF',fontSize:15,lineHeight:22}} key={p.id}>{p.nickname}: {guess}  {translate("yaş")}</Text>;})}<Muted>{voteCount}/{players.length}  {translate("oyuncu tahminini gönderdi.")} {allVoted?translate("Tüm tahminler tamamlandı!"):translate("Diğer oyuncular bekleniyor…")}</Muted></Card>}{allVoted&&<Card style={{gap:8}}><Title size={22}>{translate("🏆 Yaş Tahmini Sonuçları")}</Title><Muted>{translate("Herkes tahminini tamamladı. Oyuncuların verdiği cevaplar:")}</Muted>{players.map(p=>{const vote=votes.find((v:any)=>v.player_id===p.id);let guesses:Record<string,string>={};try{guesses=JSON.parse(vote?.answer??'{}');}catch{}return <View key={p.id} style={{gap:3}}><Title size={17}>👤 {p.nickname}</Title>{players.filter(other=>other.id!==p.id).map(other=><Text key={other.id} style={{color:'#E8F1FF',fontSize:15,lineHeight:23}}>{other.nickname}: {guesses[other.id]??'—'}  {translate("yaş")}</Text>)}</View>;})}<Muted>{translate("Bu ekranda gerçek yaşlar doğrulanmadığı için doğru/yanlış ve madalya sonucu henüz hesaplanmıyor. Kurucu etkinliği bitirene kadar sonuçlar burada kalır.")}</Muted></Card>}</View>}
-{isHost&&<Btn title={translate("Etkinliği Bitir ve Oyuna Dön")} tone="success" onPress={finish} disabled={busy||((event.kind==='challenge'||event.kind==='who_is_ucube'||event.kind==='age_guess'||event.kind==='spot_diff')&&!allVoted)}/>}
+{isHost&&<Btn title={translate("Etkinliği Bitir ve Oyuna Dön")} tone="success" onPress={finish} disabled={busy||((event.kind==='challenge'||event.kind==='who_is_ucube'||event.kind==='age_guess')&&!allVoted)}/>}
 </Card></ScrollView></KeyboardAvoidingView></Modal>}
 {!!error&&<Text style={{color:'#FF8592'}}>{error}</Text>}
 </View>;
