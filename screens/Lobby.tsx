@@ -309,7 +309,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
     room.mode === 'custom' ? <Reveal delay={80}>
       <Card style={{ gap: 12 }}>
         <Title size={20}>{translate("Oynamak istediğin oyunları seç")}</Title>
-        <Muted>{me.is_host ? translate("Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.") : translate("Oyun kurucusunun seçtiği türler aşağıda görünüyor.")}</Muted>
+        {!me.is_host && <Muted>{translate("Oyun kurucusunun seçtiği türler aşağıda görünüyor.")}</Muted>}
         {me.is_host && (
           <View style={[s.gameActions, simple && s.compactGameActions]}>
             <Btn title={translate("Tümünü Seç")} icon="checkmark-done" size="sm" tone="success" disabled={!canEditGames || DEFAULT_GAMES.every((gameId) => draftGames.includes(gameId))} onPress={selectAllGames} style={{ flex: 1 }} />

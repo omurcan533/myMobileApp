@@ -246,7 +246,6 @@ export const ENGLISH_COPY: Record<string, string> = {
   "Özel mod": "Custom mode",
   "Arkadaşlarına Gönder": "Share with Friends",
   "2 Takım": "2 Teams",
-  "Kurucu olarak oyun türlerini seçebilirsin. Seçimlerin tüm oyunculara yansır.": "As host, choose the games. Your selection is shared with everyone.",
   "Oyun kurucusunun seçtiği türler aşağıda görünüyor.": "The host's selected games are shown below.",
   "Tümünü Seç": "Select All",
   "Tümünü Kaldır": "Clear All",
