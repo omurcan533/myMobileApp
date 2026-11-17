@@ -33,11 +33,11 @@ const TASKS=[
 ];
 // Ucube Mahkemesi şimdilik menüde gösterilmiyor.
 const EVENTS=[['challenge','Şanslı Kişi'],['first_word','İlk Aklına Gelen'],['age_guess','Yaş Tahmini'],['eye_duel','Göz Göze Düello'],['who_is_ucube','Kim Daha Ucube?']] as const;
-export function PartyBreak({roomId,players,myId,isHost,canStart}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean}){
+export function PartyBreak({roomId,players,myId,isHost,canStart,autoOffer=true}:{roomId:string;players:Player[];myId:string;isHost:boolean;canStart:boolean;autoOffer?:boolean}){
 const insets=useSafeAreaInsets();
 const [breakPanel,setBreakPanel]=useState<{roomId:string;open:boolean}|null>(null);
 useEffect(()=>{
- if(!canStart||!isHost)return;
+ if(!canStart||!isHost||!autoOffer)return;
  let active=true;
  const key='party-offer:'+roomId;
  AsyncStorage.getItem(key).then(seen=>{
@@ -46,7 +46,7 @@ useEffect(()=>{
   if(!seen)void AsyncStorage.setItem(key,'seen').catch(()=>{});
  }).catch(()=>{if(active)setBreakPanel({roomId,open:false});});
  return()=>{active=false;};
-},[canStart,isHost,roomId]);
+},[canStart,isHost,roomId,autoOffer]);
 const [mission,setMission]=useState<{key:number;status:'active'|'done'|'skipped'}|null>(null);
 const [missionOpen,setMissionOpen]=useState(false);
 const [missionBusy,setMissionBusy]=useState(false);
@@ -104,11 +104,14 @@ const secretCard=mission?(missionOpen ?
   <Text style={{color:'#D4B8FF',fontSize:12,fontWeight:'900'}}>{mission.status==='done'?'✓':mission.status==='skipped'?'—':'🔒'}</Text>
  </Pressable>
 ):null;
-if(!event&&(!canStart||!isHost||breakPanel?.roomId!==roomId))return secretCard;
+if(!event&&(!canStart||!isHost||(autoOffer&&breakPanel?.roomId!==roomId)))return secretCard;
 if(!event&&!breakPanel?.open)return <View pointerEvents="box-none" style={{gap:8}}>
  {secretCard}
  <View style={{alignSelf:'flex-end'}}>
-  <Btn title={translate("🎉 Eğlence Molası")} size="sm" tone="ghost" onPress={()=>setBreakPanel({roomId,open:true})}/>
+  <Btn title={translate("🎉 Eğlence Molası")} size="sm" tone="ghost" onPress={()=>{
+    setBreakPanel({roomId,open:true});
+    void AsyncStorage.setItem('party-offer:'+roomId,'seen').catch(()=>{});
+  }}/>
  </View>
 </View>;
 return <View style={{gap:10}}>

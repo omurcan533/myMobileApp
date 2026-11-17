@@ -87,7 +87,8 @@ function RoomView({ roomId, userId, catalog, onLeave, onEnter }: { roomId: strin
   const activeRound=data.rounds.find(r=>r.status==='open');
   const lastGame=data.minigames[data.minigames.length-1];
   const activePlay=(data.room.phase==='question'&&!!activeRound?.opens_at)||(data.room.phase==='minigame'&&lastGame?.status==='live'&&!!lastGame.starts_at);
-  const withBreak=(screen:React.ReactNode)=><View style={{flex:1}}>{screen}{!activePlay&&data.room.phase!=='lobby'&&data.room.phase!=='results'&&<View pointerEvents="box-none" style={{position:'absolute',top:8,right:12,left:12,maxHeight:'70%'}}><PartyBreak roomId={data.room.id} players={data.players} myId={me.id} isHost={me.is_host} canStart={data.minigames.some(m=>m.status==='done') && (data.room.phase==='building' || (data.room.phase==='minigame' && lastGame?.status==='done'))} /></View>}</View>;
+  const mathResults=data.room.phase==='minigame'&&lastGame?.kind==='math_guess'&&lastGame.status==='done';
+  const withBreak=(screen:React.ReactNode)=><View style={{flex:1}}>{screen}{!activePlay&&data.room.phase!=='lobby'&&data.room.phase!=='results'&&<View pointerEvents="box-none" style={{position:'absolute',...(mathResults?{bottom:8}:{top:8}),right:12,left:12,maxHeight:'70%'}}><PartyBreak roomId={data.room.id} players={data.players} myId={me.id} isHost={me.is_host} autoOffer={!mathResults} canStart={data.minigames.some(m=>m.status==='done') && (data.room.phase==='building' || (data.room.phase==='minigame' && lastGame?.status==='done'))} /></View>}</View>;
   const safe=(screen:React.ReactNode)=><View style={{flex:1}}><View style={{flex:1}}>{screen}</View><RoomSafety ctx={ctx}/></View>;
   switch (data.room.phase) {
     case 'lobby': return safe(<LobbyScreen ctx={ctx} />);

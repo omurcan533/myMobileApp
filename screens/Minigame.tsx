@@ -198,6 +198,19 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
   const lineWinnerEntry = entries.find(entry => entry.player_id === lineWinner?.id);
   const lineResultColor = lineResult === 'won' ? colors.mint : lineResult === 'lost' ? '#FF718A' : colors.yellow;
 
+  const mathGame = mg.kind === 'math_guess' && (
+    <MathGuessGame
+      key={mg.id}
+      ctx={ctx}
+      entries={entries}
+      prompt={`${mg.math_state?format("Soru {0}/{1}", mathIndex, mg.math_state.count)+"\n":''}${(mg.prompt ?? translate("Sayıyı tahmin et")).replace(/(\d)\s+[.·⋅*]\s+(?=\d)/g, "$1 × ")}`}
+      targetNum={mg.target_num ?? null}
+      live={live}
+      mineGuess={mine?.guess_num ?? null}
+      onSubmit={(guess) => tap(undefined, guess)}
+      busy={busy}
+    />
+  );
   const pongStartButton = me.is_host && <View style={{paddingHorizontal:12,paddingBottom:8}}>
     <Btn title={canContinueBriefing ? translate("Pong Oyununu Başlat") : format("Kuralları Oku · {0} sn", briefingWaitSeconds)}
       icon="play" tone="success" disabled={!canContinueBriefing || busy || data.room.paused}
@@ -208,7 +221,8 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
       {live&&!isPreparing&&<PlayHeader ctx={ctx} left={left} label={mode.label} instructions={briefingInstructions} onPause={togglePause} busy={busy}/>}
       {isPreparing && mg.kind === 'pong' && pongStartButton}
       <PlayArea active={live&&!isPreparing} viewportRef={viewportRef} onLayout={measure}>
-      <ScrollView key={mg.id+':'+String(isPreparing)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding && !(mg.kind === 'line_connect' && lineDrawing)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+      <ScrollView key={mg.id+':'+String(isPreparing)+':'+String(mg.kind === 'math_guess' && !live)} ref={scrollRef} onScroll={measure} onContentSizeChange={measure} scrollEventThrottle={16} scrollEnabled={!pongHolding && !(mg.kind === 'line_connect' && lineDrawing)} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" style={[{ flex: 1,minHeight:0 }, pongWebStyle]} contentContainerStyle={[s.scroll,live&&!isPreparing&&{gap:8,paddingTop:0,paddingBottom:4},pongWebStyle]} showsVerticalScrollIndicator={false}>
+        {!live && mathGame}
         {(isPreparing||!live)&&<Scoreboard ctx={ctx} />}
 
       {(isPreparing||!live)&&<View style={s.headerRow}>
@@ -283,17 +297,7 @@ export function MinigameScreen({ ctx }: { ctx: Ctx }) {
             catch (error) { show((error as Error).message, 'error'); throw error; }
           }} />
         ) : mg.kind === 'math_guess' ? (
-          <MathGuessGame
-            key={mg.id}
-            ctx={ctx}
-            entries={entries}
-            prompt={`${mg.math_state?format("Soru {0}/{1}", mathIndex, mg.math_state.count)+"\n":''}${(mg.prompt ?? translate("Sayıyı tahmin et")).replace(/(\d)\s+[.·⋅*]\s+(?=\d)/g, "$1 × ")}`}
-            targetNum={mg.target_num ?? null}
-            live={live}
-            mineGuess={mine?.guess_num ?? null}
-            onSubmit={(guess) => tap(undefined, guess)}
-            busy={busy}
-          />
+          live && mathGame
         ) : (mg.kind === 'reflex' || mg.kind === 'memory') ? (
           variant === 'memory' ? (
             <MemoryGame
@@ -991,51 +995,80 @@ function MathGuessGame({
   const speedDecides = closest.some(guess=>guess.player.team_side==='A') && closest.some(guess=>guess.player.team_side==='B');
   const first = [...closest].sort((a,b)=>(a.submittedAt??'').localeCompare(b.submittedAt??'')).find(guess=>guess.submittedAt);
 
+  const guessesCard = (
+    <Card style={{gap:8}}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <SectionLabel>{translate("Tüm Tahminler")}</SectionLabel>
+        <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '700' }}>
+          {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} {translate("Cevap")}
+        </Text>
+      </View>
+
+      {!live && targetNum !== null && (
+        <View style={s.mathAnswerRow}>
+          <Ionicons name="checkmark-circle" size={18} color={colors.mint} />
+          <Text style={s.mathAnswerLabel}>{translate("DOĞRU CEVAP")}</Text>
+          <Text display style={s.mathAnswerValue}>{targetNum}</Text>
+        </View>
+      )}
+      {!live && speedDecides && first && <Muted>{format("Eşit farkta ilk gönderen: {0}",first.player.nickname)}</Muted>}
+      {live && done && <Muted>{translate("Tahminin Alındı")}</Muted>}
+      <View style={{ gap: live ? 8 : 4 }}>
+        {playerGuesses.map(({ player: p, guess, isMe, diff }) => {
+          const tColor = teamColor(p.team_side);
+          const isWinner = !live && diff !== null && diff === bestDiff && (!speedDecides || first?.player.id === p.id);
+          return (
+            <View
+              key={p.id}
+              style={[
+                s.guessRow,
+                !live && {paddingVertical:4},
+                isWinner && { borderColor: colors.gold, backgroundColor: alpha(colors.gold, 0.12) },
+              ]}
+            >
+              <Avatar source={avatarFor(p.nickname)} size={live ? 36 : 26} ring={tColor} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
+                  {p.nickname} {isMe ? translate('(Sen)') : ''}
+                </Text>
+                <Text style={{ color: tColor, fontSize: 11, fontWeight: '600' }}>
+                  {teamName(p.team_side)}
+                </Text>
+              </View>
+
+              {guess !== null && live && !isMe ? (
+                <Chip label={translate("Tahmin gönderildi")} color={colors.mint} size="sm" icon="checkmark-circle" />
+              ) : guess !== null ? (
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
+                    <Text display style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
+                      {guess}
+                    </Text>
+                  </View>
+                  {!live && targetNum !== null && diff !== null && (
+                    <Text style={{ color: isWinner ? colors.gold : colors.muted, fontSize: 11, fontWeight: '700' }}>
+                      {isWinner ? `🏆 ${translate('En Yakın')} (${translate('Fark:')} ${diff})` : `${translate('Fark:')} ${diff}`}
+                    </Text>
+                  )}
+                </View>
+              ) : (
+                <Chip label={live ? translate("Düşünüyor...") : translate("Yanıt yok")} color={colors.muted} size="sm" icon="time-outline" />
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </Card>
+  );
+
   return (
-    <View style={{ gap: compact?6:16 }}>
-      {/* Soru Kartı */}
+    <View style={{gap:compact?6:16}}>
+      {!live && guessesCard}
       <Card accent={colors.cyan} style={[s.promptCard,compact&&{padding:10,gap:6}]}>
-        {!compact&&<View style={[s.bigIcon, { width: 56, height: 56, borderRadius: 28, marginBottom: 0, backgroundColor: alpha(colors.cyan, 0.14), borderColor: alpha(colors.cyan, 0.4) }]}>
-          <Ionicons name="calculator" size={28} color={colors.cyan} />
-        </View>}
         <Text display style={s.prompt}>{prompt}</Text>
         {!compact&&<Muted>{translate("Fark eşitse daha hızlı gönderen kazanır.")}</Muted>}
       </Card>
-
-      {/* Sonuç açıklandığında doğru yanıt tüm oyuncular için en üstte görünür. */}
-      {!live && targetNum !== null && (
-        <Card accent={colors.mint} style={s.correctAnswerCard}>
-          <View style={s.correctAnswerHeading}>
-            <Ionicons name="checkmark-circle" size={24} color={colors.mint} />
-            <Text style={s.correctAnswerLabel}>{translate("DOĞRU CEVAP")}</Text>
-          </View>
-          <Text display adjustsFontSizeToFit numberOfLines={1} style={s.correctAnswerValue}>
-            {targetNum.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}
-          </Text>
-          {speedDecides && first && <Muted style={{textAlign:'center'}}>{format("Eşit farkta ilk gönderen: {0}",first.player.nickname)}</Muted>}
-          {mineGuess !== null && (
-            <Text style={s.correctAnswerDifference}>
-              {translate('Senin tahminin:')} {mineGuess.toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}  ·  {translate('Fark:')} {Math.abs(mineGuess - targetNum).toLocaleString(getLanguage()==='en'?'en-US':'tr-TR',{useGrouping:false})}
-            </Text>
-          )}
-        </Card>
-      )}
-
-      {/* Kullanıcı Durumu */}
-      {done ? (
-        <Card accent={colors.mint} style={{ alignItems: 'center', gap: 10, paddingVertical: 22 }}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: alpha(colors.mint, 0.16), alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="checkmark-circle" size={28} color={colors.mint} />
-          </View>
-          <Eyebrow color={colors.mint}>{translate("Tahminin Alındı")}</Eyebrow>
-          <Text display style={{ fontSize: 36, color: colors.text, fontWeight: '900' }}>
-            {mineGuess}
-          </Text>
-          <Muted>
-            {translate(live ? 'Diğer oyuncuların tahminleri bekleniyor…' : 'Doğru cevap yukarıda gösteriliyor.')}
-          </Muted>
-        </Card>
-      ) : live ? (
+      {live && !done && (
         <Card style={{ gap: compact?6:14,padding:compact?10:16 }}>
           {/* Giriş Ekranı */}
           <View style={[s.mathDisplay,compact&&{padding:6,minHeight:44}]}>
@@ -1074,68 +1107,8 @@ function MathGuessGame({
             onPress={handleSend}
           />
         </Card>
-      ) : (
-        <Card accent={colors.gold} style={{ alignItems: 'center', gap: 8 }}>
-          <Ionicons name="time" size={28} color={colors.gold} />
-          <Title size={20}>{translate("Süre Doldu")}</Title>
-          <Muted>{translate("Doğru cevap yukarıda gösteriliyor.")}</Muted>
-        </Card>
       )}
-
-      {/* Diğer Tahminler & Oyuncu Durumu */}
-      <Card style={{ gap: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <SectionLabel>{translate("Tüm Tahminler")}</SectionLabel>
-          <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '700' }}>
-            {playerGuesses.filter((g) => g.guess !== null).length} / {data.players.length} {translate("Cevap")}
-          </Text>
-        </View>
-
-        <View style={{ gap: 8 }}>
-          {playerGuesses.map(({ player: p, guess, isMe, diff }) => {
-            const tColor = teamColor(p.team_side);
-            const isWinner = !live && diff !== null && diff === bestDiff && (!speedDecides || first?.player.id === p.id);
-            return (
-              <View
-                key={p.id}
-                style={[
-                  s.guessRow,
-                  isWinner && { borderColor: colors.gold, backgroundColor: alpha(colors.gold, 0.12) },
-                ]}
-              >
-                <Avatar source={avatarFor(p.nickname)} size={36} ring={tColor} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ color: colors.text, fontSize: 14, fontWeight: '700' }}>
-                    {p.nickname} {isMe ? translate('(Sen)') : ''}
-                  </Text>
-                  <Text style={{ color: tColor, fontSize: 11, fontWeight: '600' }}>
-                    {teamName(p.team_side)}
-                  </Text>
-                </View>
-
-                {guess !== null && live && !isMe ? (
-                  <Chip label={translate("Tahmin gönderildi")} color={colors.mint} size="sm" icon="checkmark-circle" />
-                ) : guess !== null ? (
-                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                    <View style={[s.guessBadge, { backgroundColor: alpha(tColor, 0.18), borderColor: alpha(tColor, 0.5) }]}>
-                      <Text display style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
-                        {guess}
-                      </Text>
-                    </View>
-                    {!live && targetNum !== null && diff !== null && (
-                      <Text style={{ color: isWinner ? colors.gold : colors.muted, fontSize: 11, fontWeight: '700' }}>
-                        {isWinner ? `🏆 ${translate('En Yakın')} (${translate('Fark:')} ${diff})` : `${translate('Fark:')} ${diff}`}
-                      </Text>
-                    )}
-                  </View>
-                ) : (
-                  <Chip label={translate("Düşünüyor...")} color={colors.muted} size="sm" icon="time-outline" />
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Card>
+      {live && guessesCard}
     </View>
   );
 }
@@ -1318,11 +1291,9 @@ const s = StyleSheet.create({
   resPct: { fontWeight: '900', fontSize: 16 },
 
   // Matematik ve sayı tahmini
-  correctAnswerCard: { alignItems: 'center', gap: 10, paddingVertical: 26, paddingHorizontal: 18, borderWidth: 2, borderColor: colors.mint },
-  correctAnswerHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  correctAnswerLabel: { color: colors.mint, fontSize: 18, fontWeight: '900', letterSpacing: 1.2 },
-  correctAnswerValue: { color: '#FFFFFF', fontSize: 64, lineHeight: 78, fontWeight: '900', textAlign: 'center', width: '100%' },
-  correctAnswerDifference: { color: colors.textSoft, fontSize: 14, fontWeight: '700', textAlign: 'center', marginTop: 4 },
+  mathAnswerRow: {flexDirection:'row',alignItems:'center',gap:8,padding:8,borderRadius:10,backgroundColor:alpha(colors.mint,0.12)},
+  mathAnswerLabel: {flex:1,color:colors.mint,fontSize:12,fontWeight:'900'},
+  mathAnswerValue: {color:colors.text,fontSize:23,fontWeight:'900'},
   mathDisplay: {
     backgroundColor: colors.inset,
     borderRadius: 18,

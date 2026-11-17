@@ -102,6 +102,7 @@ export const ENGLISH_COPY: Record<string, string> = {
   "PUAN": "POINTS",
   "kazandı · bonus parça": "won · bonus piece",
   "takım ortalaması": "team average",
+  "Yanıt yok": "No answer",
   "Yanıt yok · 30 sn ceza": "No answer · 30 sec penalty",
   "Bonus parça + 2 puan": "Bonus piece + 2 points",
   "Bu sefer bonus yok.": "No bonus this time.",
