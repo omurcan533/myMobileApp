@@ -152,7 +152,7 @@ export function SurvivorMemoryGame({id,startsAt,live,paused,isCaptain,side,state
   <Muted>{translate('Mesajları yalnızca kendi takımın görebilir. Kaptana hatırladığın yolu söyle!')}</Muted>
   <View style={styles.messages}>{messages.slice(-8).map(m=><Text key={m.id} style={styles.message}><Text style={styles.nickname}>{m.nickname}: </Text>{m.body}</Text>)}</View>
   <View style={styles.compose}>
-   <TextInput value={draft} onChangeText={setDraft} placeholder={translate('Takımına yaz...')} placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
+   <TextInput contextMenuHidden value={draft} onChangeText={setDraft} placeholder={translate('Takımına yaz...')} placeholderTextColor="#92A3BB" maxLength={140} style={styles.input} editable={live}/>
    <Btn title={translate('Gönder')} size="sm" disabled={!live||!draft.trim()||sending} onPress={send}/>
   </View>
   <Btn title={translate('Oyuna Dön')} size="sm" onPress={closeChat}/>

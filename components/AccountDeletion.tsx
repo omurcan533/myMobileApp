@@ -40,7 +40,7 @@ export function AccountDeletion({ onDeleted }: { onDeleted: (result: DeletionRes
           <Title size={22}>{translate('Webden hesap silme')}</Title>
           <Text style={styles.body}>{translate('Bu kod, uygulamayı kaldırdıktan sonra da web sayfasından bu hesabı silebilmeni sağlar. Kodu gizli tut: kodu bilen kişi hesabını kalıcı olarak silebilir.')}</Text>
           <Muted>{translate('Kodu güvenli bir yere kaydet. Yeni kod oluşturursan önceki kod geçersiz olur. Kod hesabına giriş yapmak veya verilerini okumak için kullanılamaz.')}</Muted>
-          {!!code && <Text selectable style={styles.code}>{code.match(/.{1,8}/g)?.join('-')}</Text>}
+          {!!code && <Text style={styles.code}>{code.match(/.{1,8}/g)?.join('-')}</Text>}
           <Btn title={code ? translate('Yeni kod oluştur') : translate('Silme kodu oluştur')} icon="key" tone="ghost" loading={busy} disabled={busy} onPress={() => { void run(); }} />
           <Btn title={translate('Hesap silme sayfasını aç')} icon="open-outline" tone="ghost" onPress={() => { void Linking.openURL('https://omurcan533.github.io/myMobileApp/delete-account.html').catch(() => setError(translate('Sayfa açılamadı. Destek adresinden bize ulaşabilirsin.'))); }} />
         </>}

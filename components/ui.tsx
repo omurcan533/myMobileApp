@@ -34,7 +34,7 @@ export function Text({ display, style, ...rest }: TextProps & { display?: boolea
   const flat = StyleSheet.flatten(style) ?? {};
   const w = String(flat.fontWeight ?? '500');
   const family = flat.fontFamily ?? (display ? DISPLAY[w] ?? DISPLAY['700'] : BODY[w] ?? BODY['500']);
-  return <RNText {...rest} style={[style, { fontFamily: family, fontWeight: undefined }]} />;
+  return <RNText {...rest} selectable={false} style={[style, { fontFamily: family, fontWeight: undefined }]} />;
 }
 
 // ============================================================================
@@ -762,6 +762,7 @@ export function Input({ icon, style, containerStyle, center, onFocus, onBlur, ..
         placeholderTextColor={colors.subtle}
         selectionColor={colors.cyan}
         {...rest}
+        contextMenuHidden
         onFocus={(e) => {
           setFocus(true);
           onFocus?.(e);

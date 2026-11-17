@@ -44,7 +44,7 @@ export function PrivacyInfo({ onAccountDeleted }: { onAccountDeleted: (result: D
         setLinkFailed(false);
         void Linking.openURL('https://omurcan533.github.io/myMobileApp/privacy.html').catch(() => setLinkFailed(true));
       }} />
-      <Text selectable style={styles.body}>yilmazomurcan@gmail.com</Text>
+      <Text style={styles.body}>yilmazomurcan@gmail.com</Text>
       <AccountDeletion onDeleted={onAccountDeleted} />
       {linkFailed && <Muted>{translate('Sayfa açılamadı. Yukarıdaki e-posta adresinden bize ulaşabilirsin.')}</Muted>}
     </Card>

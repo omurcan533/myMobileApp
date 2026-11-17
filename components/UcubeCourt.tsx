@@ -120,7 +120,7 @@ export function UcubeCourt({eventId,players,myId}:{eventId:string;players:Player
    })}
    {court.stage==='speeches'&&myRole&&!alreadySpoke&&<View style={{gap:8}}>
     <Muted>{myRole.tip}  {translate("(En fazla 280 karakter.)")}</Muted>
-    <TextInput multiline maxLength={280} value={speech} onChangeText={setSpeech} placeholder={translate("Mahkemeye söyleyeceklerin…")} placeholderTextColor="#A8B4D1" style={{color:'#FFFFFF',borderWidth:1,borderColor:'#8E7CC4',borderRadius:12,padding:12,minHeight:80,textAlignVertical:'top'}}/>
+    <TextInput contextMenuHidden multiline maxLength={280} value={speech} onChangeText={setSpeech} placeholder={translate("Mahkemeye söyleyeceklerin…")} placeholderTextColor="#A8B4D1" style={{color:'#FFFFFF',borderWidth:1,borderColor:'#8E7CC4',borderRadius:12,padding:12,minHeight:80,textAlignVertical:'top'}}/>
     <Btn title={busy?translate("Gönderiliyor…"):translate("🎤 İfadeni Sun")} disabled={busy||!speech.trim()} onPress={()=>send(()=>api.partyCourtSpeak(eventId,speech.trim()))}/>
    </View>}
    {court.stage==='speeches'&&(!myRole||alreadySpoke)&&<Muted>{court.speeches.length}{translate("/3 ifade alındı. Herkes tamamlayınca jüri oylaması başlayacak.")}</Muted>}

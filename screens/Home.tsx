@@ -593,7 +593,21 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                   <Float amount={5}>
                     <Avatar source={avatarFor(displayName, avatarId)} size={104} ring={colors.gold} />
                   </Float>
-                  <Title size={26} style={{ marginTop: 14 }}>{displayName}</Title>
+                  <View style={s.profileName}>
+                    <Eyebrow color={colors.textSoft}>{t('nickname')}</Eyebrow>
+                    <Input
+                      icon="pencil"
+                      accessibilityLabel={t('nickname')}
+                      value={nick}
+                      onChangeText={setNick}
+                      onBlur={() => {
+                        const name = nick.trim();
+                        if (validNickname(name)) void AsyncStorage.setItem('nickname', name).catch(console.warn);
+                      }}
+                      placeholder={translate("Takma adın")}
+                      maxLength={20}
+                    />
+                  </View>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                     <Chip label={format("Seviye {0}", lvl.level)} icon="flash" color={colors.gold} />
                     <Chip label={`${lvl.xp} XP`} icon="sparkles" color={colors.cyan} />
@@ -634,16 +648,6 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                       </Tap>
                     ))}
                   </View>
-                  {simple && <Text style={s.settingTitle}>{t('nickname')}</Text>}
-                  <Input
-                    icon="happy"
-                    accessibilityLabel={t('nickname')}
-                    value={nick}
-                    onChangeText={setNick}
-                    onBlur={() => { const n = nick.trim(); if (n) AsyncStorage.setItem('nickname', n); }}
-                    placeholder={translate("Takma adın")}
-                    maxLength={20}
-                  />
                   <SectionLabel>{translate("Ayarlar")}</SectionLabel>
                   <View style={{ gap: 8 }}>
                     <Text style={s.settingTitle}>{t('language')}</Text>
@@ -695,7 +699,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <TabBar items={tabs} active={tab} onChange={(k) => { setTab(k); if (k === 'profile') getProfile().then(setProfile); }} />
+      <TabBar items={tabs} active={tab} onChange={(k) => {
+        if (k === 'profile') {
+          scrollRef.current?.scrollTo({ y: 0, animated: false });
+          void getProfile().then(setProfile);
+        }
+        setTab(k);
+      }} />
       {toast}
     </Screen>
   );
@@ -834,6 +844,7 @@ const s = StyleSheet.create({
   stepNo: { fontSize: 10, fontWeight: '700', letterSpacing: 1.4 },
   stepTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
 
+  profileName: { alignSelf: 'stretch', marginTop: 14, gap: 7 },
   profileHero: {
     alignItems: 'center',
     padding: 22,

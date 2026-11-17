@@ -191,9 +191,12 @@ export default function App() {
             flex-direction: column !important;
             overflow: hidden !important;
           }
+          #root, #root * {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -webkit-touch-callout: none !important;
+          }
           input, textarea, select {
-            user-select: auto !important;
-            -webkit-user-select: auto !important;
             outline: none !important;
             box-shadow: none !important;
             -webkit-tap-highlight-color: transparent !important;
@@ -205,7 +208,14 @@ export default function App() {
         `;
         document.head.appendChild(style);
       }
-
+      const preventSelection = (event: Event) => {
+        const root = document.getElementById('root');
+        const target = event.target;
+        if (target instanceof Node && root?.contains(target)) event.preventDefault();
+      };
+      const selectionEvents = ['selectstart', 'contextmenu', 'copy', 'cut'] as const;
+      selectionEvents.forEach(type => document.addEventListener(type, preventSelection, true));
+      return () => selectionEvents.forEach(type => document.removeEventListener(type, preventSelection, true));
     }
   }, []);
 

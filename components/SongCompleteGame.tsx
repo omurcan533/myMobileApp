@@ -55,7 +55,7 @@ function SongRound({ id, prompt, live, canPlay, paused, winner, side, onError }:
       ) : (
         <>
           {!!feedback && <Text style={{ color: '#F2BD72', textAlign: 'center', fontWeight: '700' }}>{feedback}</Text>}
-          <TextInput
+          <TextInput contextMenuHidden
             style={styles.input} value={answer} onChangeText={setAnswer}
             placeholder={translate('Eksik şarkı adını yaz...')} placeholderTextColor="#96A7BE"
             autoCapitalize="words" maxLength={100} editable={live && canPlay && !paused && !busy}

@@ -298,7 +298,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
     </Pressable>
     {showDiagnostics&&<View style={{gap:4,padding:10,backgroundColor:'#10243A',borderRadius:8}}>
      <Muted>{loc('Bu cihazın son 100 ölçümü. Metne basılı tutarak kopyalayabilirsin.','Last 100 samples on this device. Long-press to copy.')}</Muted>
-     <Text selectable style={{fontSize:11,color:'#FFFFFF'}}>{metricSummary||loc('Ölçüm bekleniyor…','Waiting for measurements…')}</Text>
+     <Text style={{fontSize:11,color:'#FFFFFF'}}>{metricSummary||loc('Ölçüm bekleniyor…','Waiting for measurements…')}</Text>
     </View>}
    </View>
    {gameError&&<Muted style={styles.error}>{gameError}</Muted>}
@@ -332,7 +332,7 @@ function PongMatch({ctx,mg,live,onControlHoldChange}:Props){
       disabled={!active}
       style={[styles.paddleControl,area.active&&{flex:1,width:undefined,minHeight:64},compactControls&&!area.active&&styles.compactPaddleControl,Platform.OS==='web'?({touchAction:'none',userSelect:'none',WebkitUserSelect:'none',WebkitTouchCallout:'none',overscrollBehavior:'none'} as any):null,
        held[direction===-1?'up':'down']&&styles.controlHeld]}
-     ><Text selectable={false} style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></Pressable>)}
+     ><Text style={styles.paddleControlText}>{direction===-1?loc('▲  YUKARI','▲  UP'):loc('▼  AŞAĞI','▼  DOWN')}</Text></Pressable>)}
     </View>
     {!compactControls&&<Muted style={{textAlign:'center'}}>{loc('Hareket ettirmek için tuşa basılı tut.','Hold the button to move.')}</Muted>}
     {controlError&&<Muted style={styles.error}>{loc('Kontrol hatası:','Control error:')} {controlError}</Muted>}
