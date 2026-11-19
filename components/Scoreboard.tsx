@@ -1,3 +1,4 @@
+import { CaptainTransfer } from './CaptainTransfer';
 import { translate, useLanguage } from '../lib/i18n';
 import React, {memo} from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -28,6 +29,7 @@ export const Scoreboard=memo(function Scoreboard({ ctx }: { ctx: Ctx }) {
   return (
     <View style={s.wrap}>
       <PlayerManager ctx={ctx} />
+      <CaptainTransfer ctx={ctx} />
       <View style={s.topRow}>
         <Text style={s.roomCode}>{translate("ODA")} {data.room.code}</Text>
         {currentRound && data.room.phase === 'question' && (

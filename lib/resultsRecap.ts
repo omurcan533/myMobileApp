@@ -14,7 +14,7 @@ export function shortMatchRecap(results: GameResults, en = false): string {
 
 /** Stable during rerenders, varied by match and seat; claims use only personal records. */
 export function shortPlayerQuip(player: Player, index: number, data: RoomData, friends: FriendScore[], ages: AgeScore[], en = false): string {
-  const match = [data.room?.id, data.rounds?.at(-1)?.id, data.minigames?.at(-1)?.id].join(':');
+  const match = [data.room?.id, data.rounds?.[data.rounds.length - 1]?.id, data.minigames?.[data.minigames.length - 1]?.id].join(':');
   const seed = [...match].reduce((hash, char) => (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0, 0);
   const pick = (tr: string[], english: string[]) => {
     const pool = en ? english : tr;

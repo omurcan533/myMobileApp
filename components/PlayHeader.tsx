@@ -26,6 +26,7 @@ export function PlayHeader({ctx,left,label,instructions,onPause,onJoker,busy=fal
    <Pressable accessibilityRole="button" accessibilityLabel={translate("Oyun menüsü ve kurallar")} onPress={()=>setOpen(true)} style={s.menu}><Ionicons name="ellipsis-horizontal" color={colors.text} size={22}/></Pressable>
   </View>
   <View style={s.pauseRow}>
+   {onJoker&&<Btn title={format("Joker ({0})", ctx.data.teams.find(team=>team.side===ctx.me.team_side)?.jokers_left??0)} icon="sparkles" size="sm" tone="gold" disabled={busy||ctx.data.room.paused} onPress={onJoker}/>}
    <Btn title={ctx.data.room.paused?translate("Devam Et"):ctx.me.is_captain?translate("Mola"):translate("Mola · Kaptan")} icon={ctx.data.room.paused?'play':'pause'} size="sm" tone="ghost" disabled={busy||!ctx.me.is_captain} onPress={onPause}/>
   </View>
   <Sheet visible={open} onClose={()=>setOpen(false)}>
@@ -40,7 +41,7 @@ export function PlayHeader({ctx,left,label,instructions,onPause,onJoker,busy=fal
  </>;
 }
 const s=StyleSheet.create({
- pauseRow:{flexShrink:0,alignItems:'flex-end',marginBottom:6},
+ pauseRow:{flexShrink:0,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:6},
  row:{height:48,flexShrink:0,flexDirection:'row',alignItems:'center',gap:6,marginBottom:6},
  team:{flex:1,minWidth:0,height:44,borderWidth:1,borderRadius:12,backgroundColor:'#101C31',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:6,gap:4},
  score:{color:colors.text,fontSize:20,fontWeight:'900',flexShrink:1},

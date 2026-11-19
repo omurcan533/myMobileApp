@@ -1,5 +1,13 @@
 // English counterparts for authored UI copy. Never apply this dictionary to player-entered text.
 export const ENGLISH_COPY: Record<string, string> = {
+  "Kaptanlığı Devret": "Transfer captaincy",
+  "Kaptanlığı {0} oyuncusuna devretmek istiyor musun?": "Transfer captaincy to {0}?",
+  "Devret": "Transfer",
+  "Takımında kaptanlığı devredebileceğin oyuncu yok.": "There is no teammate to transfer captaincy to.",
+  "Bu işlemi yalnızca takım kaptanı yapabilir.": "Only the team captain can do this.",
+  "Kendi takımından başka bir oyuncu seç.": "Choose another player on your team.",
+  "Hata ayrıntıları": "Error details",
+  "Joker ({0})": "Joker ({0})",
   "Panda": "Panda",
   "Tavşan": "Rabbit",
   "Kurt": "Wolf",

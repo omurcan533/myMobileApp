@@ -81,7 +81,8 @@ const MESSAGES: Record<string, string> = {
   duel_finished: 'Zar düellosu tamamlandı.',
   captain_duel_in_progress: 'Önce kaptanlık zar düellosu tamamlanmalı.',
   game_not_live: 'Parkur henüz başlamadı veya süresi doldu.',
-  not_captain: 'Fayansları yalnızca takım kaptanı seçebilir.',
+  not_captain: 'Bu işlemi yalnızca takım kaptanı yapabilir.',
+  invalid_captain_target: 'Kendi takımından başka bir oyuncu seç.',
   run_finished: 'Parkur zaten tamamlandı.',
   missing_survivor_board: 'Parkur verisi bulunamadı. Yeni oyun başlat.',
   invalid_survivor_path: 'Parkur verisi hatalı. Yeni oyun başlat.',
@@ -137,6 +138,7 @@ export const api = {
     rpc<{ correct?: boolean; locked_until?: string; suggested?: boolean }>('submit_answer', { p_round: round, p_body: body }),
   submitFinal: (round: string, body: string) =>
     rpc<{ correct: boolean }>('submit_final', { p_round: round, p_body: body }),
+  transferCaptain: (room: string, player: string) => rpc<void>('transfer_team_captain', { p_room: room, p_player: player }),
   playJoker: (room: string) => rpc<string>('use_joker', { p_room: room }),
   buyLetter: (round: string) => rpc<{ pos: number; letter: string }>('buy_letter', { p_round: round }),
   togglePause: (room: string) => rpc<boolean>('toggle_pause', { p_room: room }),
