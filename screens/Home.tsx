@@ -272,13 +272,13 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
           <View style={s.topActions}>
             <Tap
               accessibilityRole="button"
-              accessibilityLabel={simple ? translate("Normal görünüme geç") : translate("Basit görünüme geç")}
+              accessibilityLabel={simple ? translate("Detaylı görünüme geç") : translate("Normal görünüme geç")}
               disabled={savingAppearance}
               onPress={() => { void changeAppearance(simple ? 'normal' : 'simple'); }}
               style={[s.appearanceShortcut, simple && s.appearanceShortcutActive, savingAppearance && { opacity: 0.5 }]}
             >
               <Ionicons name={simple ? 'albums-outline' : 'apps-outline'} size={16} color={colors.cyan} />
-              <Text style={s.appearanceShortcutLabel}>{simple ? translate("Normal") : translate("Basit")}</Text>
+              <Text style={s.appearanceShortcutLabel}>{simple ? translate("Detaylı") : translate("Normal")}</Text>
             </Tap>
             <IconBtn
               icon={sound ? 'volume-high' : 'volume-mute'}
@@ -744,7 +744,7 @@ export function HomeScreen({ onEnter, avatarId, onAvatarChange, onAccountDeleted
                           style={[s.appearanceOption, appearance === option && s.appearanceOptionSelected]}
                         >
                           <Ionicons name={option === 'normal' ? 'apps-outline' : 'albums-outline'} size={17} color={appearance === option ? '#AFE4FF' : colors.muted} />
-                          <Text style={s.appearanceLabel}>{option === 'normal' ? translate("Normal") : translate("Basit")}</Text>
+                          <Text style={s.appearanceLabel}>{option === 'normal' ? translate("Detaylı") : translate("Normal")}</Text>
                         </Pressable>
                       ))}
                     </View>

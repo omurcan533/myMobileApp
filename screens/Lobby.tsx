@@ -399,7 +399,7 @@ export function LobbyScreen({ ctx }: { ctx: Ctx }) {
             (pressed || savingAppearance) && s.normalViewLinkPressed,
           ]}
         >
-          <Text style={s.normalViewLabel}>{translate("Basit görünüme geç")}</Text>
+          <Text style={s.normalViewLabel}>{translate("Normal görünüme geç")}</Text>
         </Pressable>
       )}
       <ScrollView ref={scrollRef} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
@@ -530,7 +530,7 @@ function CompactLobbyPanel({ panel, onChange, onNormalPress, savingAppearance, f
             onPress={onNormalPress}
             style={({ pressed }) => [s.normalViewLink, (pressed || savingAppearance) && s.normalViewLinkPressed]}
           >
-            <Text style={s.normalViewLabel}>{translate("Normal görünüme geç")}</Text>
+            <Text style={s.normalViewLabel}>{translate("Detaylı görünüme geç")}</Text>
           </Pressable>
         </View>
         {panel === 'invite' && <Muted>{translate("Arkadaşların bu kodla odaya katılabilir.")}</Muted>}
